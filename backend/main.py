@@ -29,6 +29,7 @@ class Product(Base):
     size = Column(String, default="")
     load_rating = Column(String, default="")
     material = Column(String, default="FRP")
+    color = Column(String, default="Grey")
     unit = Column(String, default="Nos")
     hsn_code = Column(String, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -130,6 +131,47 @@ class Settings(Base):
 @app.on_event("startup")
 def startup_event():
     Base.metadata.create_all(bind=engine)
+    seed_data()
+
+
+def seed_data():
+    db = SessionLocal()
+    try:
+        if db.query(Product).count() > 0:
+            return
+
+        import hashlib
+        admin = db.query(User).filter(User.username == "admin").first()
+        if not admin:
+            admin = User(username="admin", password_hash=hashlib.sha256("admin123".encode()).hexdigest(), role="admin")
+            db.add(admin)
+            db.commit()
+
+        categories = ["Manhole Cover", "Gully Cover", "Frames", "Gratings", "Accessories"]
+        square_sizes = [f"{s}x{s}" for s in range(10, 38, 2)]
+        rect_sizes = ["12x18", "12x24", "18x24"]
+        colors = ["Grey", "White"]
+        load_ratings = ["5 Ton", "10 Ton", "12.5 Ton", "25 Ton", "40 Ton"]
+        hsn_codes = {"Manhole Cover": "6914", "Gully Cover": "6914", "Frames": "6914", "Gratings": "6914", "Accessories": "6914"}
+
+        pid = 1
+        for cat in categories:
+            sizes = square_sizes if cat in ["Manhole Cover", "Gully Cover", "Frames"] else square_sizes[:6] + rect_sizes
+            for color in colors:
+                for size in sizes:
+                    for lr in load_ratings:
+                        name = f"{cat} {size}mm {color} {lr}"
+                        p = Product(id=pid, name=name, category=cat, size=size, load_rating=lr, material="FRP", color=color, hsn_code=hsn_codes.get(cat, "6914"))
+                        db.add(p)
+                        db.flush()
+                        db.add(Pricing(product_id=p.id, profit_margin=20, gst_rate=18))
+                        db.add(Stock(product_id=p.id, quantity=0, min_stock=10))
+                        pid += 1
+
+        db.commit()
+        print(f"Seeded {pid - 1} products")
+    finally:
+        db.close()
 
 
 class ProductIn(BaseModel):
@@ -138,6 +180,7 @@ class ProductIn(BaseModel):
     size: str = ""
     load_rating: str = ""
     material: str = "FRP"
+    color: str = "Grey"
     unit: str = "Nos"
     hsn_code: str = ""
 
@@ -200,7 +243,7 @@ def list_products():
             out.append({
                 "id": p.id, "name": p.name, "category": p.category,
                 "size": p.size, "load_rating": p.load_rating,
-                "material": p.material, "unit": p.unit, "hsn_code": p.hsn_code,
+                "material": p.material, "color": p.color, "unit": p.unit, "hsn_code": p.hsn_code,
                 "stock": stock_qty, "mrp": mrp
             })
         return out
