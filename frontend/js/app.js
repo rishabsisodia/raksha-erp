@@ -104,28 +104,10 @@ async function openPricing(id) {
     try {
         var pr = await api('/api/products/' + id + '/pricing');
         $('f-praw').value = pr.raw_material_cost || 0;
-        $('f-plabor').value = pr.labor_cost || 0;
-        $('f-pover').value = pr.overhead_cost || 0;
-        $('f-ppack').value = pr.packing_cost || 0;
-        $('f-pmargin').value = pr.profit_margin || 20;
         $('f-pgst').value = pr.gst_rate || 18;
-        calcPricing();
+        $('pv-mrp').textContent = fmt(pr.mrp || 0);
     } catch(e) {}
     showModal('m-pricing');
-}
-
-function calcPricing() {
-    var raw = parseFloat($('f-praw').value) || 0;
-    var labor = parseFloat($('f-plabor').value) || 0;
-    var over = parseFloat($('f-pover').value) || 0;
-    var pack = parseFloat($('f-ppack').value) || 0;
-    var margin = parseFloat($('f-pmargin').value) || 20;
-    var tc = raw + labor + over + pack;
-    var mrp = tc * (1 + margin / 100);
-    $('pv-cost').textContent = fmt(tc);
-    $('pv-mrp').textContent = fmt(mrp);
-    $('pv-dealer').textContent = fmt(mrp * 0.85);
-    $('pv-dist').textContent = fmt(mrp * 0.75);
 }
 
 async function loadStock() {
@@ -352,10 +334,10 @@ $('f-pricing').addEventListener('submit', async function(e) {
     e.preventDefault();
     var data = {
         raw_material_cost: parseFloat($('f-praw').value) || 0,
-        labor_cost: parseFloat($('f-plabor').value) || 0,
-        overhead_cost: parseFloat($('f-pover').value) || 0,
-        packing_cost: parseFloat($('f-ppack').value) || 0,
-        profit_margin: parseFloat($('f-pmargin').value) || 20,
+        labor_cost: 0,
+        overhead_cost: 0,
+        packing_cost: 0,
+        profit_margin: 0,
         gst_rate: parseFloat($('f-pgst').value) || 18
     };
     await api('/api/products/' + $('f-prpid').value + '/pricing', {method: 'PUT', body: JSON.stringify(data)});

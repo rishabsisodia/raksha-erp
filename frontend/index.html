@@ -153,23 +153,10 @@
             <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg">Set Pricing</h3><button onclick="hideModal('m-pricing')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
             <form id="f-pricing" class="p-5 space-y-3">
                 <input type="hidden" id="f-prpid">
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Raw Material</label><input type="number" step="0.01" id="f-praw" class="w-full border rounded px-3 py-2" oninput="calcPricing()"></div>
-                    <div><label class="block text-sm">Labor</label><input type="number" step="0.01" id="f-plabor" class="w-full border rounded px-3 py-2" oninput="calcPricing()"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Overhead</label><input type="number" step="0.01" id="f-pover" class="w-full border rounded px-3 py-2" oninput="calcPricing()"></div>
-                    <div><label class="block text-sm">Packing</label><input type="number" step="0.01" id="f-ppack" class="w-full border rounded px-3 py-2" oninput="calcPricing()"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Profit Margin %</label><input type="number" step="0.01" id="f-pmargin" class="w-full border rounded px-3 py-2" oninput="calcPricing()"></div>
-                    <div><label class="block text-sm">GST Rate %</label><input type="number" step="0.01" id="f-pgst" class="w-full border rounded px-3 py-2"></div>
-                </div>
+                <label class="block text-sm">Purchase Price</label><input type="number" step="0.01" id="f-praw" class="w-full border rounded px-3 py-2">
+                <label class="block text-sm">GST Rate %</label><input type="number" step="0.01" id="f-pgst" class="w-full border rounded px-3 py-2">
                 <div class="bg-indigo-50 rounded p-3 mt-2 text-sm space-y-1">
-                    <div class="flex justify-between"><span>Total Cost:</span><span id="pv-cost" class="font-bold">0</span></div>
                     <div class="flex justify-between"><span>MRP:</span><span id="pv-mrp" class="font-bold text-green-600">0</span></div>
-                    <div class="flex justify-between"><span>Dealer (85%):</span><span id="pv-dealer" class="font-bold">0</span></div>
-                    <div class="flex justify-between"><span>Distributor (75%):</span><span id="pv-dist" class="font-bold">0</span></div>
                 </div>
                 <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700 mt-2">Save Pricing</button>
             </form>
