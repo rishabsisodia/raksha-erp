@@ -134,13 +134,13 @@
             <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg" id="m-product-title">Add Product</h3><button onclick="hideModal('m-product')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
             <form id="f-product" class="p-5 space-y-3">
                 <input type="hidden" id="f-pid">
-                <label class="block text-sm">Name *</label><input type="text" id="f-pname" required class="w-full border rounded px-3 py-2">
+                <label class="block text-sm">Description *</label><input type="text" id="f-pname" required class="w-full border rounded px-3 py-2">
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Category</label><select id="f-pcat" class="w-full border rounded px-3 py-2"><option>Manhole Cover</option><option>Frame</option><option>Grating</option><option>Accessory</option></select></div>
-                    <div><label class="block text-sm">Size</label><input type="text" id="f-psize" class="w-full border rounded px-3 py-2" placeholder="600x600"></div>
+                    <div><label class="block text-sm">Category</label><select id="f-pcat" class="w-full border rounded px-3 py-2"><option>Manhole Cover</option><option>Gully Cover</option><option>Gratings</option><option>Frames</option><option>Lock(s)</option><option>Hinges</option></select></div>
+                    <div><label class="block text-sm">Size (mm)</label><input type="text" id="f-psize" class="w-full border rounded px-3 py-2" placeholder="600x600"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-sm">Load Rating</label><select id="f-pload" class="w-full border rounded px-3 py-2"><option>A15</option><option>B125</option><option>C250</option><option>D400</option><option>E600</option><option>F900</option></select></div>
+                    <div><label class="block text-sm">Load Rating</label><select id="f-pload" class="w-full border rounded px-3 py-2"><option>2.5 Ton</option><option>5 Ton</option><option>10 Ton</option><option>12.5 Ton</option><option>25 Ton</option><option>40 Ton</option></select></div>
                     <div><label class="block text-sm">HSN Code</label><input type="text" id="f-phsn" class="w-full border rounded px-3 py-2"></div>
                 </div>
                 <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 mt-2">Save</button>
