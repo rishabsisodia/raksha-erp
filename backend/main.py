@@ -218,7 +218,76 @@ def startup_event():
             conn.commit()
         except Exception:
             pass
+    backfill_part_numbers()
     seed_data()
+
+
+PART_NO_MAP = {
+    "FRP Manhole Cover 10 X 10 Grey": "FRP01101-GRY",
+    "FRP Manhole Cover 12 X 12 Grey": "FRP01103-GRY",
+    "FRP Manhole Cover 15 X 15 Grey": "FRP01106-GRY",
+    "FRP Manhole Cover 18 X 18 Grey": "FRP01109-GRY",
+    "FRP Manhole Cover 21 X 21 Grey": "FRP01112-GRY",
+    "FRP Manhole Cover 24 X 24 Grey": "FRP01115-GRY",
+    "FRP Manhole Cover 26 X 26 Grey": "FRP01117-GRY",
+    "FRP Manhole Cover 28 X 28 Grey": "FRP01119-GRY",
+    "FRP Manhole Cover 30 X 30 Grey": "FRP01121-GRY",
+    "FRP Manhole Cover 36 X 36 Grey": "FRP01127-GRY",
+    "FRP Manhole Cover 12 X 18 Grey": "FRP04106-GRY",
+    "FRP Manhole Cover 12 X 24 Grey": "FRP04112-GRY",
+    "FRP Manhole Cover 18 X 24 Grey": "FRP10106-GRY",
+    "FRP Manhole Cover 10 X 10 White": "FRP01101-WH",
+    "FRP Manhole Cover 12 X 12 White": "FRP01103-WH",
+    "FRP Manhole Cover 15 X 15 White": "FRP01106-WH",
+    "FRP Manhole Cover 18 X 18 White": "FRP01109-WH",
+    "FRP Manhole Cover 21 X 21 White": "FRP01112-WH",
+    "FRP Manhole Cover 24 X 24 White": "FRP01115-WH",
+    "FRP Manhole Cover 26 X 26 White": "FRP01117-WH",
+    "FRP Manhole Cover 28 X 28 White": "FRP01119-WH",
+    "FRP Manhole Cover 30 X 30 White": "FRP01121-WH",
+    "FRP Manhole Cover 36 X 36 White": "FRP01127-WH",
+    "FRP Manhole Cover 12 X 18 White": "FRP04106-WH",
+    "FRP Manhole Cover 12 X 24 White": "FRP04112-WH",
+    "FRP Manhole Cover 18 X 24 White": "FRP10106-WH",
+    "FRP Manhole Cover 21 X 21 Grey With Lock": "FRP01112-GRYL",
+    "FRP Manhole Cover 24 X 24 Grey With Lock": "FRP01115-GRYL",
+    "FRP Manhole Cover 26 X 26 Grey With Lock": "FRP01117-GRYL",
+    "FRP Manhole Cover 28 X 28 Grey With Lock": "FRP01119-GRYL",
+    "FRP Manhole Cover 30 X 30 Grey With Lock": "FRP01121-GRYL",
+    "FRP Manhole Cover 36 X 36 Grey With Lock": "FRP01127-GRYL",
+    "FRP Manhole Cover 21 X 21 White With Lock": "FRP01112-WHL",
+    "FRP Manhole Cover 24 X 24 White With Lock": "FRP01115-WHL",
+    "FRP Manhole Cover 26 X 26 White With Lock": "FRP01117-WHL",
+    "FRP Manhole Cover 28 X 28 White With Lock": "FRP01119-WHL",
+    "FRP Manhole Cover 30 X 30 White With Lock": "FRP01121-WHL",
+    "FRP Manhole Cover 36 X 36 White With Lock": "FRP01127-WHL",
+    "RAKSHA Gully Cover 10 X 10 Grey": "RGC00001-GRY",
+    "RAKSHA Gully Cover 12 X 12 Grey": "RGC00002-GRY",
+    "RAKSHA Gully Cover 15 X 15 Grey": "RGC00003-GRY",
+    "RAKSHA Gully Cover 18 X 18 Grey": "RGC00004-GRY",
+    "RAKSHA Gully Cover 24 X 24 Grey": "RGC00005-GRY",
+    "RAKSHA Gully Cover 10 X 10 White": "RGC00001-WH",
+    "RAKSHA Gully Cover 12 X 12 White": "RGC00002-WH",
+    "RAKSHA Gully Cover 15 X 15 White": "RGC00003-WH",
+    "RAKSHA Gully Cover 18 X 18 White": "RGC00004-WH",
+    "RAKSHA Gully Cover 24 X 24 White": "RGC00005-WH",
+}
+
+
+def backfill_part_numbers():
+    db = SessionLocal()
+    try:
+        updated = 0
+        for p in db.query(Product).filter(Product.part_no == "").all():
+            pn = PART_NO_MAP.get(p.name)
+            if pn:
+                p.part_no = pn
+                updated += 1
+        if updated:
+            db.commit()
+            print(f"Backfilled part_no for {updated} products")
+    finally:
+        db.close()
 
 
 def seed_data():
