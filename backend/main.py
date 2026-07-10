@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from fastapi.responses import FileResponse
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from pydantic import BaseModel
 from typing import Optional
@@ -214,7 +214,7 @@ def startup_event():
     Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
         try:
-            conn.execute(__import__("sqlalchemy").text("ALTER TABLE products ADD COLUMN IF NOT EXISTS part_no VARCHAR DEFAULT ''"))
+            conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS part_no VARCHAR DEFAULT ''"))
             conn.commit()
         except Exception:
             pass
@@ -278,7 +278,7 @@ def backfill_part_numbers():
     db = SessionLocal()
     try:
         updated = 0
-        for p in db.query(Product).filter(Product.part_no == "").all():
+        for p in db.query(Product).filter((Product.part_no == "") | (Product.part_no.is_(None))).all():
             pn = PART_NO_MAP.get(p.name)
             if pn:
                 p.part_no = pn
