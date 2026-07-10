@@ -196,9 +196,17 @@ class Token(Base):
 
 @app.get("/api/db-info")
 def db_info():
-    url = os.environ.get("DATABASE_URL", "NOT SET")
-    is_pg = url.startswith("postgresql://") or url.startswith("postgres://")
-    return {"database_url_prefix": url[:30] + "...", "is_postgresql": is_pg}
+    db_url = os.environ.get("DATABASE_URL")
+    has_key = "DATABASE_URL" in os.environ
+    if db_url:
+        masked = db_url[:20] + "...(masked)"
+    else:
+        masked = None
+    return {
+        "has_database_url_key": has_key,
+        "db_url_preview": masked,
+        "env_key_count": len(os.environ)
+    }
 
 
 @app.on_event("startup")
