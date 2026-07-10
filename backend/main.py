@@ -194,6 +194,13 @@ class Token(Base):
     user = relationship("User")
 
 
+@app.get("/api/db-info")
+def db_info():
+    url = os.environ.get("DATABASE_URL", "NOT SET")
+    is_pg = url.startswith("postgresql://") or url.startswith("postgres://")
+    return {"database_url_prefix": url[:30] + "...", "is_postgresql": is_pg}
+
+
 @app.on_event("startup")
 def startup_event():
     Base.metadata.create_all(bind=engine)

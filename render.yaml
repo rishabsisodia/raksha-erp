@@ -14,5 +14,5 @@
 
 databases:
   - name: raksha-erp-db
-    plan: free
+    plan: paid
     databaseName: raksha_erp
