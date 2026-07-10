@@ -509,6 +509,25 @@ class StockIn(BaseModel):
 
 
 # ---- PRODUCTS ----
+SIZE_ORDER = {
+    "10x10": 1, "250x250": 1,
+    "12x12": 2, "300x300": 2,
+    "15x15": 3, "380x380": 3,
+    "18x18": 4, "450x450": 4,
+    "21x21": 5, "535x535": 5,
+    "24x24": 6, "600x600": 6,
+    "26x26": 7, "660x660": 7,
+    "28x28": 8, "710x710": 8,
+    "30x30": 9, "760x760": 9,
+    "36x36": 10, "900x900": 10,
+    "42x42": 11, "1065x1065": 11,
+    "12x18": 12, "300x450": 12,
+    "12x24": 13, "300x600": 13,
+    "18x24": 14, "450x600": 14,
+}
+COLOR_ORDER = {"Grey": 0, "White": 1}
+CATEGORY_ORDER = {"Manhole Cover": 0, "Gully Cover": 1}
+
 @app.get("/api/products")
 def list_products():
     db = SessionLocal()
@@ -524,6 +543,14 @@ def list_products():
                 "material": p.material, "color": p.color, "unit": p.unit, "hsn_code": p.hsn_code,
                 "stock": stock_qty, "mrp": mrp
             })
+        def sort_key(p):
+            cat = CATEGORY_ORDER.get(p["category"], 99)
+            color = COLOR_ORDER.get(p["color"], 2)
+            sz = SIZE_ORDER.get((p["size"] or "").lower().strip(), 99)
+            name = p["name"] or ""
+            has_lock = 1 if "lock" in name.lower() else 0
+            return (cat, color, has_lock, sz)
+        out.sort(key=sort_key)
         return out
     finally:
         db.close()
