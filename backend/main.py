@@ -97,6 +97,27 @@ class Customer(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Transporter(Base):
+    __tablename__ = "transporters"
+    id = Column(Integer, primary_key=True, index=True)
+    transporter_id = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
+    phone = Column(String, default="")
+    email = Column(String, default="")
+    address = Column(Text, default="")
+    state = Column(String, default="")
+    district = Column(String, default="")
+    city = Column(String, default="")
+    pincode = Column(String, default="")
+    vehicle_no = Column(String, default="")
+    vehicle_type = Column(String, default="")
+    gst_number = Column(String, default="")
+    pan_number = Column(String, default="")
+    contact_person = Column(String, default="")
+    contact_number = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Sale(Base):
     __tablename__ = "sales"
     id = Column(Integer, primary_key=True, index=True)
@@ -296,6 +317,24 @@ class CustomerIn(BaseModel):
     exec_number: str = ""
     exec_email: str = ""
     blacklisted: int = 0
+
+
+class TransporterIn(BaseModel):
+    transporter_id: str
+    name: str
+    phone: str = ""
+    email: str = ""
+    address: str = ""
+    state: str = ""
+    district: str = ""
+    city: str = ""
+    pincode: str = ""
+    vehicle_no: str = ""
+    vehicle_type: str = ""
+    gst_number: str = ""
+    pan_number: str = ""
+    contact_person: str = ""
+    contact_number: str = ""
 
 
 class SaleIn(BaseModel):
@@ -566,6 +605,65 @@ def delete_customer(cid: int):
         if not c:
             raise HTTPException(404, "Not found")
         db.delete(c)
+        db.commit()
+        return {"message": "Deleted"}
+    finally:
+        db.close()
+
+
+# ---- TRANSPORTERS ----
+@app.get("/api/transporters")
+def list_transporters():
+    db = SessionLocal()
+    try:
+        rows = db.query(Transporter).all()
+        return [{"id": t.id, "transporter_id": t.transporter_id, "name": t.name,
+                 "phone": t.phone, "email": t.email, "address": t.address,
+                 "state": t.state, "district": t.district, "city": t.city, "pincode": t.pincode,
+                 "vehicle_no": t.vehicle_no, "vehicle_type": t.vehicle_type,
+                 "gst_number": t.gst_number, "pan_number": t.pan_number,
+                 "contact_person": t.contact_person, "contact_number": t.contact_number}
+                for t in rows]
+    finally:
+        db.close()
+
+
+@app.post("/api/transporters")
+def create_transporter(inp: TransporterIn):
+    db = SessionLocal()
+    try:
+        t = Transporter(**inp.dict())
+        db.add(t)
+        db.commit()
+        db.refresh(t)
+        return {"id": t.id, "message": "Transporter created"}
+    finally:
+        db.close()
+
+
+@app.put("/api/transporters/{tid}")
+def update_transporter(tid: int, inp: TransporterIn):
+    db = SessionLocal()
+    try:
+        t = db.query(Transporter).filter(Transporter.id == tid).first()
+        if not t:
+            raise HTTPException(404, "Not found")
+        for k, v in inp.dict().items():
+            setattr(t, k, v)
+        db.commit()
+        return {"message": "Updated"}
+    finally:
+        db.close()
+
+
+@app.delete("/api/transporters/{tid}")
+def delete_transporter(tid: int):
+    db = SessionLocal()
+    try:
+        t = db.query(Transporter).filter(Transporter.id == tid).first()
+        if not t:
+            raise HTTPException(404, "Not found")
+        db.delete(t)
         db.commit()
         return {"message": "Deleted"}
     finally:

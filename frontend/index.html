@@ -18,6 +18,7 @@
             <a href="#" onclick="go('products',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-box w-5 mr-3"></i>Products</a>
             <a href="#" onclick="go('stock',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-warehouse w-5 mr-3"></i>Stock</a>
             <a href="#" onclick="go('customers',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-users w-5 mr-3"></i>Customers</a>
+            <a href="#" onclick="go('transporters',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-truck w-5 mr-3"></i>Transporters</a>
             <a href="#" onclick="go('sales',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-shopping-cart w-5 mr-3"></i>Sales</a>
             <a href="#" onclick="go('expenses',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-receipt w-5 mr-3"></i>Expenses</a>
             <a href="#" onclick="go('reports',this)" class="nav-btn block px-4 py-3 rounded-lg mb-2 hover:bg-indigo-700"><i class="fas fa-chart-line w-5 mr-3"></i>Reports</a>
@@ -92,6 +93,24 @@
                     <th class="px-2 py-2 text-left">Phone</th><th class="px-2 py-2 text-left">Executive</th>
                     <th class="px-2 py-2 text-left">Status</th><th class="px-2 py-2 text-left">Actions</th>
                 </tr></thead><tbody id="t-customers"></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <div id="p-transporters" class="hidden">
+            <div class="bg-white rounded-xl shadow p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold">Transporters</h3>
+                    <button onclick="showModal('m-transporter')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Transporter</button>
+                </div>
+                <div class="overflow-x-auto">
+                <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
+                    <th class="px-2 py-2 text-left">Transporter ID</th><th class="px-2 py-2 text-left">Name</th>
+                    <th class="px-2 py-2 text-left">Phone</th><th class="px-2 py-2 text-left">Vehicle No</th>
+                    <th class="px-2 py-2 text-left">Vehicle Type</th><th class="px-2 py-2 text-left">State</th>
+                    <th class="px-2 py-2 text-left">GST Number</th><th class="px-2 py-2 text-left">Contact Person</th>
+                    <th class="px-2 py-2 text-left">Actions</th>
+                </tr></thead><tbody id="t-transporters"></tbody></table>
                 </div>
             </div>
         </div>
@@ -219,6 +238,46 @@
                     </div>
                 </div>
                 <label class="block text-sm"><input type="checkbox" id="f-cblacklisted" class="mr-2">Blacklisted</label>
+                <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 mt-2">Save</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="m-transporter" class="modal-bg hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+        <div class="bg-white rounded-xl w-full max-w-2xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-5 border-b flex justify-between"><h3 class="font-bold text-lg" id="m-trans-title">Add Transporter</h3><button onclick="hideModal('m-transporter')" class="text-gray-400 hover:text-gray-700 text-xl">&times;</button></div>
+            <form id="f-transporter" class="p-5 space-y-3">
+                <input type="hidden" id="f-tid">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-sm">Transporter ID *</label><input type="text" id="f-ttransid" required class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm">Name *</label><input type="text" id="f-tname" required class="w-full border rounded px-3 py-2"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-sm">Phone</label><input type="tel" id="f-tphone" maxlength="10" class="w-full border rounded px-3 py-2" placeholder="10 digits"></div>
+                    <div><label class="block text-sm">Email</label><input type="email" id="f-temail" class="w-full border rounded px-3 py-2" placeholder="name@domain.com"></div>
+                </div>
+                <div><label class="block text-sm">Address</label><textarea id="f-taddr" class="w-full border rounded px-3 py-2" rows="2"></textarea></div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div><label class="block text-sm">State</label><select id="f-tstate" class="w-full border rounded px-3 py-2"><option value="">Select</option><option>Andhra Pradesh</option><option>Arunachal Pradesh</option><option>Assam</option><option>Bihar</option><option>Chhattisgarh</option><option>Goa</option><option>Gujarat</option><option>Haryana</option><option>Himachal Pradesh</option><option>Jharkhand</option><option>Karnataka</option><option>Kerala</option><option>Madhya Pradesh</option><option>Maharashtra</option><option>Manipur</option><option>Meghalaya</option><option>Mizoram</option><option>Nagaland</option><option>Odisha</option><option>Punjab</option><option>Rajasthan</option><option>Sikkim</option><option>Tamil Nadu</option><option>Telangana</option><option>Tripura</option><option>Uttar Pradesh</option><option>Uttarakhand</option><option>West Bengal</option><option>Andaman and Nicobar Islands</option><option>Chandigarh</option><option>Dadra and Nagar Haveli and Daman and Diu</option><option>Delhi</option><option>Jammu and Kashmir</option><option>Ladakh</option><option>Lakshadweep</option><option>Puducherry</option></select></div>
+                    <div><label class="block text-sm">District</label><input type="text" id="f-tdistrict" class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm">City</label><input type="text" id="f-tcity" class="w-full border rounded px-3 py-2"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-sm">Pincode</label><input type="text" id="f-tpincode" maxlength="6" class="w-full border rounded px-3 py-2" placeholder="6 digits"></div>
+                    <div><label class="block text-sm">Vehicle Type</label><select id="f-tvtype" class="w-full border rounded px-3 py-2"><option value="">Select</option><option>Truck</option><option>Tempo</option><option>Trailer</option><option>Other</option></select></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-sm">Vehicle No</label><input type="text" id="f-tvehicle" class="w-full border rounded px-3 py-2" placeholder="MH-12-AB-1234"></div>
+                    <div><label class="block text-sm">GST Number</label><input type="text" id="f-tgst" class="w-full border rounded px-3 py-2"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-sm">PAN Number</label><input type="text" id="f-tpan" maxlength="10" class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm">Contact Person</label><input type="text" id="f-tcontactperson" class="w-full border rounded px-3 py-2"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-sm">Contact Number</label><input type="tel" id="f-tcontactnum" maxlength="10" class="w-full border rounded px-3 py-2" placeholder="10 digits"></div>
+                    <div></div>
+                </div>
                 <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 mt-2">Save</button>
             </form>
         </div>

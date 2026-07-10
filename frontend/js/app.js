@@ -9,12 +9,13 @@ function go(page, el) {
     document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('bg-indigo-700'); });
     $('p-' + page).classList.remove('hidden');
     if (el) el.classList.add('bg-indigo-700');
-    var t = {dashboard:'Dashboard',products:'Products',stock:'Stock Management',customers:'Customers',sales:'Sales',expenses:'Expenses',reports:'Reports'};
+    var t = {dashboard:'Dashboard',products:'Products',stock:'Stock Management',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports'};
     $('pg-title').textContent = t[page] || page;
     if (page === 'dashboard') loadDashboard();
     if (page === 'products') loadProducts();
     if (page === 'stock') loadStock();
     if (page === 'customers') loadCustomers();
+    if (page === 'transporters') loadTransporters();
     if (page === 'sales') loadSales();
     if (page === 'expenses') loadExpenses();
     if (page === 'reports') loadReport();
@@ -154,6 +155,58 @@ async function loadCustomers() {
         h += '</td></tr>';
     });
     $('t-customers').innerHTML = h || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No customers</td></tr>';
+}
+
+var _transporters = [];
+async function loadTransporters() {
+    _transporters = await api('/api/transporters');
+    var h = '';
+    _transporters.forEach(function(t) {
+        h += '<tr class="border-b hover:bg-gray-50">';
+        h += '<td class="px-2 py-2 font-medium">' + (t.transporter_id || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (t.name || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (t.phone || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (t.vehicle_no || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (t.vehicle_type || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (t.state || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (t.gst_number || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + (t.contact_person || '-') + '</td>';
+        h += '<td class="px-2 py-2">';
+        h += '<button onclick="editTransporter(' + t.id + ')" class="text-blue-600 hover:text-blue-800 mr-2" title="Edit"><i class="fas fa-pen"></i></button>';
+        h += '<button onclick="deleteTransporter(' + t.id + ')" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '</td></tr>';
+    });
+    $('t-transporters').innerHTML = h || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No transporters</td></tr>';
+}
+
+function editTransporter(id) {
+    var t = _transporters.find(function(x) { return x.id === id; });
+    if (!t) return;
+    $('f-tid').value = t.id;
+    $('f-ttransid').value = t.transporter_id || '';
+    $('f-tname').value = t.name || '';
+    $('f-tphone').value = t.phone || '';
+    $('f-temail').value = t.email || '';
+    $('f-taddr').value = t.address || '';
+    $('f-tstate').value = t.state || '';
+    $('f-tdistrict').value = t.district || '';
+    $('f-tcity').value = t.city || '';
+    $('f-tpincode').value = t.pincode || '';
+    $('f-tvtype').value = t.vehicle_type || '';
+    $('f-tvehicle').value = t.vehicle_no || '';
+    $('f-tgst').value = t.gst_number || '';
+    $('f-tpan').value = t.pan_number || '';
+    $('f-tcontactperson').value = t.contact_person || '';
+    $('f-tcontactnum').value = t.contact_number || '';
+    $('m-trans-title').textContent = 'Edit Transporter';
+    showModal('m-transporter');
+}
+
+async function deleteTransporter(id) {
+    if (!confirm('Delete this transporter?')) return;
+    await api('/api/transporters/' + id, {method: 'DELETE'});
+    toast('Transporter deleted');
+    loadTransporters();
 }
 
 function editCustomer(id) {
@@ -416,6 +469,39 @@ $('f-customer').addEventListener('submit', async function(e) {
     $('f-customer').reset();
     $('f-cid').value = '';
     loadCustomers();
+});
+
+$('f-transporter').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var id = $('f-tid').value;
+    var data = {
+        transporter_id: $('f-ttransid').value,
+        name: $('f-tname').value,
+        phone: $('f-tphone').value,
+        email: $('f-temail').value,
+        address: $('f-taddr').value,
+        state: $('f-tstate').value,
+        district: $('f-tdistrict').value,
+        city: $('f-tcity').value,
+        pincode: $('f-tpincode').value,
+        vehicle_no: $('f-tvehicle').value,
+        vehicle_type: $('f-tvtype').value,
+        gst_number: $('f-tgst').value,
+        pan_number: $('f-tpan').value,
+        contact_person: $('f-tcontactperson').value,
+        contact_number: $('f-tcontactnum').value
+    };
+    if (id) {
+        await api('/api/transporters/' + id, {method: 'PUT', body: JSON.stringify(data)});
+        toast('Transporter updated!');
+    } else {
+        await api('/api/transporters', {method: 'POST', body: JSON.stringify(data)});
+        toast('Transporter added!');
+    }
+    hideModal('m-transporter');
+    $('f-transporter').reset();
+    $('f-tid').value = '';
+    loadTransporters();
 });
 
 $('f-sale').addEventListener('submit', async function(e) {
