@@ -116,7 +116,7 @@ class Transporter(Base):
 class Sale(Base):
     __tablename__ = "sales"
     id = Column(Integer, primary_key=True, index=True)
-    invoice_no = Column(String, unique=True)
+    invoice_no = Column(String)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     quantity = Column(Integer, nullable=True)
@@ -235,6 +235,11 @@ def startup_event():
     with engine.connect() as conn:
         try:
             conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS part_no VARCHAR DEFAULT ''"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_invoice_no_key"))
             conn.commit()
         except Exception:
             pass
@@ -1224,10 +1229,6 @@ async def import_sales_csv(file: UploadFile = File(...)):
             invoice_no = row.get('Raksha Invoice NO', '').strip()
             if invoice_no in ('-', '–', ''):
                 invoice_no = f"INDORE-{sl_no:04d}"
-            existing = db.query(Sale).filter(Sale.invoice_no == invoice_no).first()
-            if existing:
-                skipped += 1
-                continue
             sale_date = parse_csv_date(row.get('Date ', '') or row.get('Date', ''))
             sale_date_dt = None
             if sale_date:
