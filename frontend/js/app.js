@@ -659,6 +659,39 @@ $('f-expense').addEventListener('submit', async function(e) {
     loadExpenses();
 });
 
+// ---- CSV IMPORT ----
+async function importOrdersCSV(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    toast('Importing orders...');
+    try {
+        var r = await fetch('/api/import/orders', {method: 'POST', body: fd});
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Import failed');
+        toast(d.message);
+        loadOrders();
+    } catch(e) { toast('Error: ' + e.message, true); }
+    input.value = '';
+}
+
+async function importSalesCSV(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    toast('Importing sales...');
+    try {
+        var r = await fetch('/api/import/sales', {method: 'POST', body: fd});
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Import failed');
+        toast(d.message);
+        loadSales();
+    } catch(e) { toast('Error: ' + e.message, true); }
+    input.value = '';
+}
+
 // ---- INIT ----
 $('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 $('f-edate').value = new Date().toISOString().split('T')[0];

@@ -117,23 +117,38 @@ class Sale(Base):
     __tablename__ = "sales"
     id = Column(Integer, primary_key=True, index=True)
     invoice_no = Column(String, unique=True)
-    customer_id = Column(Integer, ForeignKey("customers.id"))
-    product_id = Column(Integer, ForeignKey("products.id"))
-    quantity = Column(Integer)
-    unit_price = Column(Float)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    quantity = Column(Integer, nullable=True)
+    unit_price = Column(Float, nullable=True)
     discount_percent = Column(Float, default=0)
     discount_amount = Column(Float, default=0)
-    taxable_amount = Column(Float)
+    taxable_amount = Column(Float, nullable=True)
     cgst_rate = Column(Float, default=9)
     cgst_amount = Column(Float, default=0)
     sgst_rate = Column(Float, default=9)
     sgst_amount = Column(Float, default=0)
     freight_amount = Column(Float, default=0)
-    total_amount = Column(Float)
+    total_amount = Column(Float, default=0)
     payment_status = Column(String, default="Pending")
     payment_method = Column(String, default="Cash")
-    sale_date = Column(DateTime, default=datetime.utcnow)
+    sale_date = Column(DateTime, nullable=True)
     notes = Column(String, default="")
+    party_name = Column(String, default="")
+    payment_terms = Column(String, default="")
+    location = Column(String, default="")
+    pincode = Column(String, default="")
+    state = Column(String, default="")
+    transporter_name = Column(String, default="")
+    lr_no = Column(String, default="")
+    weight_kgs = Column(Float, default=0)
+    weight_pg_fiber = Column(Float, default=0)
+    sales_person = Column(String, default="")
+    pg_fiber_invoice_no = Column(String, default="")
+    pg_fiber_invoice_value = Column(Float, default=0)
+    gp = Column(Float, default=0)
+    gp_percent = Column(Float, default=0)
+    source_csv = Column(String, default="")
     customer = relationship("Customer")
     product = relationship("Product")
 
@@ -223,6 +238,19 @@ def startup_event():
             conn.commit()
         except Exception:
             pass
+        new_sale_cols = [
+            "party_name", "payment_terms", "location", "pincode", "state",
+            "transporter_name", "lr_no", "weight_kgs", "weight_pg_fiber",
+            "sales_person", "pg_fiber_invoice_no", "pg_fiber_invoice_value",
+            "gp", "gp_percent", "source_csv"
+        ]
+        for col in new_sale_cols:
+            try:
+                col_type = "FLOAT" if col in ("weight_kgs","weight_pg_fiber","pg_fiber_invoice_value","gp","gp_percent") else "VARCHAR DEFAULT ''"
+                conn.execute(text(f"ALTER TABLE sales ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+            except Exception:
+                pass
+        conn.commit()
     backfill_part_numbers()
     seed_data()
 
@@ -1091,6 +1119,155 @@ def update_settings(body: dict):
                 db.add(Settings(key=k, value=str(v)))
         db.commit()
         return {"message": "Settings updated"}
+    finally:
+        db.close()
+
+
+# ---- CSV IMPORT ----
+def parse_csv_amount(val):
+    if not val or val.strip() in ('-', '–', ''):
+        return 0
+    return float(str(val).replace('₹', '').replace(',', '').replace(' ', '').strip() or 0)
+
+
+def parse_csv_date(val):
+    if not val or val.strip() in ('-', '–', ''):
+        return None
+    from dateutil import parser as dateparser
+    try:
+        return dateparser.parse(val.strip(), dayfirst=False).strftime('%Y-%m-%d')
+    except Exception:
+        return val.strip() if val else None
+
+
+@app.post("/api/import/orders")
+async def import_orders_csv(file: UploadFile = File(...)):
+    content = await file.read()
+    text = content.decode('utf-8-sig')
+    import csv, io
+    reader = csv.DictReader(io.StringIO(text))
+    db = SessionLocal()
+    imported = 0
+    skipped = 0
+    try:
+        for row in reader:
+            sl_raw = row.get('Sl No.', '').strip()
+            if not sl_raw:
+                skipped += 1
+                continue
+            try:
+                sl_no = int(sl_raw)
+            except ValueError:
+                skipped += 1
+                continue
+            existing = db.query(Order).filter(Order.sl_no == sl_no).first()
+            data = {
+                "sl_no": sl_no,
+                "po_no": "",
+                "po_date": parse_csv_date(row.get('PO Date', '')),
+                "billing_site": row.get('Billing Site', '').strip(),
+                "shipping_site": row.get('Shipping Site', '').strip(),
+                "no_of_boxes": int(parse_csv_amount(row.get('No. Of Boxes', '0'))),
+                "value_excl_gst_freight": parse_csv_amount(row.get('Value (excl. GST & Freight)', '0')),
+                "invoice_no": row.get('Invoice No.', '').strip().replace('-', '') if row.get('Invoice No.', '').strip() not in ('-', '–', '') else '',
+                "invoice_date": parse_csv_date(row.get('Invoice Date', '')),
+                "invoice_amount_excl_gst": parse_csv_amount(row.get('Invoice Amount (ex. GST)', '0')),
+                "weight_kgs": parse_csv_amount(row.get('Weight (Kg)', '0')),
+                "freight_rate_per_kg": parse_csv_amount(row.get('Freight (Rate / Kg)', '0')),
+                "transport_charges": parse_csv_amount(row.get('Transport Charges', '0')),
+                "invoice_amount": parse_csv_amount(row.get('Invoice Amount', '0')),
+                "eway_bill_no": row.get('E-way Bill No', '').strip() if row.get('E-way Bill No', '').strip() not in ('-', '–', '') else '',
+                "lr_no": row.get('LR Copy', '').strip() if row.get('LR Copy', '').strip() not in ('-', '–', '') else '',
+                "entry_date": parse_csv_date(row.get('ERP Entry Date', '')),
+                "credit_note_amount": parse_csv_amount(row.get('Credit Note Amount (If any)', '0')),
+                "credit_note_no": row.get('Credit Note No.', '').strip() if row.get('Credit Note No.', '').strip() not in ('-', '–', '') else '',
+                "transporter": row.get('Transporter', '').strip(),
+                "transporter_no": "",
+            }
+            if existing:
+                for k, v in data.items():
+                    if k != "sl_no":
+                        setattr(existing, k, v)
+            else:
+                o = Order(**data)
+                db.add(o)
+            imported += 1
+        db.commit()
+        return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} orders, skipped {skipped}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Import failed: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/api/import/sales")
+async def import_sales_csv(file: UploadFile = File(...)):
+    content = await file.read()
+    text = content.decode('utf-8-sig')
+    import csv, io
+    reader = csv.DictReader(io.StringIO(text))
+    db = SessionLocal()
+    imported = 0
+    skipped = 0
+    try:
+        for row in reader:
+            sl_raw = row.get('Sl No.', '').strip()
+            if not sl_raw:
+                skipped += 1
+                continue
+            try:
+                sl_no = int(sl_raw)
+            except ValueError:
+                skipped += 1
+                continue
+            invoice_no = row.get('Raksha Invoice NO', '').strip()
+            if invoice_no in ('-', '–', ''):
+                invoice_no = f"INDORE-{sl_no:04d}"
+            existing = db.query(Sale).filter(Sale.invoice_no == invoice_no).first()
+            if existing:
+                skipped += 1
+                continue
+            sale_date = parse_csv_date(row.get('Date ', '') or row.get('Date', ''))
+            sale_date_dt = None
+            if sale_date:
+                try:
+                    from datetime import datetime as dt
+                    sale_date_dt = dt.strptime(sale_date, '%Y-%m-%d')
+                except Exception:
+                    pass
+            freight = parse_csv_amount(row.get('Freight', '0'))
+            gp = parse_csv_amount(row.get('GP', '0'))
+            gp_pct_raw = row.get('GP%', '0').replace('%', '').strip()
+            gp_pct = float(gp_pct_raw) if gp_pct_raw else 0
+            s = Sale(
+                invoice_no=invoice_no,
+                sale_date=sale_date_dt,
+                payment_terms=row.get('Payment Terms', '').strip(),
+                party_name=row.get('Party Name ', '') or row.get('Party Name', '').strip(),
+                location=row.get('Location', '').strip(),
+                pincode=row.get('Pincode', '').strip(),
+                state=row.get('State', '').strip(),
+                transporter_name=row.get('Transporter Name', '').strip(),
+                lr_no=row.get('LR No', '').strip(),
+                freight_amount=freight,
+                weight_kgs=parse_csv_amount(row.get('Weight', '0')),
+                weight_pg_fiber=parse_csv_amount(row.get('Weight on PG Fiber Bill', '0')),
+                sales_person=row.get('Sales Ex Person / Person In-Charge', '').strip(),
+                pg_fiber_invoice_no=(row.get('P.G.Fiber Invoice No', '') or row.get('P.G.Fiber Invoice No ', '') or '').strip(),
+                pg_fiber_invoice_value=parse_csv_amount(row.get('P.G.Fiber Invoice Value', '') or row.get('P.G.Fiber Invoice Value ', '0')),
+                gp=gp,
+                gp_percent=gp_pct,
+                total_amount=freight,
+                source_csv="From Indore",
+            )
+            db.add(s)
+            imported += 1
+        db.commit()
+        return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} sales, skipped {skipped}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Import failed: {str(e)}")
     finally:
         db.close()
 

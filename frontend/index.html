@@ -68,7 +68,10 @@
             <div class="bg-white rounded-xl shadow p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold">Orders</h3>
-                    <button onclick="showModal('m-order')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Order</button>
+                    <div class="flex gap-2">
+                        <label class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer"><i class="fas fa-file-csv mr-1"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importOrdersCSV(this)"></label>
+                        <button onclick="showModal('m-order')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>Add Order</button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
@@ -128,7 +131,10 @@
             <div class="bg-white rounded-xl shadow p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold">Sales</h3>
-                    <button onclick="showModal('m-sale')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>New Sale</button>
+                    <div class="flex gap-2">
+                        <label class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer"><i class="fas fa-file-csv mr-1"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importSalesCSV(this)"></label>
+                        <button onclick="showModal('m-sale')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"><i class="fas fa-plus mr-1"></i>New Sale</button>
+                    </div>
                 </div>
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
                     <th class="px-3 py-2 text-left">Invoice</th><th class="px-3 py-2 text-left">Date</th>
