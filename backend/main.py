@@ -1801,7 +1801,15 @@ def auto_generate_tracking_urls():
 
 # ---- AUTO FETCH TRACKING STATUS ----
 import requests as http_requests
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
+    class BeautifulSoup:
+        def __init__(self, *a, **kw): pass
+        def get_text(self): return ""
+        def select(self, *a, **kw): return []
 
 TRACKING_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -2167,13 +2175,15 @@ def profit_loss(start_date: str = None, end_date: str = None):
         orders = orders_q.all()
 
         # Revenue from Sales
-        sale_revenue = sum(s.total_amount or 0 for s in sales)
-        sale_freight = sum((s.freight_amount or 0) * (s.weight_kgs or 0) for s in sales)
+        sale_revenue = sum(s.invoice_value or s.total_amount or 0 for s in sales)
         units = sum(s.quantity or 0 for s in sales)
         gst = sum((s.cgst_amount or 0) + (s.sgst_amount or 0) for s in sales)
         gp_from_sales = sum(s.gp or 0 for s in sales)
         gp_values = [s.gp_percent for s in sales if s.gp_percent and s.gp_percent > 0]
         gp_avg = sum(gp_values) / len(gp_values) if gp_values else 0
+
+        # Freight from sales (rate per kg * weight = total freight cost)
+        sale_freight = sum((s.freight_amount or 0) * (s.weight_kgs or 0) for s in sales)
 
         # COGS from Orders (cost of goods)
         order_cogs = sum(o.value_excl_gst_freight or 0 for o in orders)
@@ -2183,8 +2193,8 @@ def profit_loss(start_date: str = None, end_date: str = None):
         order_weight = sum(o.weight_kgs or 0 for o in orders)
         order_credit_notes = sum(o.credit_note_amount or 0 for o in orders)
 
-        # Total revenue (sale revenue + freight from sales)
-        total_revenue = sale_revenue + sale_freight
+        # Total revenue = sales invoice values (which may or may not include freight)
+        total_revenue = sale_revenue
 
         # Total COGS (order cost + transport)
         total_cogs = order_cogs + order_freight_cost
@@ -2194,9 +2204,8 @@ def profit_loss(start_date: str = None, end_date: str = None):
             exp_by_cat[e.category] = exp_by_cat.get(e.category, 0) + e.amount
         total_opex = sum(exp_by_cat.values())
 
+        # Gross Profit = Revenue - COGS - Credit Notes
         gross_profit = total_revenue - total_cogs - order_credit_notes
-        if gp_from_sales > 0:
-            gross_profit = gp_from_sales
         gross_margin = (gross_profit / total_revenue * 100) if total_revenue else 0
 
         ebitda = gross_profit - total_opex
@@ -2231,7 +2240,7 @@ def dashboard():
         all_sales = db.query(Sale).all()
         all_orders = db.query(Order).all()
 
-        revenue = sum(s.total_amount or 0 for s in all_sales)
+        revenue = sum(s.invoice_value or s.total_amount or 0 for s in all_sales)
         freight = sum((s.freight_amount or 0) * (s.weight_kgs or 0) for s in all_sales)
         gp_total = sum(s.gp or 0 for s in all_sales)
         pending = sum(s.total_amount or 0 for s in all_sales if s.payment_status == "Pending")

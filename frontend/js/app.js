@@ -48,6 +48,17 @@ function toast(msg, err) {
     setTimeout(function() { $('toast').classList.add('hidden'); }, 3000);
 }
 
+function showLoading(tableId, colspan) {
+    var tbody = document.getElementById(tableId);
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="' + colspan + '" class="text-center py-8"><div style="display:inline-flex;align-items:center;gap:8px;color:#64748b;"><div class="spinner" style="width:20px;height:20px;border:2px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:spin 0.8s linear infinite;"></div>Loading...</div></td></tr>';
+    }
+}
+
+var style = document.createElement('style');
+style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+document.head.appendChild(style);
+
 async function showModal(id) {
     $(id).classList.remove('hidden');
     if (id === 'm-sale') {
@@ -116,7 +127,31 @@ function sortTable(tableId, colIdx, type) {
     }
 }
 
+function filterTable(tableId, query, searchCols) {
+    var data = _tableData[tableId];
+    if (!data) return;
+    var q = (query || '').toLowerCase().trim();
+    var tbody = document.getElementById(tableId);
+    if (!tbody) return;
+    if (!q) {
+        var html = '';
+        data.forEach(function(row) { html += row.html; });
+        tbody.innerHTML = html;
+        return;
+    }
+    var filtered = data.filter(function(row) {
+        return searchCols.some(function(ci) {
+            var val = (row.vals[ci] || '').toString().toLowerCase();
+            return val.indexOf(q) !== -1;
+        });
+    });
+    var html = '';
+    filtered.forEach(function(row) { html += row.html; });
+    tbody.innerHTML = html || '<tr><td colspan="20" class="text-center py-4 text-gray-400">No results found</td></tr>';
+}
+
 async function loadProducts() {
+    showLoading('t-products', 8);
     _products = await api('/api/products');
     var sortRows = [];
     _products.forEach(function(p) {
@@ -177,6 +212,7 @@ async function loadOrders() {
 }
 
 async function loadAllOrders() {
+    showLoading('t-all-orders', 10);
     var filter = $('f-orderfilter') ? $('f-orderfilter').value : '';
     var rows = [];
 
@@ -308,6 +344,7 @@ async function deleteOrder(id) {
 }
 
 async function loadCustomers() {
+    showLoading('t-customers', 10);
     _customers = await api('/api/customers');
     var sortRows = [];
     _customers.forEach(function(c) {
@@ -334,6 +371,7 @@ async function loadCustomers() {
 
 var _transporters = [];
 async function loadTransporters() {
+    showLoading('t-transporters', 9);
     _transporters = await api('/api/transporters');
     var sortRows = [];
     _transporters.forEach(function(t) {
@@ -428,6 +466,7 @@ try { $('f-csameaddr').addEventListener('change', function() {
 
 async function loadSales() {
     try {
+    showLoading('t-sales', 11);
     api('/api/auto-generate-tracking-urls', {method: 'POST'}).catch(function(){});
     var sales = await api('/api/sales');
     var rows = [];
@@ -447,22 +486,30 @@ async function loadSales() {
         var lrHtml = '';
         if (s.lr_no) {
             var status = s.lr_tracking_status || '';
-            var badge = '';
-            if (status === 'Delivered') badge = '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Delivered</span>';
-            else if (status === 'In Transit') badge = '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">In Transit</span>';
-            else if (status === 'Delayed') badge = '<span style="background:#fef2f2;color:#991b1b;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Delayed</span>';
-            else if (status === 'Out for Delivery') badge = '<span style="background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Out for Delivery</span>';
-            else if (status === 'Delivered to Party') badge = '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Delivered to Party</span>';
-            else badge = '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">Pending</span>';
-            var trackLink = s.lr_tracking_url ? '<a href="' + s.lr_tracking_url + '" target="_blank" onclick="event.stopPropagation()" style="color:#4f46e5;text-decoration:underline;font-size:11px;margin-left:4px;" title="Track on transporter website"><i class="fas fa-external-link-alt"></i></a>' : '';
-            lrHtml = '<div style="display:flex;flex-direction:column;gap:2px;">' +
+            var statusColors = {
+                'Delivered': {bg: '#dcfce7', fg: '#166534'},
+                'Delivered to Party': {bg: '#dcfce7', fg: '#166534'},
+                'In Transit': {bg: '#dbeafe', fg: '#1e40af'},
+                'Delayed': {bg: '#fef2f2', fg: '#991b1b'},
+                'Out for Delivery': {bg: '#fef9c3', fg: '#854d0e'},
+                'Pending': {bg: '#f1f5f9', fg: '#64748b'}
+            };
+            var sc = statusColors[status] || statusColors['Pending'];
+            var trackLink = s.lr_tracking_url ? '<a href="' + s.lr_tracking_url + '" target="_blank" onclick="event.stopPropagation()" style="color:#4f46e5;font-size:10px;margin-left:4px;" title="Track on transporter website"><i class="fas fa-external-link-alt"></i></a>' : '';
+            var statusOptions = ['', 'In Transit', 'Out for Delivery', 'Delivered', 'Delivered to Party', 'Delayed'];
+            var selHtml = '<select onchange="event.stopPropagation();quickUpdateLrStatus(' + s.id + ', this.value)" style="border:1px solid ' + sc.fg + '30;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:600;background:' + sc.bg + ';color:' + sc.fg + ';cursor:pointer;max-width:130px;outline:none;" onclick="event.stopPropagation()">';
+            statusOptions.forEach(function(opt) {
+                selHtml += '<option value="' + opt + '"' + (status === opt ? ' selected' : '') + '>' + (opt || 'Not Set') + '</option>';
+            });
+            selHtml += '</select>';
+            lrHtml = '<div style="display:flex;flex-direction:column;gap:3px;">' +
                 '<span style="font-size:11px;color:#64748b;font-weight:600;">' + s.lr_no + '</span>' +
-                '<div style="display:flex;align-items:center;gap:4px;">' + badge + trackLink + '</div>' +
+                '<div style="display:flex;align-items:center;gap:3px;">' + selHtml + trackLink + '</div>' +
                 '</div>';
         } else {
-            lrHtml = '<span style="color:#94a3b8;font-size:11px;">No LR</span>';
+            lrHtml = '<button onclick="event.stopPropagation();showLrTrackingModal(' + s.id + ',\'\',\'\',\'\',\'' + (s.transporter_name||'').replace(/'/g,"\\'") + '\')" style="background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:6px;padding:3px 8px;font-size:11px;color:#64748b;cursor:pointer;width:100%;">+ Add LR</button>';
         }
-        lrHtml += '<button onclick="event.stopPropagation();showLrTrackingModal(' + s.id + ',\'' + (s.lr_no||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_status||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_url||'').replace(/'/g,"\\'") + '\',\'' + (s.transporter_name||'').replace(/'/g,"\\'") + '\')" style="background:none;border:none;color:#4f46e5;font-size:11px;cursor:pointer;text-decoration:underline;display:block;margin-top:3px;">' + (s.lr_no ? 'Update' : '+ Add LR') + '</button>';
+        lrHtml += '<button onclick="event.stopPropagation();showLrTrackingModal(' + s.id + ',\'' + (s.lr_no||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_status||'').replace(/'/g,"\\'") + '\',\'' + (s.lr_tracking_url||'').replace(/'/g,"\\'") + '\',\'' + (s.transporter_name||'').replace(/'/g,"\\'") + '\')" style="background:none;border:none;color:#94a3b8;font-size:10px;cursor:pointer;margin-top:2px;text-align:left;">Details</button>';
         h += '<td class="px-3 py-2" onclick="event.stopPropagation()">' + lrHtml + '</td>';
         h += '<td class="px-3 py-2" onclick="event.stopPropagation()">';
         h += '<button onclick="editSale(' + s.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
@@ -619,6 +666,20 @@ async function saveLrTracking() {
     loadSales();
 }
 
+async function quickUpdateLrStatus(saleId, newStatus) {
+    try {
+        await api('/api/sales/' + saleId + '/lr-tracking', {
+            method: 'PUT',
+            body: JSON.stringify({ lr_tracking_status: newStatus })
+        });
+        toast('Status updated to: ' + (newStatus || 'Not Set'));
+        loadSales();
+    } catch(e) {
+        toast('Error updating status: ' + e.message, true);
+        loadSales();
+    }
+}
+
 async function fetchBulkTracking() {
     var btn = $('btn-fetch-all-tracking');
     btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:4px;"></i>Fetching...';
@@ -684,6 +745,7 @@ async function calcSale() {
 }
 
 async function loadExpenses() {
+    showLoading('t-expenses', 6);
     var expenses = await api('/api/expenses');
     var sales = await api('/api/sales');
     var sortRows = [];
@@ -1846,6 +1908,25 @@ function generateProformaPDF() {
 try { $('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'}); } catch(e) {}
 try { $('f-edate').value = new Date().toISOString().split('T')[0]; } catch(e) {}
 loadDashboard();
+
+// ---- KEYBOARD SHORTCUTS ----
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var modals = document.querySelectorAll('.modal-bg:not(.hidden)');
+        modals.forEach(function(m) { m.classList.add('hidden'); });
+    }
+});
+
+// ---- MODAL FOCUS MANAGEMENT ----
+var origShowModal = showModal;
+showModal = async function(id) {
+    await origShowModal(id);
+    var modal = $(id);
+    if (modal) {
+        var firstInput = modal.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+    }
+};
 
 // ---- SETTINGS ----
 async function loadSettings() {

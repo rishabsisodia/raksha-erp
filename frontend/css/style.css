@@ -623,3 +623,90 @@ button.bg-indigo-600 {
     aside, header, .modal-bg { display: none !important; }
     main { margin-left: 0 !important; padding: 10px !important; }
 }
+
+/* ---- Search Input Styling ---- */
+input[oninput*="filterTable"] {
+    background: var(--surface);
+    transition: all var(--transition);
+}
+
+input[oninput*="filterTable"]:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+    width: 260px !important;
+}
+
+/* ---- Table Row Stagger Animation ---- */
+@keyframes rowFadeIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+tbody tr {
+    animation: rowFadeIn 0.2s ease-out;
+    animation-fill-mode: both;
+}
+
+tbody tr:nth-child(1) { animation-delay: 0.02s; }
+tbody tr:nth-child(2) { animation-delay: 0.04s; }
+tbody tr:nth-child(3) { animation-delay: 0.06s; }
+tbody tr:nth-child(4) { animation-delay: 0.08s; }
+tbody tr:nth-child(5) { animation-delay: 0.10s; }
+tbody tr:nth-child(6) { animation-delay: 0.12s; }
+tbody tr:nth-child(7) { animation-delay: 0.14s; }
+tbody tr:nth-child(8) { animation-delay: 0.16s; }
+tbody tr:nth-child(9) { animation-delay: 0.18s; }
+tbody tr:nth-child(10) { animation-delay: 0.20s; }
+
+/* ---- Inline Status Dropdown ---- */
+select[onchange*="quickUpdateLrStatus"] {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 4px center;
+    background-repeat: no-repeat;
+    background-size: 14px;
+    padding-right: 22px !important;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+select[onchange*="quickUpdateLrStatus"]:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+/* ---- Card Hover Lift ---- */
+.stat-card {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px rgba(0,0,0,0.12);
+}
+
+/* ---- Smooth Page Transitions ---- */
+[id^="p-"] {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+/* ---- Better Focus Ring ---- */
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
+}
+
+/* ---- Button Press Effect ---- */
+button:active {
+    transform: scale(0.97);
+}
+
+/* ---- Gradient Text for Key Values ---- */
+.gradient-text {
+    background: linear-gradient(135deg, #4f46e5, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
