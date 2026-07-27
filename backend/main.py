@@ -1653,6 +1653,23 @@ def delete_sale(sid: int):
         db.close()
 
 
+@app.patch("/api/sales/{sid}/invoice")
+def patch_sale_invoice(sid: int, body: dict):
+    db = SessionLocal()
+    try:
+        s = db.query(Sale).filter(Sale.id == sid).first()
+        if not s:
+            raise HTTPException(404, "Not found")
+        if "invoice_value" in body:
+            s.invoice_value = float(body["invoice_value"])
+        if "total_amount" in body:
+            s.total_amount = float(body["total_amount"])
+        db.commit()
+        return {"message": "Patched", "id": sid, "invoice_value": s.invoice_value, "total_amount": s.total_amount}
+    finally:
+        db.close()
+
+
 @app.put("/api/sales/{sid}")
 def update_sale(sid: int, inp: SaleIn):
     db = SessionLocal()
