@@ -488,7 +488,6 @@ async function loadSales() {
             var status = s.lr_tracking_status || '';
             var statusColors = {
                 'Delivered': {bg: '#dcfce7', fg: '#166534'},
-                'Delivered to Party': {bg: '#dcfce7', fg: '#166534'},
                 'In Transit': {bg: '#dbeafe', fg: '#1e40af'},
                 'Delayed': {bg: '#fef2f2', fg: '#991b1b'},
                 'Out for Delivery': {bg: '#fef9c3', fg: '#854d0e'},
@@ -496,7 +495,7 @@ async function loadSales() {
             };
             var sc = statusColors[status] || statusColors['Pending'];
             var trackLink = s.lr_tracking_url ? '<a href="' + s.lr_tracking_url + '" target="_blank" onclick="event.stopPropagation()" style="color:#4f46e5;font-size:10px;margin-left:4px;" title="Track on transporter website"><i class="fas fa-external-link-alt"></i></a>' : '';
-            var statusOptions = ['', 'In Transit', 'Out for Delivery', 'Delivered', 'Delivered to Party', 'Delayed'];
+            var statusOptions = ['', 'In Transit', 'Out for Delivery', 'Delivered', 'Delayed'];
             var selHtml = '<select onchange="event.stopPropagation();quickUpdateLrStatus(' + s.id + ', this.value)" style="border:1px solid ' + sc.fg + '30;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:600;background:' + sc.bg + ';color:' + sc.fg + ';cursor:pointer;max-width:130px;outline:none;" onclick="event.stopPropagation()">';
             statusOptions.forEach(function(opt) {
                 selHtml += '<option value="' + opt + '"' + (status === opt ? ' selected' : '') + '>' + (opt || 'Not Set') + '</option>';
