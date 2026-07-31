@@ -1732,6 +1732,22 @@ def bulk_update_payment_status(body: dict):
         db.close()
 
 
+@app.patch("/api/sales/bulk-lr-status")
+def bulk_update_lr_status(body: dict):
+    status = body.get("lr_tracking_status", "Delivered")
+    exclude_ids = body.get("exclude_ids", [])
+    db = SessionLocal()
+    try:
+        q = db.query(Sale)
+        if exclude_ids:
+            q = q.filter(Sale.id.notin_(exclude_ids))
+        updated = q.filter(Sale.lr_tracking_status != status).update({"lr_tracking_status": status}, synchronize_session=False)
+        db.commit()
+        return {"updated": updated, "message": f"Updated {updated} sales to {status}"}
+    finally:
+        db.close()
+
+
 @app.delete("/api/customers/by-id/{customer_id}")
 def delete_customer_by_customer_id(customer_id: str):
     db = SessionLocal()
