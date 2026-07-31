@@ -1719,6 +1719,32 @@ def update_sale(sid: int, inp: SaleIn):
         db.close()
 
 
+@app.patch("/api/sales/bulk-payment")
+def bulk_update_payment_status(body: dict):
+    status = body.get("payment_status", "Paid")
+    db = SessionLocal()
+    try:
+        updated = db.query(Sale).filter(Sale.payment_status != status).update({"payment_status": status})
+        db.commit()
+        return {"updated": updated, "message": f"Updated {updated} sales to {status}"}
+    finally:
+        db.close()
+
+
+@app.delete("/api/customers/by-id/{customer_id}")
+def delete_customer_by_customer_id(customer_id: str):
+    db = SessionLocal()
+    try:
+        c = db.query(Customer).filter(Customer.customer_id == customer_id).first()
+        if not c:
+            raise HTTPException(404, "Not found")
+        db.delete(c)
+        db.commit()
+        return {"message": f"Deleted {customer_id}"}
+    finally:
+        db.close()
+
+
 # ---- LR TRACKING ----
 @app.put("/api/sales/{sid}/lr-tracking")
 def update_lr_tracking(sid: int, body: dict):
