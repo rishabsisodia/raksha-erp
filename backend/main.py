@@ -75,6 +75,7 @@ class Pricing(Base):
 class Customer(Base):
     __tablename__ = "customers"
     id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, default="")
     customer_id = Column(String, unique=True, nullable=False)
     gstin = Column(String, default="")
     billing_address = Column(String, default="")
@@ -723,6 +724,7 @@ class PricingIn(BaseModel):
 
 class CustomerIn(BaseModel):
     customer_id: str
+    name: str = ""
     gstin: str = ""
     billing_address: str = ""
     shipping_address: str = ""
@@ -2627,6 +2629,7 @@ async def import_customers_csv(file: UploadFile = File(...)):
             existing = db.query(Customer).filter(Customer.customer_id == customer_id).first()
             data = {
                 "customer_id": customer_id,
+                "name": map_csv_col(row, ['Contact Name', 'Name', 'Customer Name', 'contact_name']),
                 "gstin": map_csv_col(row, ['GSTIN', 'GST Number', 'GST', 'gstin']),
                 "billing_address": map_csv_col(row, ['Billing Address', 'Address', 'billing_address']),
                 "shipping_address": map_csv_col(row, ['Shipping Address', 'shipping_address']),
