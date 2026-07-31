@@ -2652,6 +2652,15 @@ async def import_customers_csv(file: UploadFile = File(...)):
             else:
                 c = Customer(**data)
                 db.add(c)
+                try:
+                    db.flush()
+                except Exception:
+                    db.rollback()
+                    ex = db.query(Customer).filter(Customer.customer_id == customer_id).first()
+                    if ex:
+                        for k, v in data.items():
+                            if k != "customer_id":
+                                setattr(ex, k, v)
             imported += 1
         db.commit()
         return {"imported": imported, "skipped": skipped, "message": f"Imported {imported} customers, skipped {skipped}"}
