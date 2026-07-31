@@ -1444,6 +1444,7 @@ def delete_customer(cid: int):
         c = db.query(Customer).filter(Customer.id == cid).first()
         if not c:
             raise HTTPException(404, "Not found")
+        db.query(Sale).filter(Sale.customer_id == c.id).update({"customer_id": None})
         db.delete(c)
         db.commit()
         return {"message": "Deleted"}
@@ -1738,6 +1739,7 @@ def delete_customer_by_customer_id(customer_id: str):
         c = db.query(Customer).filter(Customer.customer_id == customer_id).first()
         if not c:
             raise HTTPException(404, "Not found")
+        db.query(Sale).filter(Sale.customer_id == c.id).update({"customer_id": None})
         db.delete(c)
         db.commit()
         return {"message": f"Deleted {customer_id}"}
