@@ -964,7 +964,7 @@ async function loadReport() {
 
     $('rpt-body').innerHTML = h;
 
-    renderReportCharts(d);
+    try { renderReportCharts(d); } catch(chartErr) { console.warn('Chart render error:', chartErr); }
     } catch(e) { console.error('Report error:', e); $('rpt-body').innerHTML = '<p class="text-red-500">Error loading report</p>'; }
 }
 
@@ -976,6 +976,7 @@ function destroyCharts() {
 
 function renderReportCharts(d) {
     destroyCharts();
+    if (typeof Chart === 'undefined') { console.warn('Chart.js not loaded'); return; }
     var colors = {
         indigo: '#6366f1', green: '#10b981', red: '#ef4444', orange: '#f59e0b',
         purple: '#8b5cf6', blue: '#3b82f6', yellow: '#eab308', teal: '#14b8a6',
