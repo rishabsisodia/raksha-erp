@@ -1398,7 +1398,7 @@ def list_customers():
     db = SessionLocal()
     try:
         rows = db.query(Customer).all()
-        return [{"id": c.id, "customer_id": c.customer_id, "gstin": c.gstin,
+        return [{"id": c.id, "customer_id": c.customer_id, "name": c.name or "", "gstin": c.gstin,
                  "billing_address": c.billing_address, "shipping_address": c.shipping_address,
                  "state": c.state, "district": c.district, "city": c.city, "pincode": c.pincode,
                  "contact_name": c.contact_name, "contact_number": c.contact_number, "contact_email": c.contact_email,
