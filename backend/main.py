@@ -1495,20 +1495,7 @@ COMPANY_BANK_DETAILS = """
 </div>
 """
 
-COMPANY_TERMS = """
-<div style="margin-top:15px;font-size:10px;">
-<p><b>*** Payment Terms :-</b> 100% ADVANCE</p>
-<p><b>*** Delivery :-</b> IMMEDIATE</p>
-<p><b>*** Freight :-</b> INCREASE THE ORDER FOR F.O.R. DESPATCH</p>
-<p><b>*** PROFORMA VALIDITY</b></p>
-<p><b>*** DISCOUNT STRUCTURE DATE</b></p>
-<p><b>***</b> Any Balance Quantity remain extra than Truck / Container Load will be treated as cancelled & Considered as New Order Only.</p>
-<p><b>***</b> All the material will be despatched as per Our Standard Packing Only.</p>
-<p><b>***</b> Any Differences in Price / Discount & Products in Proforma Invoice should be informed by Mail or call Immediately.</p>
-<p><b>***</b> All Disputes Subject to INDORE JURISDICTION</p>
-<p><b>***</b> All Payment should be made Through NEFT/RTGS only in favour of Raksha Pipes Pvt. Ltd.</p>
-</div>
-"""
+COMPANY_TERMS = ""
 
 def _generate_po_html(order, customer, items, pi_date, billing_site=None):
     cust_name = customer.contact_name if customer else (order.billing_site or "")

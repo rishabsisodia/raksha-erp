@@ -2013,19 +2013,6 @@ function generateProformaPDF() {
     BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">IFSC Code:</td><td>ICIC0000047</td></tr>';
     BANK_DETAILS += '</table></div>';
 
-    var TERMS = '<div style="margin-top:15px;font-size:10px;">';
-    TERMS += '<p><b>*** Payment Terms :-</b> 100% ADVANCE</p>';
-    TERMS += '<p><b>*** Delivery :-</b> IMMEDIATE</p>';
-    TERMS += '<p><b>*** Freight :-</b> INCREASE THE ORDER FOR F.O.R. DESPATCH</p>';
-    TERMS += '<p><b>*** PROFORMA VALIDITY</b></p>';
-    TERMS += '<p><b>*** DISCOUNT STRUCTURE DATE</b></p>';
-    TERMS += '<p><b>***</b> Any Balance Quantity remain extra than Truck / Container Load will be treated as cancelled &amp; Considered as New Order Only.</p>';
-    TERMS += '<p><b>***</b> All the material will be despatched as per Our Standard Packing Only.</p>';
-    TERMS += '<p><b>***</b> Any Differences in Price / Discount &amp; Products in Proforma Invoice should be informed by Mail or call Immediately.</p>';
-    TERMS += '<p><b>***</b> All Disputes Subject to INDORE JURISDICTION</p>';
-    TERMS += '<p><b>***</b> All Payment should be made Through NEFT/RTGS only in favour of Raksha Pipes Pvt. Ltd.</p>';
-    TERMS += '</div>';
-
     var itemsHtml = '';
     var totalBox = 0;
     var totalPcs = 0;
@@ -2243,8 +2230,6 @@ function generateProformaPDF() {
         html += '<td style="padding:6px 8px;">FINAL PI VALUE</td>';
         html += '<td style="text-align:right;padding:6px 8px;">&#8377;' + finalValue.toLocaleString('en-IN') + '</td></tr>';
         html += '</table></td></tr></table>';
-
-        html += TERMS;
 
         html += '<div style="margin-top:40px;text-align:right;font-size:11px;">';
         html += '<p>For <b>' + escapeHtml(bsShortName) + '</b></p>';
