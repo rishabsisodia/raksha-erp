@@ -2734,21 +2734,25 @@ async def import_products_csv(file: UploadFile = File(...), user: User = Depends
 
             if part_no:
                 existing = db.query(Product).filter(Product.part_no == part_no).first()
-                if existing:
-                    existing.name = name
-                    existing.category = category
-                    existing.size = size
-                    existing.load_rating = load_rating
-                    existing.material = material
-                    existing.color = color
-                    existing.unit = unit
-                    existing.hsn_code = hsn_code
-                    if mrp and existing.pricing:
-                        existing.pricing.mrp = mrp
-                        existing.pricing.raw_material_cost = mrp
-                        existing.pricing.total_cost = mrp
-                    imported += 1
-                    continue
+            else:
+                existing = db.query(Product).filter(Product.name == name).first()
+            if existing:
+                existing.name = name
+                existing.category = category
+                existing.size = size
+                existing.load_rating = load_rating
+                existing.material = material
+                existing.color = color
+                existing.unit = unit
+                existing.hsn_code = hsn_code
+                if part_no:
+                    existing.part_no = part_no
+                if mrp and existing.pricing:
+                    existing.pricing.mrp = mrp
+                    existing.pricing.raw_material_cost = mrp
+                    existing.pricing.total_cost = mrp
+                imported += 1
+                continue
 
             p = Product(part_no=part_no, name=name, category=category,
                         size=size, load_rating=load_rating, material=material,
@@ -2762,6 +2766,38 @@ async def import_products_csv(file: UploadFile = File(...), user: User = Depends
     except Exception as e:
         db.rollback()
         raise HTTPException(500, f"Import failed: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/api/products/dedup")
+def dedup_products(user: User = Depends(require_permission("products", "edit"))):
+    db = SessionLocal()
+    try:
+        products = db.query(Product).order(Product.id).all()
+        seen = {}
+        removed = 0
+        for p in products:
+            key = (p.part_no or '', p.name or '')
+            if key in seen:
+                # Merge pricing if needed
+                if p.pricing and not seen[key].pricing:
+                    seen[key].pricing = p.pricing
+                    p.pricing = None
+                elif p.pricing and seen[key].pricing:
+                    db.delete(p.pricing)
+                # Re-point foreign keys referencing this product
+                for sale in db.query(Sale).filter(Sale.product_id == p.id).all():
+                    sale.product_id = seen[key].id
+                db.delete(p)
+                removed += 1
+            else:
+                seen[key] = p
+        db.commit()
+        return {"removed": removed, "remaining": len(seen), "message": f"Removed {removed} duplicate products"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Dedup failed: {str(e)}")
     finally:
         db.close()
 

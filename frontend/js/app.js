@@ -357,6 +357,15 @@ async function deleteProduct(id) {
     loadProducts();
 }
 
+async function dedupProducts() {
+    if (!confirm('Remove duplicate products? Products with the same Part No or Name will be merged.')) return;
+    try {
+        var r = await api('/api/products/dedup', {method: 'POST'});
+        toast(r.message);
+        loadProducts();
+    } catch(e) { toast('Dedup failed: ' + e.message, true); }
+}
+
 async function openPricing(id) {
     $('f-prpid').value = id;
     try {
