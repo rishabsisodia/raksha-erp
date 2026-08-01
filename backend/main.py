@@ -16,6 +16,7 @@ import csv
 import io
 import bcrypt
 import jwt
+from html import escape as escape_html
 
 app = FastAPI(title="Raksha ERP")
 
@@ -1392,106 +1393,368 @@ def generate_proforma_order_pdf(oid: int, user: User = Depends(get_current_user)
         customer = db.query(Customer).filter(Customer.id == order.customer_id).first()
         items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).order_by(ProformaOrderItem.sl_no).all()
 
-        items_html = ""
-        for item in items:
-            items_html += f"""
-            <tr>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.sl_no}</td>
-                <td style="padding:6px;border:1px solid #ddd;">{item.description or ''} ({item.size or ''})</td>
-                <td style="padding:6px;border:1px solid #ddd;">{item.category or '-'}</td>
-                <td style="padding:6px;border:1px solid #ddd;">{item.part_no or '-'}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.qty_boxes}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;">Boxes</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.std_packaging}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.final_qty}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;">Pieces</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:right;">₹{item.mrp:,.2f}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.discount_percent}%</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:right;">₹{item.net_rate:,.2f}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:center;">{item.lock_hinge}</td>
-                <td style="padding:6px;border:1px solid #ddd;text-align:right;font-weight:bold;">₹{item.basic_amount:,.2f}</td>
-            </tr>"""
-
-        title = "PROFORMA INVOICE" if order.order_type == "PI" else "PURCHASE ORDER"
         pi_date = order.pi_date.strftime("%d-%b-%Y") if order.pi_date else ""
 
-        html = f"""<!DOCTYPE html>
-<html><head><title>{title}</title>
-<style>
-body{{font-family:Arial,sans-serif;margin:20px;font-size:12px;}}
-table{{width:100%;border-collapse:collapse;}}
-.header{{text-align:center;margin-bottom:20px;}}
-.header h1{{margin:0;font-size:18px;color:#1a365d;}}
-.header p{{margin:2px 0;color:#555;font-size:11px;}}
-.details{{margin:15px 0;}}
-.details td{{padding:3px 8px;font-size:11px;}}
-.totals{{text-align:right;margin-top:10px;}}
-.totals td{{padding:4px 8px;font-size:11px;}}
-.terms{{margin-top:20px;font-size:10px;border-top:1px solid #ccc;padding-top:10px;}}
-@media print{{body{{margin:10mm;}}}}
-</style></head><body>
-
-<div class="header">
-<h1>RANA FORGING PVT LTD</h1>
-<p>KHATU MOHAMADPUR, NH-8, JAIPUR-302012 (RAJ.)</p>
-<p>Tel: 9928684835, 9672962255 | Email: ranaforging@gmail.com</p>
-<p>GSTIN: 08AAFCT3014D1ZC | PAN: AAFCT3014D | State: RAJASTHAN (08)</p>
-</div>
-
-<div class="details"><table>
-<tr><td style="font-weight:bold;width:120px;">{"Quotation No:" if order.order_type == "PI" else "PO No:"}</td><td>{order.pi_no}</td>
-<td style="font-weight:bold;width:80px;">Date:</td><td>{pi_date}</td></tr>
-<tr><td style="font-weight:bold;">Customer:</td><td colspan="3">{customer.contact_name if customer else "?"}</td></tr>
-{"<tr><td style='font-weight:bold;'>GSTIN:</td><td colspan='3'>" + (customer.gstin or "") + "</td></tr>" if customer and customer.gstin else ""}
-{"<tr><td style='font-weight:bold;'>Billing Site:</td><td colspan='3'>" + (order.billing_site or "") + "</td></tr>" if order.billing_site else ""}
-{"<tr><td style='font-weight:bold;'>Shipping Site:</td><td colspan='3'>" + (order.shipping_site or "") + "</td></tr>" if order.shipping_site else ""}
-</table></div>
-
-<table style="margin-top:15px;">
-<thead><tr style="background:#1a365d;color:white;">
-<th style="padding:6px;border:1px solid #ddd;">Sr.</th>
-<th style="padding:6px;border:1px solid #ddd;">Description</th>
-<th style="padding:6px;border:1px solid #ddd;">Item Group</th>
-<th style="padding:6px;border:1px solid #ddd;">Part No</th>
-<th style="padding:6px;border:1px solid #ddd;">Boxes</th>
-<th style="padding:6px;border:1px solid #ddd;">Base UOM</th>
-<th style="padding:6px;border:1px solid #ddd;">Std Pkg</th>
-<th style="padding:6px;border:1px solid #ddd;">Final Qty</th>
-<th style="padding:6px;border:1px solid #ddd;">Final UOM</th>
-<th style="padding:6px;border:1px solid #ddd;">MRP</th>
-<th style="padding:6px;border:1px solid #ddd;">Disc %</th>
-<th style="padding:6px;border:1px solid #ddd;">Net Rate</th>
-<th style="padding:6px;border:1px solid #ddd;">L&H</th>
-<th style="padding:6px;border:1px solid #ddd;">Basic Amt</th>
-</tr></thead><tbody>{items_html}</tbody></table>
-
-<div class="totals"><table style="width:350px;margin-left:auto;">
-<tr><td>Sub Total:</td><td style="text-align:right;">₹{order.value_excl_gst:,.2f}</td></tr>
-<tr><td>GST @18%:</td><td style="text-align:right;">₹{order.gst_amount:,.2f}</td></tr>
-<tr><td>Freight:</td><td style="text-align:right;">₹{order.freight_amount:,.2f}</td></tr>
-<tr style="font-size:14px;font-weight:bold;border-top:2px solid #1a365d;"><td>Grand Total:</td><td style="text-align:right;color:#16a34a;">₹{order.total_amount:,.2f}</td></tr>
-</table></div>
-
-<div class="terms"><h4>Terms & Conditions:</h4><ol>
-<li>GST @ 18% will be charged extra</li>
-<li>Freight will be charged extra</li>
-<li>Material will be supplied ex-factory</li>
-<li>Payment: Advance Cheque/Draft</li>
-<li>Delivery: {order.delivery_days} Days</li>
-<li>Our Rc. No. is to be quoted on your invoice</li>
-<li>Insurance: To be arranged by the buyer</li>
-<li>Packing: Standard packaging</li>
-<li>Subject to Jaipur Jurisdiction only</li>
-</ol></div>
-
-<div style="margin-top:40px;text-align:right;"><p>For RANA FORGING PVT LTD</p>
-<p style="margin-top:30px;">Authorized Signatory</p></div>
-
-</body></html>"""
+        if order.order_type == "PO":
+            html = _generate_po_html(order, customer, items, pi_date)
+        else:
+            html = _generate_pi_html(order, customer, items, pi_date)
 
         return HTMLResponse(content=html)
     finally:
         db.close()
+
+
+COMPANY_HEADER = """
+<div style="text-align:center;border-bottom:3px double #000;padding-bottom:10px;margin-bottom:10px;">
+<h1 style="margin:0;font-size:22px;font-weight:bold;letter-spacing:1px;">Raksha Pipes Private Limited - Indore</h1>
+<p style="margin:2px 0;font-size:11px;">520, Shekhar Central, Manorma Ganj, A B Road, Indore, Madhya Pradesh - 452001</p>
+<table style="width:100%;font-size:10px;margin-top:6px;"><tr>
+<td style="text-align:left;">Phone: +91 - 9770851300</td>
+<td style="text-align:center;">Email: desalu_andi@rachanagroup.com</td>
+<td style="text-align:right;">Website: www.rakshapipes.com</td>
+</tr><tr>
+<td style="text-align:left;">State Code: 23</td>
+<td style="text-align:center;">GSTIN: 23AACCV0019M1ZJ</td>
+<td style="text-align:right;">PAN No: AAVCR0941M</td>
+</tr></table>
+</div>
+"""
+
+COMPANY_BANK_DETAILS = """
+<div style="margin-top:15px;font-size:11px;">
+<h4 style="margin:0 0 6px 0;font-size:13px;">Bank Details</h4>
+<table style="font-size:11px;">
+<tr><td style="font-weight:bold;padding-right:10px;">Name:</td><td>Raksha Pipes Pvt. Ltd.</td></tr>
+<tr><td style="font-weight:bold;padding-right:10px;">Account Number:</td><td>004705011678</td></tr>
+<tr><td style="font-weight:bold;padding-right:10px;">Bank Name:</td><td>ICICI Bank Ltd.</td></tr>
+<tr><td style="font-weight:bold;padding-right:10px;">Branch Name:</td><td>Koramangala, Bengaluru</td></tr>
+<tr><td style="font-weight:bold;padding-right:10px;">IFSC Code:</td><td>ICIC0000047</td></tr>
+</table>
+</div>
+"""
+
+COMPANY_TERMS = """
+<div style="margin-top:15px;font-size:10px;">
+<p><b>*** Payment Terms :-</b> 100% ADVANCE</p>
+<p><b>*** Delivery :-</b> IMMEDIATE</p>
+<p><b>*** Freight :-</b> INCREASE THE ORDER FOR F.O.R. DESPATCH</p>
+<p><b>*** PROFORMA VALIDITY</b></p>
+<p><b>*** DISCOUNT STRUCTURE DATE</b></p>
+<p><b>***</b> Any Balance Quantity remain extra than Truck / Container Load will be treated as cancelled & Considered as New Order Only.</p>
+<p><b>***</b> All the material will be despatched as per Our Standard Packing Only.</p>
+<p><b>***</b> Any Differences in Price / Discount & Products in Proforma Invoice should be informed by Mail or call Immediately.</p>
+<p><b>***</b> All Disputes Subject to INDORE JURISDICTION</p>
+<p><b>***</b> All Payment should be made Through NEFT/RTGS only in favour of Raksha Pipes Pvt. Ltd.</p>
+</div>
+"""
+
+def _generate_po_html(order, customer, items, pi_date):
+    cust_name = customer.contact_name if customer else (order.billing_site or "")
+    cust_gstin = customer.gstin if customer else ""
+    cust_state = customer.state if customer else ""
+
+    items_html = ""
+    total_box = 0
+    total_pcs = 0
+    total_amount = 0
+    for item in items:
+        box = item.qty_boxes or 0
+        pcs = item.final_qty or 0
+        amt = item.basic_amount or 0
+        total_box += box
+        total_pcs += pcs
+        total_amount += amt
+        items_html += f"""
+        <tr>
+            <td style="padding:5px 8px;border:1px solid #ccc;font-size:10px;">{item.part_no or ''}</td>
+            <td style="padding:5px 8px;border:1px solid #ccc;font-size:10px;">{escape_html(item.description or '')} {escape_html(item.size or '')}</td>
+            <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;font-size:10px;">Box</td>
+            <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;font-size:10px;">{item.std_packaging or 0}</td>
+            <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;font-size:10px;">{pcs}</td>
+            <td style="padding:5px 8px;border:1px solid #ccc;text-align:right;font-size:10px;">&#8377;{item.mrp:,.0f}</td>
+            <td style="padding:5px 8px;border:1px solid #ccc;text-align:right;font-size:10px;">&#8377;{amt:,.0f}</td>
+        </tr>"""
+
+    gst = total_amount * 0.18
+    grand_total = total_amount + gst
+
+    html = f"""<!DOCTYPE html><html><head><title>Purchase Order</title>
+<style>
+body{{font-family:Arial,sans-serif;margin:15px;font-size:11px;color:#000;}}
+table{{width:100%;border-collapse:collapse;}}
+@page{{size:A4;margin:10mm;}}
+@media print{{body{{margin:5mm;}}}}
+</style></head><body>
+
+{COMPANY_HEADER}
+
+<table style="margin-bottom:8px;font-size:11px;width:100%;">
+<tr>
+<td style="width:50%;vertical-align:top;">
+<b>VENDOR / Supplier Details</b><br>
+<table style="font-size:10px;margin-top:4px;">
+<tr><td style="padding:1px 8px 1px 0;font-weight:bold;">Company Name:</td><td>{escape_html(cust_name)}</td></tr>
+<tr><td style="padding:1px 8px 1px 0;font-weight:bold;">Address:</td><td>{escape_html(order.billing_site or '')}</td></tr>
+<tr><td style="padding:1px 8px 1px 0;font-weight:bold;">State Code:</td><td>{escape_html(cust_state)}</td></tr>
+<tr><td style="padding:1px 8px 1px 0;font-weight:bold;">GSTIN:</td><td>{escape_html(cust_gstin)}</td></tr>
+</table>
+</td>
+<td style="width:50%;vertical-align:top;">
+<table style="font-size:10px;float:right;">
+<tr><td style="padding:1px 8px 1px 0;font-weight:bold;">Contact Person:</td><td>{escape_html(customer.contact_name if customer else '')}</td></tr>
+<tr><td style="padding:1px 8px 1px 0;font-weight:bold;">Mobile No:</td><td>{escape_html(customer.contact_number if customer else '')}</td></tr>
+<tr><td style="padding:1px 8px 1px 0;font-weight:bold;">Email:</td><td>{escape_html(customer.contact_email if customer else '')}</td></tr>
+<tr><td style="padding:1px 8px 1px 0;font-weight:bold;">Payment Terms:</td><td>100% Advance</td></tr>
+</table>
+</td>
+</tr>
+</table>
+
+<table style="width:100%;margin-bottom:6px;font-size:11px;">
+<tr>
+<td style="width:20%;font-weight:bold;">Anand No.:</td>
+<td style="width:15%;"></td>
+<td style="width:30%;text-align:center;font-size:16px;font-weight:bold;border-top:2px solid #000;border-bottom:2px solid #000;padding:4px;">PURCHASE ORDER</td>
+<td style="width:15%;text-align:right;font-weight:bold;">PO No:</td>
+<td style="width:20%;text-align:right;">{order.pi_no or ''}</td>
+</tr>
+<tr>
+<td style="font-weight:bold;">PO Date:</td>
+<td>{pi_date}</td>
+<td></td>
+<td style="text-align:right;font-weight:bold;">Amd No.:</td>
+<td></td>
+</tr>
+</table>
+
+<table style="width:100%;border:1px solid #ccc;margin-top:8px;">
+<thead><tr style="background:#f0f0f0;">
+<th style="padding:6px;border:1px solid #ccc;text-align:left;font-size:10px;width:18%;">Part No</th>
+<th style="padding:6px;border:1px solid #ccc;text-align:left;font-size:10px;width:30%;">Description</th>
+<th style="padding:6px;border:1px solid #ccc;text-align:center;font-size:10px;width:8%;">Box</th>
+<th style="padding:6px;border:1px solid #ccc;text-align:center;font-size:10px;width:10%;">Pcs</th>
+<th style="padding:6px;border:1px solid #ccc;text-align:center;font-size:10px;width:10%;">Total Pcs</th>
+<th style="padding:6px;border:1px solid #ccc;text-align:right;font-size:10px;width:12%;">Rate</th>
+<th style="padding:6px;border:1px solid #ccc;text-align:right;font-size:10px;width:12%;">Amount</th>
+</tr></thead>
+<tbody>{items_html}</tbody>
+<tfoot>
+<tr style="font-weight:bold;background:#f9f9f9;">
+<td colspan="2" style="padding:6px 8px;border:1px solid #ccc;font-size:11px;">Total</td>
+<td style="padding:6px 8px;border:1px solid #ccc;text-align:center;font-size:11px;">{total_box}</td>
+<td style="padding:6px 8px;border:1px solid #ccc;text-align:center;font-size:11px;">{total_pcs}</td>
+<td style="padding:6px 8px;border:1px solid #ccc;text-align:center;font-size:11px;">{total_pcs}</td>
+<td style="padding:6px 8px;border:1px solid #ccc;"></td>
+<td style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">&#8377;{total_amount:,.0f}</td>
+</tr>
+<tr style="font-weight:bold;">
+<td colspan="6" style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">GST  18%</td>
+<td style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">&#8377;{gst:,.0f}</td>
+</tr>
+<tr style="font-weight:bold;background:#f0f0f0;">
+<td colspan="6" style="padding:8px;border:1px solid #ccc;text-align:right;font-size:13px;">GRAND TOTAL</td>
+<td style="padding:8px;border:1px solid #ccc;text-align:right;font-size:13px;">&#8377;{grand_total:,.0f}</td>
+</tr>
+</tfoot></table>
+
+<table style="width:100%;margin-top:40px;font-size:11px;border:none;">
+<tr>
+<td style="width:33%;text-align:center;border-top:1px solid #000;padding-top:8px;">CREATED BY</td>
+<td style="width:33%;text-align:center;border-top:1px solid #000;padding-top:8px;">REVIEWED BY</td>
+<td style="width:33%;text-align:center;border-top:1px solid #000;padding-top:8px;">APPROVED BY</td>
+</tr>
+</table>
+
+</body></html>"""
+    return html
+
+
+def _generate_pi_html(order, customer, items, pi_date):
+    cust_name = customer.contact_name if customer else (order.billing_site or "")
+    cust_gstin = customer.gstin if customer else ""
+    cust_state = customer.state if customer else ""
+    cust_id = customer.customer_id if customer else ""
+
+    items_html = ""
+    total_box = 0
+    total_pcs = 0
+    total_basic = 0
+    total_lock_hinge = 0
+    for item in items:
+        box = item.qty_boxes or 0
+        pcs = item.final_qty or 0
+        mrp = item.mrp or 0
+        d1 = item.d1 or 0
+        d2 = item.d2 or 0
+        d3 = item.d3 or 0
+        d4 = item.d4 or 0
+        d5 = item.d5 or 0
+        cd = item.cd or 0
+        lock = item.lock_hinge or 0
+        net = item.net_rate or 0
+        amt = item.basic_amount or 0
+        total_box += box
+        total_pcs += pcs
+        total_basic += amt
+        total_lock_hinge += lock
+
+        # Calculate discount chain
+        base = mrp
+        after_d1 = base - (base * d1 / 100) if d1 else base
+        after_d2 = after_d1 - (after_d1 * d2 / 100) if d2 else after_d1
+        after_d3 = after_d2 - (after_d2 * d3 / 100) if d3 else after_d2
+        after_d4 = after_d3 - (after_d3 * d4 / 100) if d4 else after_d3
+        after_d5 = after_d4 - (after_d4 * d5 / 100) if d5 else after_d4
+        after_cd = after_d5 - (after_d5 * cd / 100) if cd else after_d5
+
+        items_html += f"""
+        <tr>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">{item.sl_no}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;font-size:9px;">{escape_html(item.description or '')} ({escape_html(item.size or '')})</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;font-size:9px;">{escape_html(item.category or '')}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;font-size:9px;">{escape_html(item.part_no or '')}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">FRP</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">Box</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">{item.std_packaging or 0}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">{pcs}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">Pieces</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:right;font-size:9px;">{mrp:,.0f}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">{d1}%</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:right;font-size:9px;">{after_d1:,.2f}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">{d2}%</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:right;font-size:9px;">{after_d2:,.2f}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">{d3}%</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:right;font-size:9px;">{after_d3:,.2f}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">{d4}%</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:right;font-size:9px;">{after_d4:,.2f}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">{d5}%</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:right;font-size:9px;">{after_d5:,.2f}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9px;">{cd}%</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:right;font-size:9px;font-weight:bold;">{after_cd:,.2f}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:right;font-size:9px;">{lock:,.0f}</td>
+            <td style="padding:4px 6px;border:1px solid #ccc;text-align:right;font-size:9px;font-weight:bold;">{amt:,.2f}</td>
+        </tr>"""
+
+    packing_charges = 0
+    sub_total = total_basic + packing_charges
+    gst = sub_total * 0.18
+    total_value = sub_total + gst
+    tcs_rate = 0.001  # 0.1%
+    tcs_amount = total_value * tcs_rate
+    final_value = total_value + tcs_amount
+
+    html = f"""<!DOCTYPE html><html><head><title>Quotation cum Proforma Invoice</title>
+<style>
+body{{font-family:Arial,sans-serif;margin:10px;font-size:10px;color:#000;}}
+table{{width:100%;border-collapse:collapse;}}
+@page{{size:landscape A4;margin:8mm;}}
+@media print{{body{{margin:5mm;}}}}
+</style></head><body>
+
+{COMPANY_HEADER}
+
+<table style="width:100%;font-size:10px;margin-bottom:8px;">
+<tr>
+<td style="width:50%;vertical-align:top;">
+<table style="font-size:10px;">
+<tr><td style="padding:1px 6px;font-weight:bold;width:120px;">CONSIGNEE ERP CODE</td><td>{escape_html(cust_id)}</td>
+<td style="padding:1px 6px;font-weight:bold;width:120px;">KYC STATUS</td><td></td></tr>
+<tr><td style="padding:1px 6px;font-weight:bold;">CONSIGNEE NAME</td><td>{escape_html(cust_name)}</td>
+<td style="padding:1px 6px;font-weight:bold;">NAME OF SALE EXECUTIVE</td><td>{escape_html(customer.exec_name if customer else '')}</td></tr>
+<tr><td style="padding:1px 6px;font-weight:bold;">LOCATION</td><td>{escape_html(customer.city if customer else '')}</td>
+<td style="padding:1px 6px;font-weight:bold;">LOCATION</td><td>{escape_html(customer.city if customer else '')}</td></tr>
+<tr><td style="padding:1px 6px;font-weight:bold;">STATE</td><td>{escape_html(cust_state)}</td>
+<td style="padding:1px 6px;font-weight:bold;">STATE</td><td>{escape_html(cust_state)}</td></tr>
+<tr><td style="padding:1px 6px;font-weight:bold;">PURCHASE ORDER NO</td><td>{escape_html(order.pi_no or '')}</td>
+<td style="padding:1px 6px;font-weight:bold;">BILL TO ADDRESS CODE</td><td></td></tr>
+<tr><td style="padding:1px 6px;font-weight:bold;">PURCHASE ORDER DATE</td><td>{pi_date}</td>
+<td style="padding:1px 6px;font-weight:bold;">SHIP TO ADDRESS CODE</td><td></td></tr>
+<tr><td style="padding:1px 6px;font-weight:bold;">PLANNING DATE</td><td>{pi_date}</td>
+<td style="padding:1px 6px;font-weight:bold;">TOTAL WEIGHT</td><td></td></tr>
+<tr><td style="padding:1px 6px;font-weight:bold;">DESPATCH DATE</td><td>{pi_date}</td>
+<td style="padding:1px 6px;font-weight:bold;">TOTAL VALUE</td><td>&#8377;{total_basic:,.2f}</td></tr>
+<tr><td style="padding:1px 6px;font-weight:bold;">STATE SR NO</td><td></td>
+<td style="padding:1px 6px;font-weight:bold;">TRADE DISCOUNT</td><td></td></tr>
+</table>
+</td>
+</tr>
+</table>
+
+<div style="overflow-x:auto;">
+<table style="width:100%;border:1px solid #ccc;font-size:9px;">
+<thead><tr style="background:#1a365d;color:white;">
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">SN</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Product Specification</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Size in (Inch &amp; MM)</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">ERP Part No</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Item Grp.</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Base UOM</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Std Packing</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Final Qty</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Final UOM</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Gen</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">D-1</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Net</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">D-2</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Net Rt</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">D-3</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Net Rt</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">D-4</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Net Rt</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">D-5</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Net Rt</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">CD</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Net Rt</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Lock &amp; Hings</th>
+<th style="padding:4px;border:1px solid #ccc;font-size:8px;">Basic Amt Without GST</th>
+</tr></thead>
+<tbody>{items_html}</tbody>
+<tfoot>
+<tr style="font-weight:bold;background:#f0f0f0;">
+<td colspan="5" style="padding:5px 8px;border:1px solid #ccc;font-size:10px;">TOTAL</td>
+<td style="padding:5px 8px;border:1px solid #ccc;text-align:center;">Box</td>
+<td style="padding:5px 8px;border:1px solid #ccc;text-align:center;">{total_box}</td>
+<td style="padding:5px 8px;border:1px solid #ccc;text-align:center;">{total_pcs}</td>
+<td style="padding:5px 8px;border:1px solid #ccc;text-align:center;">Pieces</td>
+<td colspan="11" style="padding:5px 8px;border:1px solid #ccc;"></td>
+<td style="padding:5px 8px;border:1px solid #ccc;text-align:right;">{total_lock_hinge:,.0f}</td>
+<td style="padding:5px 8px;border:1px solid #ccc;text-align:right;">{total_basic:,.2f}</td>
+</tr>
+</tfoot></table>
+</div>
+
+<table style="width:100%;margin-top:10px;font-size:11px;">
+<tr>
+<td style="width:50%;vertical-align:top;">
+{COMPANY_BANK_DETAILS}
+</td>
+<td style="width:50%;vertical-align:top;text-align:right;">
+<table style="float:right;font-size:11px;">
+<tr><td style="padding:2px 8px;font-weight:bold;">BASIC VALUE</td><td style="text-align:right;padding:2px 8px;">&#8377;{total_basic:,.2f}</td></tr>
+<tr><td style="padding:2px 8px;font-weight:bold;">ADD PACKING &amp; FORWARDING CHARGES</td><td style="text-align:right;padding:2px 8px;">&#8377;{packing_charges:,.2f}</td></tr>
+<tr><td style="padding:2px 8px;font-weight:bold;">SUB TOTAL</td><td style="text-align:right;padding:2px 8px;">&#8377;{sub_total:,.2f}</td></tr>
+<tr><td style="padding:2px 8px;font-weight:bold;">GST @ 18.00%</td><td style="text-align:right;padding:2px 8px;">&#8377;{gst:,.2f}</td></tr>
+<tr><td style="padding:2px 8px;font-weight:bold;">TOTAL VALUE</td><td style="text-align:right;padding:2px 8px;">&#8377;{total_value:,.2f}</td></tr>
+<tr><td style="padding:2px 8px;font-weight:bold;">TCS On Sales 0.1%</td><td style="text-align:right;padding:2px 8px;">&#8377;{tcs_amount:,.2f}</td></tr>
+<tr><td style="padding:2px 8px;font-weight:bold;">ROUND OFF DIFF</td><td style="text-align:right;padding:2px 8px;">&#8377;0.00</td></tr>
+<tr style="font-size:14px;font-weight:bold;border-top:2px solid #000;">
+<td style="padding:6px 8px;">FINAL PI VALUE</td>
+<td style="text-align:right;padding:6px 8px;">&#8377;{final_value:,.2f}</td></tr>
+</table>
+</td>
+</tr>
+</table>
+
+{COMPANY_TERMS}
+
+<div style="margin-top:40px;text-align:right;font-size:11px;">
+<p>For <b>Raksha Pipes Pvt. Ltd.</b></p>
+<p style="margin-top:30px;">Authorized Signatory</p>
+</div>
+
+</body></html>"""
+    return html
 
 
 # ---- CUSTOMERS ----
