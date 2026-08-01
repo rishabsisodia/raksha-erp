@@ -367,6 +367,19 @@ class ProformaOrderItem(Base):
     product = relationship("Product")
 
 
+class BillingSite(Base):
+    __tablename__ = "billing_sites"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    address = Column(String, default="")
+    phone = Column(String, default="")
+    email = Column(String, default="")
+    website = Column(String, default="")
+    gstin = Column(String, default="")
+    state_code = Column(String, default="")
+    pan = Column(String, default="")
+
+
 @app.get("/api/db-info")
 def db_info(user: User = Depends(get_current_user)):
     db_url = os.environ.get("DATABASE_URL")
@@ -451,6 +464,7 @@ def startup_event():
     backfill_pieces_per_box()
     backfill_product_names()
     seed_data()
+    seed_billing_sites()
 
 
 PIECES_PER_BOX_MAP = {
@@ -793,6 +807,37 @@ def seed_data():
 
         db.commit()
         print(f"Seeded {pid - 1} products")
+    finally:
+        db.close()
+
+
+def seed_billing_sites():
+    db = SessionLocal()
+    try:
+        if db.query(BillingSite).count() > 0:
+            return
+        sites = [
+            {"name": "Diamond Pipes & Tubes Private Limited - Unit 1", "address": "No - 209/394, Hosur Main Road, Chandapur, Bangalore - 560081", "phone": "9341329825", "email": "spi@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "29AAECS9353F1Z0", "state_code": "29", "pan": "AAECS9353F"},
+            {"name": "Diamond Pipes & Tubes Private Limited - Unit 2", "address": "No.195/2, 74/74/1, 115/67/1, 81/81/1, Chikkanahalli Road, Bommanahalli, Bengaluru - 560068", "phone": "9341985236", "email": "pi@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "29AAACD5818Q1Z2", "state_code": "29", "pan": "AAACD5818Q"},
+            {"name": "Diamond Pipes & Tubes Private Limited - Unit 3", "address": "S.No.70 / 2B,Daman Industrial Estate, Kadaiya, Daman - 396210", "phone": "8306340710", "email": "bds@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "26AAACD5818Q1Z8", "state_code": "26", "pan": "AAACD5818Q"},
+            {"name": "Shand Pipe Industry Private Limited - Unit 1", "address": "Industrial Area, Hosur Road, Bommasandra, Bangalore - 560099", "phone": "7815833361", "email": "dpt@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "29ABJPS4076L1ZV", "state_code": "29", "pan": "ABJPS4076L"},
+            {"name": "Shand Pipe Industry Private Limited - Unit 2", "address": "Sy. No. 168, Madivala Village, Kasba Hobli, Anekal Taluk, Bengaluru - 562106", "phone": "7815833361", "email": "dpt@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "29ABJPS4076L1ZV", "state_code": "29", "pan": "ABJPS4076L"},
+            {"name": "Raksha Pipes Private Limited - Ernakulam", "address": "36/337A, Chettu Kudiyil House, Pullepady Kathrikadavu Road, Kochi, Ernakulam - 682017", "phone": "9562011100", "email": "rishabmkt@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "32AACCV0019M1ZK", "state_code": "32", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - Coimbatore", "address": "D.No. 509/1A,Maniakarampalayam Road,Nallampalayam,Coimbatore,Tamil Nadu - 641006", "phone": "9345157327", "email": "raksha_tcy@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "33AACCV0019M1ZI", "state_code": "33", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - Vijayawada", "address": "# 25/96, 4th Cross, Ramraj Nagar, Kabela Centre, Vijayawada, Andhra Pradesh - 520012", "phone": "7032959106", "email": "prajay@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "37AACCV0019M1ZA", "state_code": "37", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - JC Road", "address": "No-11, New No - 11/1, 1st B Cross, Fireworks Colony, J C Road, Bangalore - 560002", "phone": "9342209496", "email": "galaxyblr@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "29AACCV0019M1Z7", "state_code": "29", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - Belgaum", "address": "C.T.S No-4927/29, Sambhaji Galli Mahadwar Road, Belgaum - 590002", "phone": "9343943148", "email": "galaxy_bel@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "29AACCV0019M1Z7", "state_code": "29", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - Pune", "address": "Gate No.1150, Opp.Hotel Abhiruchi, Near Modak International School, Pune-Saswad Road, 10th Mile, Pune - 412308", "phone": "9325411100", "email": "bhavana@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "27AACCV0019M1Z7", "state_code": "27", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - Indore", "address": "520, Shekhar Central, A B Road, Manorama Ganj, Indore, Madhya Pradesh", "phone": "9770851100", "email": "desana_ind@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "23AACCV0019M1ZJ", "state_code": "23", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - Jaipur", "address": "M - 1, Opp. V K I, Road No. - 03, Near Sharada Sec.School, Kalyan Nagar, Jaipur - 302039", "phone": "9529937091", "email": "emerald@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "08AACCV0019M1ZJ", "state_code": "08", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - Ludhiana", "address": "Block No - 30, No - 3450, Street No- 3, Heera Nagar, P.O.Moti Nagar, Ludhiana - 141010", "phone": "9356292307", "email": "desana_ldh@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "03AACCV0019M1ZJ", "state_code": "03", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - Kolkata", "address": "NH2 Chakundi Dankuni, Post Dankuni, Dankuni, Hooghly - 712310", "phone": "9339711100", "email": "raksha_kol@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "19AACCV0019M1ZJ", "state_code": "19", "pan": "AACCV0019M"},
+            {"name": "Raksha Pipes Private Limited - Patna", "address": "ANA Ware House, TRS Campus, New Byepass Road, Patna, Bihar - 800002", "phone": "7991607272", "email": "raksha_patna@shandgroup.com", "website": "www.rakshapipes.com", "gstin": "10AACCV0019M1ZJ", "state_code": "10", "pan": "AACCV0019M"},
+        ]
+        for s in sites:
+            db.add(BillingSite(**s))
+        db.commit()
+        print(f"Seeded {len(sites)} billing sites")
     finally:
         db.close()
 
@@ -1395,28 +1440,44 @@ def generate_proforma_order_pdf(oid: int, user: User = Depends(get_current_user)
 
         pi_date = order.pi_date.strftime("%d-%b-%Y") if order.pi_date else ""
 
+        billing_site = None
+        if order.billing_site:
+            try:
+                billing_site = db.query(BillingSite).filter(BillingSite.id == int(order.billing_site)).first()
+            except (ValueError, TypeError):
+                pass
+
         if order.order_type == "PO":
-            html = _generate_po_html(order, customer, items, pi_date)
+            html = _generate_po_html(order, customer, items, pi_date, billing_site)
         else:
-            html = _generate_pi_html(order, customer, items, pi_date)
+            html = _generate_pi_html(order, customer, items, pi_date, billing_site)
 
         return HTMLResponse(content=html)
     finally:
         db.close()
 
 
-COMPANY_HEADER = """
+def _billing_site_header(bs=None):
+    name = (bs.name if bs else "Raksha Pipes Private Limited").replace("Private Limited", "Pvt. Ltd.") if bs else "Raksha Pipes Pvt. Ltd."
+    address = bs.address if bs else ""
+    phone = bs.phone if bs else ""
+    email = bs.email if bs else ""
+    website = bs.website if bs else "www.rakshapipes.com"
+    gstin = bs.gstin if bs else ""
+    state_code = bs.state_code if bs else ""
+    pan = bs.pan if bs else ""
+    return f"""
 <div style="text-align:center;border-bottom:3px double #000;padding-bottom:10px;margin-bottom:10px;">
-<h1 style="margin:0;font-size:22px;font-weight:bold;letter-spacing:1px;">Raksha Pipes Private Limited - Indore</h1>
-<p style="margin:2px 0;font-size:11px;">520, Shekhar Central, Manorma Ganj, A B Road, Indore, Madhya Pradesh - 452001</p>
+<h1 style="margin:0;font-size:22px;font-weight:bold;letter-spacing:1px;">{escape_html(name)}</h1>
+<p style="margin:2px 0;font-size:11px;">{escape_html(address)}</p>
 <table style="width:100%;font-size:10px;margin-top:6px;"><tr>
-<td style="text-align:left;">Phone: +91 - 9770851300</td>
-<td style="text-align:center;">Email: desalu_andi@rachanagroup.com</td>
-<td style="text-align:right;">Website: www.rakshapipes.com</td>
+<td style="text-align:left;">Phone: +91 - {escape_html(phone)}</td>
+<td style="text-align:center;">Email: {escape_html(email)}</td>
+<td style="text-align:right;">Website: {escape_html(website)}</td>
 </tr><tr>
-<td style="text-align:left;">State Code: 23</td>
-<td style="text-align:center;">GSTIN: 23AACCV0019M1ZJ</td>
-<td style="text-align:right;">PAN No: AAVCR0941M</td>
+<td style="text-align:left;">State Code: {escape_html(state_code)}</td>
+<td style="text-align:center;">GSTIN: {escape_html(gstin)}</td>
+<td style="text-align:right;">PAN No: {escape_html(pan)}</td>
 </tr></table>
 </div>
 """
@@ -1449,10 +1510,19 @@ COMPANY_TERMS = """
 </div>
 """
 
-def _generate_po_html(order, customer, items, pi_date):
+def _generate_po_html(order, customer, items, pi_date, billing_site=None):
     cust_name = customer.contact_name if customer else (order.billing_site or "")
     cust_gstin = customer.gstin if customer else ""
     cust_state = customer.state if customer else ""
+
+    bs_name = (billing_site.name if billing_site else "Raksha Pipes Private Limited").replace("Private Limited", "Pvt. Ltd.") if billing_site else "Raksha Pipes Pvt. Ltd."
+    bs_address = billing_site.address if billing_site else ""
+    bs_phone = billing_site.phone if billing_site else ""
+    bs_email = billing_site.email if billing_site else ""
+    bs_website = billing_site.website if billing_site else "www.rakshapipes.com"
+    bs_gstin = billing_site.gstin if billing_site else ""
+    bs_state_code = billing_site.state_code if billing_site else ""
+    bs_pan = billing_site.pan if billing_site else ""
 
     items_html = ""
     total_box = 0
@@ -1487,7 +1557,7 @@ table{{width:100%;border-collapse:collapse;}}
 @media print{{body{{margin:5mm;}}}}
 </style></head><body>
 
-{COMPANY_HEADER}
+{_billing_site_header(billing_site)}
 
 <table style="margin-bottom:8px;font-size:11px;width:100%;">
 <tr>
@@ -1570,7 +1640,7 @@ table{{width:100%;border-collapse:collapse;}}
     return html
 
 
-def _generate_pi_html(order, customer, items, pi_date):
+def _generate_pi_html(order, customer, items, pi_date, billing_site=None):
     cust_name = customer.contact_name if customer else (order.billing_site or "")
     cust_gstin = customer.gstin if customer else ""
     cust_state = customer.state if customer else ""
@@ -1652,7 +1722,7 @@ table{{width:100%;border-collapse:collapse;}}
 @media print{{body{{margin:5mm;}}}}
 </style></head><body>
 
-{COMPANY_HEADER}
+{_billing_site_header(billing_site)}
 
 <table style="width:100%;font-size:10px;margin-bottom:8px;">
 <tr>
@@ -1749,7 +1819,7 @@ table{{width:100%;border-collapse:collapse;}}
 {COMPANY_TERMS}
 
 <div style="margin-top:40px;text-align:right;font-size:11px;">
-<p>For <b>Raksha Pipes Pvt. Ltd.</b></p>
+<p>For <b>{escape_html((billing_site.name if billing_site else "Raksha Pipes Private Limited").replace("Private Limited", "Pvt. Ltd."))}</b></p>
 <p style="margin-top:30px;">Authorized Signatory</p>
 </div>
 
@@ -2780,6 +2850,19 @@ def dashboard(user: User = Depends(get_current_user)):
                 "revenue_chart": {"labels": [], "data": []},
                 "party_chart": {"labels": [], "data": []},
                 "location_chart": {"labels": [], "data": []}}
+    finally:
+        db.close()
+
+
+# ---- BILLING SITES ----
+@app.get("/api/billing-sites")
+def list_billing_sites(user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        sites = db.query(BillingSite).order_by(BillingSite.name).all()
+        return [{"id": s.id, "name": s.name, "address": s.address, "phone": s.phone,
+                 "email": s.email, "website": s.website, "gstin": s.gstin,
+                 "state_code": s.state_code, "pan": s.pan} for s in sites]
     finally:
         db.close()
 

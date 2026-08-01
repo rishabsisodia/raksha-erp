@@ -465,7 +465,7 @@
                 <div class="grid grid-cols-4 gap-3">
                     <div><label class="block text-sm font-medium">Order Type *</label><select id="f-pootype" class="w-full border rounded px-3 py-2"><option value="PI">Proforma Invoice (PI)</option><option value="PO">Purchase Order (PO)</option></select></div>
                     <div><label class="block text-sm font-medium">Customer *</label><select id="f-poocust" required class="w-full border rounded px-3 py-2"></select></div>
-                    <div><label class="block text-sm font-medium">Billing Site</label><input type="text" id="f-poobilling" class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm font-medium">Billing Site</label><select id="f-poobilling" class="w-full border rounded px-3 py-2" onchange="onBillingSiteChange()"><option value="">Select Billing Site</option></select></div>
                     <div><label class="block text-sm font-medium">Shipping Site</label><input type="text" id="f-pooshipping" class="w-full border rounded px-3 py-2"></div>
                 </div>
 

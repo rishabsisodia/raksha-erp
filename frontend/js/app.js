@@ -1,6 +1,8 @@
 var INR = '\u20B9';
 var _products = [];
 var _customers = [];
+var _billingSites = [];
+var _selectedBillingSite = null;
 var _proformaItems = [];
 var _editingProformaId = null;
 var _sortState = {};
@@ -230,13 +232,22 @@ async function showModal(id) {
 async function refreshDropdowns() {
     _products = await api('/api/products');
     _customers = await api('/api/customers');
+    _billingSites = await api('/api/billing-sites');
     var po = '';
     _products.forEach(function(p) { po += '<option value="' + p.id + '">' + escapeHtml(p.part_no) + ' - ' + escapeHtml(p.name) + ' (' + escapeHtml(p.size || 'N/A') + ')</option>'; });
     var co = '';
     _customers.forEach(function(c) { co += '<option value="' + c.id + '">' + escapeHtml(c.customer_id) + ' - ' + escapeHtml(c.contact_name) + '</option>'; });
+    var bs = '<option value="">Select Billing Site</option>';
+    _billingSites.forEach(function(s) { bs += '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>'; });
     if ($('f-slprod')) $('f-slprod').innerHTML = po;
     if ($('f-slcust')) $('f-slcust').innerHTML = co;
     if ($('f-poocust')) $('f-poocust').innerHTML = co;
+    if ($('f-poobilling')) $('f-poobilling').innerHTML = bs;
+}
+
+function onBillingSiteChange() {
+    var id = parseInt($('f-poobilling').value);
+    _selectedBillingSite = _billingSites.find(function(s) { return s.id === id; }) || null;
 }
 function hideModal(id) { $(id).classList.add('hidden'); }
 
@@ -1716,6 +1727,7 @@ async function editProformaOrder(id) {
     $('f-pooid').value = id;
     $('f-pootype').value = order.order_type;
     $('f-poobilling').value = order.billing_site || '';
+    onBillingSiteChange();
     $('f-pooshipping').value = order.shipping_site || '';
     $('f-poofreight').value = order.freight_amount || 0;
     $('f-poopaystatus').value = order.payment_status;
@@ -1758,6 +1770,7 @@ async function viewProformaOrder(id) {
     $('f-pooid').value = id;
     $('f-pootype').value = order.order_type;
     $('f-poobilling').value = order.billing_site || '';
+    onBillingSiteChange();
     $('f-pooshipping').value = order.shipping_site || '';
     $('f-poofreight').value = order.freight_amount || 0;
     $('f-poopaystatus').value = order.payment_status;
@@ -1966,17 +1979,28 @@ function generateProformaPDF() {
     var billingSite = $('f-poobilling').value;
     var shippingSite = $('f-pooshipping').value;
 
+    var bs = _selectedBillingSite || {};
+    var bsName = bs.name || 'Raksha Pipes Private Limited';
+    var bsAddress = bs.address || '';
+    var bsPhone = bs.phone || '';
+    var bsEmail = bs.email || '';
+    var bsWebsite = bs.website || 'www.rakshapipes.com';
+    var bsGstin = bs.gstin || '';
+    var bsStateCode = bs.state_code || '';
+    var bsPan = bs.pan || '';
+    var bsShortName = bsName.replace('Private Limited', 'Pvt. Ltd.');
+
     var COMPANY_HEADER = '<div style="text-align:center;border-bottom:3px double #000;padding-bottom:10px;margin-bottom:10px;">';
-    COMPANY_HEADER += '<h1 style="margin:0;font-size:22px;font-weight:bold;letter-spacing:1px;">Raksha Pipes Private Limited - Indore</h1>';
-    COMPANY_HEADER += '<p style="margin:2px 0;font-size:11px;">520, Shekhar Central, Manorma Ganj, A B Road, Indore, Madhya Pradesh - 452001</p>';
+    COMPANY_HEADER += '<h1 style="margin:0;font-size:22px;font-weight:bold;letter-spacing:1px;">' + escapeHtml(bsShortName) + '</h1>';
+    COMPANY_HEADER += '<p style="margin:2px 0;font-size:11px;">' + escapeHtml(bsAddress) + '</p>';
     COMPANY_HEADER += '<table style="width:100%;font-size:10px;margin-top:6px;"><tr>';
-    COMPANY_HEADER += '<td style="text-align:left;">Phone: +91 - 9770851300</td>';
-    COMPANY_HEADER += '<td style="text-align:center;">Email: desalu_andi@rachanagroup.com</td>';
-    COMPANY_HEADER += '<td style="text-align:right;">Website: www.rakshapipes.com</td>';
+    COMPANY_HEADER += '<td style="text-align:left;">Phone: +91 - ' + escapeHtml(bsPhone) + '</td>';
+    COMPANY_HEADER += '<td style="text-align:center;">Email: ' + escapeHtml(bsEmail) + '</td>';
+    COMPANY_HEADER += '<td style="text-align:right;">Website: ' + escapeHtml(bsWebsite) + '</td>';
     COMPANY_HEADER += '</tr><tr>';
-    COMPANY_HEADER += '<td style="text-align:left;">State Code: 23</td>';
-    COMPANY_HEADER += '<td style="text-align:center;">GSTIN: 23AACCV0019M1ZJ</td>';
-    COMPANY_HEADER += '<td style="text-align:right;">PAN No: AAVCR0941M</td>';
+    COMPANY_HEADER += '<td style="text-align:left;">State Code: ' + escapeHtml(bsStateCode) + '</td>';
+    COMPANY_HEADER += '<td style="text-align:center;">GSTIN: ' + escapeHtml(bsGstin) + '</td>';
+    COMPANY_HEADER += '<td style="text-align:right;">PAN No: ' + escapeHtml(bsPan) + '</td>';
     COMPANY_HEADER += '</tr></table></div>';
 
     var BANK_DETAILS = '<div style="margin-top:15px;font-size:11px;">';
@@ -2223,7 +2247,7 @@ function generateProformaPDF() {
         html += TERMS;
 
         html += '<div style="margin-top:40px;text-align:right;font-size:11px;">';
-        html += '<p>For <b>Raksha Pipes Pvt. Ltd.</b></p>';
+        html += '<p>For <b>' + escapeHtml(bsShortName) + '</b></p>';
         html += '<p style="margin-top:30px;">Authorized Signatory</p></div>';
 
         html += '</body></html>';
