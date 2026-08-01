@@ -56,6 +56,11 @@
             </div>
             <div style="display:flex;align-items:center;gap:12px;">
                 <span id="today-date" style="font-size:13px;color:#94a3b8;background:#f1f5f9;padding:8px 16px;border-radius:10px;font-weight:500;"></span>
+                <div style="display:flex;align-items:center;gap:8px;background:#f1f5f9;padding:6px 14px;border-radius:10px;">
+                    <span id="user-display" style="font-size:13px;font-weight:600;color:#374151;"></span>
+                    <span id="role-badge" style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;"></span>
+                </div>
+                <button onclick="handleLogout()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#ef4444;transition:all 0.15s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#f1f5f9'"><i class="fas fa-sign-out-alt" style="margin-right:4px;"></i>Logout</button>
             </div>
         </header>
 
@@ -152,9 +157,9 @@
                         <div class="relative group">
                             <button style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(99,102,241,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-export" style="margin-right:4px;"></i>Export</button>
                             <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-xl z-10 whitespace-nowrap" style="border-color:#e2e8f0;border-radius:12px;">
-                                <a href="/api/export/orders?format=csv" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV</a>
-                                <a href="/api/export/orders?format=xlsx" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX</a>
-                                <a href="/api/export/orders?format=pdf" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
+                                <a onclick="downloadExport('/api/export/orders?format=csv')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV</a>
+                                <a onclick="downloadExport('/api/export/orders?format=xlsx')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX</a>
+                                <a onclick="downloadExport('/api/export/orders?format=pdf')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
                             </div>
                         </div>
                         <button onclick="showProformaOrderModal()" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(59,130,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>New PI/PO</button>
@@ -255,9 +260,9 @@
                         <div class="relative group">
                             <button style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(99,102,241,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-export" style="margin-right:4px;"></i>Export</button>
                             <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-xl z-10 whitespace-nowrap" style="border-color:#e2e8f0;border-radius:12px;">
-                                <a href="/api/export/sales?format=csv" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV</a>
-                                <a href="/api/export/sales?format=xlsx" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX</a>
-                                <a href="/api/export/sales?format=pdf" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
+                                <a onclick="downloadExport('/api/export/sales?format=csv')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV</a>
+                                <a onclick="downloadExport('/api/export/sales?format=xlsx')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX</a>
+                                <a onclick="downloadExport('/api/export/sales?format=pdf')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
                             </div>
                         </div>
                         <button onclick="fetchBulkTracking()" id="btn-fetch-all-tracking" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(245,158,11,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>Fetch All Tracking</button>
@@ -746,8 +751,63 @@
         </div>
     </div>
 
+    <div id="login-overlay" class="fixed inset-0 z-[200] flex items-center justify-center" style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);display:none;">
+        <div style="background:#fff;border-radius:20px;width:100%;max-width:400px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);padding:40px;">
+            <div style="text-align:center;margin-bottom:32px;">
+                <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;margin:0 auto 16px;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                    <img src="/static/img/logo.png" alt="Raksha ERP" style="width:100%;height:100%;object-fit:cover;">
+                </div>
+                <h2 style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.03em;">Raksha ERP</h2>
+                <p style="font-size:13px;color:#64748b;margin-top:4px;">Sign in to your account</p>
+            </div>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div style="margin-bottom:16px;">
+                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Username</label>
+                    <input type="text" id="login-username" required autocomplete="username" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:'Inter',sans-serif;box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:24px;">
+                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Password</label>
+                    <input type="password" id="login-password" required autocomplete="current-password" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:'Inter',sans-serif;box-sizing:border-box;">
+                </div>
+                <p id="login-error" style="color:#ef4444;font-size:13px;margin-bottom:16px;display:none;"></p>
+                <button type="submit" id="login-btn" style="width:100%;background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;padding:12px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(99,102,241,0.3);transition:all 0.15s;">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="m-user" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
+            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-user-title">Add User</h3>
+                <button onclick="hideModal('m-user')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+            </div>
+            <form id="f-user" style="padding:24px;" class="space-y-4">
+                <input type="hidden" id="f-uid">
+                <label class="block text-sm font-medium text-gray-700">Username *</label>
+                <input type="text" id="f-uusername" required class="w-full border rounded px-3 py-2" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                <label class="block text-sm font-medium text-gray-700">Full Name</label>
+                <input type="text" id="f-ufullname" class="w-full border rounded px-3 py-2" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                <label class="block text-sm font-medium text-gray-700">Email</label>
+                <input type="email" id="f-uemail" class="w-full border rounded px-3 py-2" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                <label class="block text-sm font-medium text-gray-700">Password <span id="f-upw-hint">(required)</span></label>
+                <input type="password" id="f-upassword" class="w-full border rounded px-3 py-2" minlength="6" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                <label class="block text-sm font-medium text-gray-700">Role *</label>
+                <select id="f-urole" required class="w-full border rounded px-3 py-2" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                    <option value="viewer">Viewer</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <label class="block text-sm" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f-uisactive" checked> Active</label>
+                <div class="flex justify-end gap-3 pt-4 border-t" style="display:flex;justify-content:flex-end;gap:12px;padding-top:16px;border-top:1px solid #f1f5f9;">
+                    <button type="button" onclick="hideModal('m-user')" class="btn-cancel" style="padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;border:1.5px solid #e2e8f0;background:#fff;color:#374151;">Cancel</button>
+                    <button type="submit" class="btn-save" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(16,185,129,0.3);">Save User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl hidden" style="font-weight:600;font-size:14px;background:#10b981;"></div>
 
-    <script src="/static/js/app.js?v=20260731v2"></script>
+    <script src="/static/js/app.js?v=20260801v1"></script>
 </body>
 </html>

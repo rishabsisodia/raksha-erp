@@ -1,19 +1,35 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Query
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query, Depends, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response, HTMLResponse
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, text
+from fastapi.responses import FileResponse, Response, HTMLResponse, JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, text, func
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import os
 import cloudinary
 import cloudinary.uploader
 import urllib.request
 import csv
 import io
+import bcrypt
+import jwt
 
 app = FastAPI(title="Raksha ERP")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+JWT_SECRET = os.environ.get("JWT_SECRET", "raksha-erp-secret-key-change-in-production")
+JWT_ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 480
 
 CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
 if CLOUDINARY_URL and "@" in CLOUDINARY_URL:
@@ -35,6 +51,79 @@ else:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+ROLE_PERMISSIONS = {
+    "admin": {
+        "dashboard": ["view"],
+        "products": ["view", "create", "edit", "delete", "import", "export"],
+        "orders": ["view", "create", "edit", "delete", "import", "export"],
+        "proforma_orders": ["view", "create", "edit", "delete", "export"],
+        "customers": ["view", "create", "edit", "delete", "import"],
+        "transporters": ["view", "create", "edit", "delete", "import"],
+        "sales": ["view", "create", "edit", "delete", "import", "export", "bulk_edit"],
+        "expenses": ["view", "create", "edit", "delete", "import"],
+        "reports": ["view", "export"],
+        "settings": ["view", "edit"],
+        "users": ["view", "create", "edit", "delete"],
+    },
+    "manager": {
+        "dashboard": ["view"],
+        "products": ["view", "create", "edit"],
+        "orders": ["view", "create", "edit"],
+        "proforma_orders": ["view", "create", "edit"],
+        "customers": ["view", "create", "edit"],
+        "transporters": ["view", "create", "edit"],
+        "sales": ["view", "create", "edit"],
+        "expenses": ["view", "create", "edit"],
+        "reports": ["view"],
+        "settings": ["view"],
+        "users": [],
+    },
+    "viewer": {
+        "dashboard": ["view"],
+        "products": ["view"],
+        "orders": ["view"],
+        "proforma_orders": ["view"],
+        "customers": ["view"],
+        "transporters": ["view"],
+        "sales": ["view"],
+        "expenses": ["view"],
+        "reports": ["view"],
+        "settings": ["view"],
+        "users": [],
+    },
+}
+
+security = HTTPBearer(auto_error=False)
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("user_id")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.is_active:
+            raise HTTPException(status_code=401, detail="User not found or inactive")
+        return user
+    finally:
+        db.close()
+
+def require_permission(module, action):
+    def dependency(user: User = Depends(get_current_user)):
+        perms = ROLE_PERMISSIONS.get(user.role, {}).get(module, [])
+        if action not in perms:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return user
+    return dependency
 
 
 class Product(Base):
@@ -184,17 +273,13 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    role = Column(String, default="user")
+    full_name = Column(String, default="")
+    email = Column(String, default="")
+    role = Column(String, default="viewer")
+    is_active = Column(Integer, default=1)
+    last_login = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-
-
-class Token(Base):
-    __tablename__ = "tokens"
-    id = Column(Integer, primary_key=True, index=True)
-    token = Column(String, unique=True, nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    user = relationship("User")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Order(Base):
@@ -282,7 +367,7 @@ class ProformaOrderItem(Base):
 
 
 @app.get("/api/db-info")
-def db_info():
+def db_info(user: User = Depends(get_current_user)):
     db_url = os.environ.get("DATABASE_URL")
     has_key = "DATABASE_URL" in os.environ
     if db_url:
@@ -355,6 +440,12 @@ def startup_event():
             safe_ddl(f"ALTER TABLE customers ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
         safe_ddl("UPDATE customers SET customer_id = 'C' || id WHERE customer_id IS NULL OR customer_id = ''")
         safe_ddl("ALTER TABLE customers ADD CONSTRAINT customers_customer_id_unique UNIQUE (customer_id)")
+        safe_ddl("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR DEFAULT ''")
+        safe_ddl("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR DEFAULT ''")
+        safe_ddl("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1")
+        safe_ddl("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP")
+        safe_ddl("ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+        safe_ddl("UPDATE users SET role = 'admin' WHERE username = 'admin' AND (role = 'user' OR role IS NULL OR role = '')")
     backfill_part_numbers()
     backfill_pieces_per_box()
     backfill_product_names()
@@ -601,11 +692,16 @@ def backfill_product_names():
 def seed_data():
     db = SessionLocal()
     try:
-        import hashlib
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
-            admin = User(username="admin", password_hash=hashlib.sha256("admin123".encode()).hexdigest(), role="admin")
+            pw_hash = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
+            admin = User(username="admin", password_hash=pw_hash, full_name="Administrator", email="admin@raksha.com", role="admin", is_active=1)
             db.add(admin)
+            db.commit()
+        elif not admin.password_hash.startswith("$2"):
+            admin.password_hash = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
+            admin.role = "admin"
+            admin.full_name = admin.full_name or "Administrator"
             db.commit()
 
         if db.query(Product).count() > 0:
@@ -871,7 +967,7 @@ CATEGORY_ORDER = {"Manhole Cover": 0, "Gully Cover": 1}
 CSV_ORDER = {pn: i for i, (pn, _) in enumerate(PART_NO_CSV)}
 
 @app.get("/api/products")
-def list_products():
+def list_products(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Product).all()
@@ -891,7 +987,7 @@ def list_products():
 
 
 @app.post("/api/products")
-def create_product(inp: ProductIn):
+def create_product(inp: ProductIn, user: User = Depends(require_permission("products", "create"))):
     db = SessionLocal()
     try:
         p = Product(**inp.dict())
@@ -906,7 +1002,7 @@ def create_product(inp: ProductIn):
 
 
 @app.put("/api/products/{pid}")
-def update_product(pid: int, inp: ProductIn):
+def update_product(pid: int, inp: ProductIn, user: User = Depends(require_permission("products", "edit"))):
     db = SessionLocal()
     try:
         p = db.query(Product).filter(Product.id == pid).first()
@@ -921,7 +1017,7 @@ def update_product(pid: int, inp: ProductIn):
 
 
 @app.delete("/api/products/{pid}")
-def delete_product(pid: int):
+def delete_product(pid: int, user: User = Depends(require_permission("products", "delete"))):
     db = SessionLocal()
     try:
         p = db.query(Product).filter(Product.id == pid).first()
@@ -936,7 +1032,7 @@ def delete_product(pid: int):
 
 # ---- PRICING ----
 @app.get("/api/products/{pid}/pricing")
-def get_pricing(pid: int):
+def get_pricing(pid: int, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         pr = db.query(Pricing).filter(Pricing.product_id == pid).first()
@@ -959,7 +1055,7 @@ def get_pricing(pid: int):
 
 
 @app.put("/api/products/{pid}/pricing")
-def update_pricing(pid: int, inp: PricingIn):
+def update_pricing(pid: int, inp: PricingIn, user: User = Depends(require_permission("products", "edit"))):
     db = SessionLocal()
     try:
         pr = db.query(Pricing).filter(Pricing.product_id == pid).first()
@@ -969,6 +1065,12 @@ def update_pricing(pid: int, inp: PricingIn):
         pr.raw_material_cost = inp.raw_material_cost
         pr.mrp = inp.mrp
         pr.gst_rate = inp.gst_rate
+        pr.labor_cost = inp.labor_cost
+        pr.overhead_cost = inp.overhead_cost
+        pr.packing_cost = inp.packing_cost
+        pr.profit_margin = inp.profit_margin
+        total = inp.raw_material_cost + inp.labor_cost + inp.overhead_cost + inp.packing_cost
+        pr.total_cost = total
         db.commit()
         return {"message": "Updated", "mrp": inp.mrp}
     finally:
@@ -977,7 +1079,7 @@ def update_pricing(pid: int, inp: PricingIn):
 
 # ---- ORDERS ----
 @app.get("/api/orders")
-def list_orders():
+def list_orders(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Order).order_by(Order.id).all()
@@ -998,11 +1100,11 @@ def list_orders():
 
 
 @app.post("/api/orders")
-def create_order(inp: OrderIn):
+def create_order(inp: OrderIn, user: User = Depends(require_permission("orders", "create"))):
     db = SessionLocal()
     try:
-        max_sl = db.query(Order.sl_no).order_by(Order.sl_no.desc()).first()
-        next_sl = (max_sl[0] + 1) if max_sl and max_sl[0] else 1
+        max_sl = db.query(func.max(Order.sl_no)).scalar()
+        next_sl = (max_sl + 1) if max_sl else 1
         data = inp.dict()
         data["sl_no"] = next_sl
         o = Order(**data)
@@ -1015,7 +1117,7 @@ def create_order(inp: OrderIn):
 
 
 @app.put("/api/orders/{oid}")
-def update_order(oid: int, inp: OrderIn):
+def update_order(oid: int, inp: OrderIn, user: User = Depends(require_permission("orders", "edit"))):
     db = SessionLocal()
     try:
         o = db.query(Order).filter(Order.id == oid).first()
@@ -1030,7 +1132,7 @@ def update_order(oid: int, inp: OrderIn):
 
 
 @app.delete("/api/orders/{oid}")
-def delete_order(oid: int):
+def delete_order(oid: int, user: User = Depends(require_permission("orders", "delete"))):
     db = SessionLocal()
     try:
         o = db.query(Order).filter(Order.id == oid).first()
@@ -1045,7 +1147,7 @@ def delete_order(oid: int):
 
 # ---- PROFORMA ORDERS (Multi-Product PI/PO) ----
 @app.get("/api/proforma-orders")
-def list_proforma_orders(order_type: str = None):
+def list_proforma_orders(order_type: str = None, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         query = db.query(ProformaOrder)
@@ -1077,7 +1179,7 @@ def list_proforma_orders(order_type: str = None):
 
 
 @app.get("/api/proforma-orders/{oid}")
-def get_proforma_order(oid: int):
+def get_proforma_order(oid: int, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         o = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
@@ -1125,14 +1227,14 @@ def get_proforma_order(oid: int):
 
 
 @app.post("/api/proforma-orders")
-def create_proforma_order(inp: ProformaOrderIn):
+def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_permission("proforma_orders", "create"))):
     db = SessionLocal()
     try:
         customer = db.query(Customer).filter(Customer.id == inp.customer_id).first()
         if not customer:
             raise HTTPException(404, "Customer not found")
 
-        max_id = db.query(ProformaOrder).count()
+        max_id = db.query(func.max(ProformaOrder.id)).scalar() or 0
         pi_no = f"RFC/{datetime.now().strftime('%y%m')}-{max_id + 1:03d}"
 
         total_qty = 0
@@ -1184,7 +1286,7 @@ def create_proforma_order(inp: ProformaOrderIn):
 
 
 @app.put("/api/proforma-orders/{oid}")
-def update_proforma_order(oid: int, inp: ProformaOrderIn):
+def update_proforma_order(oid: int, inp: ProformaOrderIn, user: User = Depends(require_permission("proforma_orders", "edit"))):
     db = SessionLocal()
     try:
         order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
@@ -1247,7 +1349,7 @@ def update_proforma_order(oid: int, inp: ProformaOrderIn):
 
 
 @app.delete("/api/proforma-orders/{oid}")
-def delete_proforma_order(oid: int):
+def delete_proforma_order(oid: int, user: User = Depends(require_permission("proforma_orders", "delete"))):
     db = SessionLocal()
     try:
         order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
@@ -1262,7 +1364,7 @@ def delete_proforma_order(oid: int):
 
 
 @app.get("/api/products/{pid}/details")
-def get_product_details(pid: int):
+def get_product_details(pid: int, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         p = db.query(Product).filter(Product.id == pid).first()
@@ -1281,7 +1383,7 @@ def get_product_details(pid: int):
 
 
 @app.get("/api/proforma-orders/{oid}/pdf")
-def generate_proforma_order_pdf(oid: int):
+def generate_proforma_order_pdf(oid: int, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
@@ -1394,7 +1496,7 @@ table{{width:100%;border-collapse:collapse;}}
 
 # ---- CUSTOMERS ----
 @app.get("/api/customers")
-def list_customers():
+def list_customers(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Customer).all()
@@ -1410,7 +1512,7 @@ def list_customers():
 
 
 @app.post("/api/customers")
-def create_customer(inp: CustomerIn):
+def create_customer(inp: CustomerIn, user: User = Depends(require_permission("customers", "create"))):
     db = SessionLocal()
     try:
         c = Customer(**inp.dict())
@@ -1423,7 +1525,7 @@ def create_customer(inp: CustomerIn):
 
 
 @app.put("/api/customers/{cid}")
-def update_customer(cid: int, inp: CustomerIn):
+def update_customer(cid: int, inp: CustomerIn, user: User = Depends(require_permission("customers", "edit"))):
     db = SessionLocal()
     try:
         c = db.query(Customer).filter(Customer.id == cid).first()
@@ -1438,7 +1540,7 @@ def update_customer(cid: int, inp: CustomerIn):
 
 
 @app.delete("/api/customers/{cid}")
-def delete_customer(cid: int):
+def delete_customer(cid: int, user: User = Depends(require_permission("customers", "delete"))):
     db = SessionLocal()
     try:
         c = db.query(Customer).filter(Customer.id == cid).first()
@@ -1454,7 +1556,7 @@ def delete_customer(cid: int):
 
 # ---- TRANSPORTERS ----
 @app.get("/api/transporters")
-def list_transporters():
+def list_transporters(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Transporter).all()
@@ -1472,7 +1574,7 @@ def list_transporters():
 
 
 @app.post("/api/transporters")
-def create_transporter(inp: TransporterIn):
+def create_transporter(inp: TransporterIn, user: User = Depends(require_permission("transporters", "create"))):
     db = SessionLocal()
     try:
         t = Transporter(**inp.dict())
@@ -1485,7 +1587,7 @@ def create_transporter(inp: TransporterIn):
 
 
 @app.put("/api/transporters/{tid}")
-def update_transporter(tid: int, inp: TransporterIn):
+def update_transporter(tid: int, inp: TransporterIn, user: User = Depends(require_permission("transporters", "edit"))):
     db = SessionLocal()
     try:
         t = db.query(Transporter).filter(Transporter.id == tid).first()
@@ -1500,7 +1602,7 @@ def update_transporter(tid: int, inp: TransporterIn):
 
 
 @app.get("/api/fix-urls")
-def fix_urls():
+def fix_urls(user: User = Depends(require_permission("transporters", "edit"))):
     db = SessionLocal()
     try:
         rows = db.query(Transporter).all()
@@ -1521,10 +1623,17 @@ def fix_urls():
 
 
 @app.get("/api/view-file")
-async def view_file(url: str = Query(...)):
+async def view_file(url: str = Query(...), user: User = Depends(get_current_user)):
+    from urllib.parse import urlparse
     try:
+        parsed = urlparse(url)
+        allowed_hosts = ["res.cloudinary.com", "cloudinary.com"]
+        if parsed.scheme not in ("https", "http") or parsed.hostname not in allowed_hosts:
+            raise HTTPException(400, "URL not allowed. Only Cloudinary URLs are permitted.")
+        import ssl
+        ctx = ssl.create_default_context()
         req = urllib.request.Request(url)
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, context=ctx) as resp:
             data = resp.read()
             if data[:4] == b'%PDF':
                 content_type = 'application/pdf'
@@ -1537,12 +1646,14 @@ async def view_file(url: str = Query(...)):
             return Response(content=data, media_type=content_type, headers={
                 "Content-Disposition": "inline",
             })
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, f"Failed to load file: {str(e)}")
 
 
 @app.delete("/api/transporters/{tid}")
-def delete_transporter(tid: int):
+def delete_transporter(tid: int, user: User = Depends(require_permission("transporters", "delete"))):
     db = SessionLocal()
     try:
         t = db.query(Transporter).filter(Transporter.id == tid).first()
@@ -1557,7 +1668,7 @@ def delete_transporter(tid: int):
 
 # ---- SALES ----
 @app.get("/api/sales")
-def list_sales():
+def list_sales(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Sale).order_by(Sale.id.desc()).all()
@@ -1605,7 +1716,7 @@ def list_sales():
 
 
 @app.post("/api/sales")
-def create_sale(inp: SaleIn):
+def create_sale(inp: SaleIn, user: User = Depends(require_permission("sales", "create"))):
     db = SessionLocal()
     try:
         prod = db.query(Product).filter(Product.id == inp.product_id).first()
@@ -1621,7 +1732,7 @@ def create_sale(inp: SaleIn):
         sgst = taxable * gst_rate / 200
         total = taxable + cgst + sgst + inp.freight_amount
 
-        max_id = db.query(Sale).count()
+        max_id = db.query(func.max(Sale.id)).scalar() or 0
         invoice_no = f"RFRP-{max_id + 1:05d}"
 
         s = Sale(
@@ -1643,7 +1754,7 @@ def create_sale(inp: SaleIn):
 
 
 @app.delete("/api/sales/{sid}")
-def delete_sale(sid: int):
+def delete_sale(sid: int, user: User = Depends(require_permission("sales", "delete"))):
     db = SessionLocal()
     try:
         s = db.query(Sale).filter(Sale.id == sid).first()
@@ -1657,7 +1768,7 @@ def delete_sale(sid: int):
 
 
 @app.patch("/api/sales/{sid}/invoice")
-def patch_sale_invoice(sid: int, body: dict):
+def patch_sale_invoice(sid: int, body: dict, user: User = Depends(require_permission("sales", "edit"))):
     db = SessionLocal()
     try:
         s = db.query(Sale).filter(Sale.id == sid).first()
@@ -1674,7 +1785,7 @@ def patch_sale_invoice(sid: int, body: dict):
 
 
 @app.put("/api/sales/{sid}")
-def update_sale(sid: int, inp: SaleIn):
+def update_sale(sid: int, inp: SaleIn, user: User = Depends(require_permission("sales", "edit"))):
     db = SessionLocal()
     try:
         s = db.query(Sale).filter(Sale.id == sid).first()
@@ -1721,7 +1832,7 @@ def update_sale(sid: int, inp: SaleIn):
 
 
 @app.patch("/api/sales/bulk-payment")
-def bulk_update_payment_status(body: dict):
+def bulk_update_payment_status(body: dict, user: User = Depends(require_permission("sales", "bulk_edit"))):
     status = body.get("payment_status", "Paid")
     db = SessionLocal()
     try:
@@ -1733,7 +1844,7 @@ def bulk_update_payment_status(body: dict):
 
 
 @app.patch("/api/sales/bulk-lr-status")
-def bulk_update_lr_status(body: dict):
+def bulk_update_lr_status(body: dict, user: User = Depends(require_permission("sales", "bulk_edit"))):
     status = body.get("lr_tracking_status", "Delivered")
     exclude_ids = body.get("exclude_ids", [])
     db = SessionLocal()
@@ -1749,7 +1860,7 @@ def bulk_update_lr_status(body: dict):
 
 
 @app.delete("/api/customers/by-id/{customer_id}")
-def delete_customer_by_customer_id(customer_id: str):
+def delete_customer_by_customer_id(customer_id: str, user: User = Depends(require_permission("customers", "delete"))):
     db = SessionLocal()
     try:
         c = db.query(Customer).filter(Customer.customer_id == customer_id).first()
@@ -1765,7 +1876,7 @@ def delete_customer_by_customer_id(customer_id: str):
 
 # ---- LR TRACKING ----
 @app.put("/api/sales/{sid}/lr-tracking")
-def update_lr_tracking(sid: int, body: dict):
+def update_lr_tracking(sid: int, body: dict, user: User = Depends(require_permission("sales", "edit"))):
     db = SessionLocal()
     try:
         s = db.query(Sale).filter(Sale.id == sid).first()
@@ -1785,7 +1896,7 @@ def update_lr_tracking(sid: int, body: dict):
 
 
 @app.post("/api/sales/{sid}/generate-tracking-url")
-def generate_tracking_url(sid: int):
+def generate_tracking_url(sid: int, user: User = Depends(require_permission("sales", "edit"))):
     db = SessionLocal()
     try:
         s = db.query(Sale).filter(Sale.id == sid).first()
@@ -1824,7 +1935,7 @@ def generate_tracking_url(sid: int):
 
 
 @app.get("/api/sales/{sid}/lr-tracking")
-def get_lr_tracking(sid: int):
+def get_lr_tracking(sid: int, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         s = db.query(Sale).filter(Sale.id == sid).first()
@@ -1842,7 +1953,7 @@ def get_lr_tracking(sid: int):
 
 
 @app.post("/api/auto-generate-tracking-urls")
-def auto_generate_tracking_urls():
+def auto_generate_tracking_urls(user: User = Depends(require_permission("sales", "edit"))):
     db = SessionLocal()
     try:
         updated = 0
@@ -2061,7 +2172,7 @@ def fetch_generic_tracking(lr_no, tracking_url_pattern):
 
 
 @app.post("/api/fetch-tracking/{sid}")
-def fetch_tracking_status(sid: int):
+def fetch_tracking_status(sid: int, user: User = Depends(require_permission("sales", "edit"))):
     db = SessionLocal()
     try:
         s = db.query(Sale).filter(Sale.id == sid).first()
@@ -2101,7 +2212,7 @@ def fetch_tracking_status(sid: int):
 
 
 @app.post("/api/fetch-tracking-bulk")
-def fetch_tracking_bulk():
+def fetch_tracking_bulk(user: User = Depends(require_permission("sales", "bulk_edit"))):
     db = SessionLocal()
     try:
         sales = db.query(Sale).filter(Sale.lr_no != "", Sale.lr_no != None, Sale.lr_tracking_status != "Delivered").all()
@@ -2145,7 +2256,7 @@ def fetch_tracking_bulk():
 
 # ---- EXPENSES ----
 @app.get("/api/expenses")
-def list_expenses():
+def list_expenses(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Expense).order_by(Expense.expense_date.desc()).all()
@@ -2158,7 +2269,7 @@ def list_expenses():
 
 
 @app.post("/api/expenses")
-def create_expense(inp: ExpenseIn):
+def create_expense(inp: ExpenseIn, user: User = Depends(require_permission("expenses", "create"))):
     db = SessionLocal()
     try:
         dt = datetime.strptime(inp.expense_date, "%Y-%m-%d") if inp.expense_date else datetime.utcnow()
@@ -2172,7 +2283,7 @@ def create_expense(inp: ExpenseIn):
 
 
 @app.delete("/api/expenses/{eid}")
-def delete_expense(eid: int):
+def delete_expense(eid: int, user: User = Depends(require_permission("expenses", "delete"))):
     db = SessionLocal()
     try:
         e = db.query(Expense).filter(Expense.id == eid).first()
@@ -2186,7 +2297,7 @@ def delete_expense(eid: int):
 
 
 @app.put("/api/expenses/{eid}")
-def update_expense(eid: int, inp: ExpenseIn):
+def update_expense(eid: int, inp: ExpenseIn, user: User = Depends(require_permission("expenses", "edit"))):
     db = SessionLocal()
     try:
         e = db.query(Expense).filter(Expense.id == eid).first()
@@ -2209,7 +2320,7 @@ def update_expense(eid: int, inp: ExpenseIn):
 
 # ---- REPORTS ----
 @app.get("/api/reports/profit-loss")
-def profit_loss(start_date: str = None, end_date: str = None):
+def profit_loss(start_date: str = None, end_date: str = None, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         sales_q = db.query(Sale)
@@ -2297,7 +2408,7 @@ def profit_loss(start_date: str = None, end_date: str = None):
 
 # ---- DASHBOARD ----
 @app.get("/api/dashboard")
-def dashboard():
+def dashboard(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         all_sales = db.query(Sale).all()
@@ -2412,7 +2523,7 @@ def dashboard():
 
 # ---- SETTINGS ----
 @app.get("/api/settings")
-def get_settings():
+def get_settings(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Settings).all()
@@ -2422,7 +2533,7 @@ def get_settings():
 
 
 @app.put("/api/settings")
-def update_settings(body: dict):
+def update_settings(body: dict, user: User = Depends(require_permission("settings", "edit"))):
     db = SessionLocal()
     try:
         for k, v in body.items():
@@ -2455,7 +2566,7 @@ def parse_csv_date(val):
 
 
 @app.post("/api/import/orders")
-async def import_orders_csv(file: UploadFile = File(...)):
+async def import_orders_csv(file: UploadFile = File(...), user: User = Depends(require_permission("orders", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
     import csv, io
@@ -2517,7 +2628,7 @@ async def import_orders_csv(file: UploadFile = File(...)):
 
 
 @app.post("/api/import/sales")
-async def import_sales_csv(file: UploadFile = File(...)):
+async def import_sales_csv(file: UploadFile = File(...), user: User = Depends(require_permission("sales", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
     import csv, io
@@ -2597,7 +2708,7 @@ def map_csv_col(row, keys, default=""):
 
 
 @app.post("/api/import/products")
-async def import_products_csv(file: UploadFile = File(...)):
+async def import_products_csv(file: UploadFile = File(...), user: User = Depends(require_permission("products", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
     import csv, io
@@ -2656,7 +2767,7 @@ async def import_products_csv(file: UploadFile = File(...)):
 
 
 @app.post("/api/import/customers")
-async def import_customers_csv(file: UploadFile = File(...)):
+async def import_customers_csv(file: UploadFile = File(...), user: User = Depends(require_permission("customers", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
     import csv, io
@@ -2716,7 +2827,7 @@ async def import_customers_csv(file: UploadFile = File(...)):
 
 
 @app.post("/api/import/transporters")
-async def import_transporters_csv(file: UploadFile = File(...)):
+async def import_transporters_csv(file: UploadFile = File(...), user: User = Depends(require_permission("transporters", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
     import csv, io
@@ -2765,7 +2876,7 @@ async def import_transporters_csv(file: UploadFile = File(...)):
 
 
 @app.post("/api/import/expenses")
-async def import_expenses_csv(file: UploadFile = File(...)):
+async def import_expenses_csv(file: UploadFile = File(...), user: User = Depends(require_permission("expenses", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
     import csv, io
@@ -2813,7 +2924,7 @@ async def import_expenses_csv(file: UploadFile = File(...)):
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf"}
 
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), user: User = Depends(require_permission("products", "create"))):
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, "Only .jpg, .png, .pdf files allowed")
@@ -2834,7 +2945,7 @@ async def upload_file(file: UploadFile = File(...)):
 
 
 @app.post("/api/import-standard-packaging")
-async def import_standard_packaging(file: UploadFile = File(...)):
+async def import_standard_packaging(file: UploadFile = File(...), user: User = Depends(require_permission("products", "import"))):
     db = SessionLocal()
     try:
         content = await file.read()
@@ -2992,7 +3103,7 @@ def rows_to_csv_string(rows):
 
 
 @app.post("/api/import/orders-xlsx")
-async def import_orders_xlsx(file: UploadFile = File(...)):
+async def import_orders_xlsx(file: UploadFile = File(...), user: User = Depends(require_permission("orders", "import"))):
     content = await file.read()
     try:
         rows = read_xlsx_sheet(content, sheet_name='Orders')
@@ -3062,7 +3173,7 @@ async def import_orders_xlsx(file: UploadFile = File(...)):
 
 
 @app.post("/api/import/sales-xlsx")
-async def import_sales_xlsx(file: UploadFile = File(...)):
+async def import_sales_xlsx(file: UploadFile = File(...), user: User = Depends(require_permission("sales", "import"))):
     content = await file.read()
     try:
         rows = read_xlsx_sheet(content, sheet_name='Sales')
@@ -3157,7 +3268,7 @@ async def import_sales_xlsx(file: UploadFile = File(...)):
 
 # ---- EXPORT (CSV, XLSX, PDF) ----
 @app.get("/api/export/orders")
-def export_orders(format: str = "csv"):
+def export_orders(format: str = "csv", user: User = Depends(require_permission("orders", "export"))):
     db = SessionLocal()
     try:
         rows = db.query(Order).order_by(Order.sl_no).all()
@@ -3186,7 +3297,7 @@ def export_orders(format: str = "csv"):
 
 
 @app.get("/api/export/sales")
-def export_sales(format: str = "csv"):
+def export_sales(format: str = "csv", user: User = Depends(require_permission("sales", "export"))):
     db = SessionLocal()
     try:
         rows = db.query(Sale).order_by(Sale.id.desc()).all()
@@ -3219,7 +3330,7 @@ def export_sales(format: str = "csv"):
 
 
 @app.get("/api/export/proforma-orders")
-def export_proforma_orders(format: str = "csv", order_type: str = None):
+def export_proforma_orders(format: str = "csv", order_type: str = None, user: User = Depends(require_permission("proforma_orders", "export"))):
     db = SessionLocal()
     try:
         query = db.query(ProformaOrder)
@@ -3313,6 +3424,176 @@ def export_pdf(title, headers, data):
     pdf_bytes = pdf.output()
     return Response(content=bytes(pdf_bytes), media_type="application/pdf",
                     headers={"Content-Disposition": f"attachment; filename={title}.pdf"})
+
+
+# ---- AUTH ----
+@app.post("/api/auth/login")
+def login(body: dict):
+    username = body.get("username", "")
+    password = body.get("password", "")
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        if not user or not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="Account disabled")
+        user.last_login = datetime.utcnow()
+        db.commit()
+        access_token = jwt.encode(
+            {"user_id": user.id, "role": user.role, "type": "access",
+             "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)},
+            JWT_SECRET, algorithm=JWT_ALGORITHM
+        )
+        refresh_token = jwt.encode(
+            {"user_id": user.id, "type": "refresh",
+             "exp": datetime.utcnow() + timedelta(days=30)},
+            JWT_SECRET, algorithm=JWT_ALGORITHM
+        )
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": {"id": user.id, "username": user.username, "full_name": user.full_name, "role": user.role}
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/auth/refresh")
+def refresh_token(body: dict):
+    token = body.get("refresh_token", "")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user_id = payload.get("user_id")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id, User.is_active == 1).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        access_token = jwt.encode(
+            {"user_id": user.id, "role": user.role, "type": "access",
+             "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)},
+            JWT_SECRET, algorithm=JWT_ALGORITHM
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
+    finally:
+        db.close()
+
+
+@app.get("/api/auth/me")
+def get_me(user: User = Depends(get_current_user)):
+    return {
+        "id": user.id, "username": user.username, "full_name": user.full_name,
+        "email": user.email, "role": user.role, "is_active": user.is_active,
+        "last_login": str(user.last_login) if user.last_login else None,
+        "permissions": ROLE_PERMISSIONS.get(user.role, {}),
+    }
+
+
+@app.get("/api/users")
+def list_users(user: User = Depends(require_permission("users", "view"))):
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        return [{"id": u.id, "username": u.username, "full_name": u.full_name,
+                 "email": u.email, "role": u.role, "is_active": u.is_active,
+                 "last_login": str(u.last_login) if u.last_login else None,
+                 "created_at": str(u.created_at) if u.created_at else None} for u in users]
+    finally:
+        db.close()
+
+
+@app.post("/api/users")
+def create_user(body: dict, user: User = Depends(require_permission("users", "create"))):
+    db = SessionLocal()
+    try:
+        if db.query(User).filter(User.username == body.get("username", "")).first():
+            raise HTTPException(status_code=400, detail="Username already exists")
+        pw = body.get("password", "")
+        if len(pw) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        pw_hash = bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
+        new_user = User(
+            username=body["username"], password_hash=pw_hash,
+            full_name=body.get("full_name", ""), email=body.get("email", ""),
+            role=body.get("role", "viewer"), is_active=1,
+        )
+        db.add(new_user)
+        db.commit()
+        return {"message": "User created", "id": new_user.id}
+    finally:
+        db.close()
+
+
+@app.put("/api/users/{uid}")
+def update_user(uid: int, body: dict, user: User = Depends(require_permission("users", "edit"))):
+    db = SessionLocal()
+    try:
+        target = db.query(User).filter(User.id == uid).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+        if target.username == "admin" and body.get("role") and body["role"] != "admin":
+            raise HTTPException(status_code=400, detail="Cannot change admin role")
+        if "full_name" in body:
+            target.full_name = body["full_name"]
+        if "email" in body:
+            target.email = body["email"]
+        if "role" in body:
+            target.role = body["role"]
+        if "is_active" in body:
+            target.is_active = body["is_active"]
+        if body.get("password"):
+            target.password_hash = bcrypt.hashpw(body["password"].encode(), bcrypt.gensalt()).decode()
+        target.updated_at = datetime.utcnow()
+        db.commit()
+        return {"message": "User updated"}
+    finally:
+        db.close()
+
+
+@app.delete("/api/users/{uid}")
+def delete_user(uid: int, user: User = Depends(require_permission("users", "delete"))):
+    db = SessionLocal()
+    try:
+        target = db.query(User).filter(User.id == uid).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+        if target.username == "admin":
+            raise HTTPException(status_code=400, detail="Cannot delete admin user")
+        db.delete(target)
+        db.commit()
+        return {"message": "User deleted"}
+    finally:
+        db.close()
+
+
+@app.put("/api/users/{uid}/password")
+def change_password(uid: int, body: dict, user: User = Depends(get_current_user)):
+    if user.id != uid and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Can only change own password")
+    db = SessionLocal()
+    try:
+        target = db.query(User).filter(User.id == uid).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user.role != "admin":
+            if not bcrypt.checkpw(body.get("current_password", "").encode(), target.password_hash.encode()):
+                raise HTTPException(status_code=400, detail="Current password incorrect")
+        pw = body.get("new_password", "")
+        if len(pw) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        target.password_hash = bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
+        db.commit()
+        return {"message": "Password changed"}
+    finally:
+        db.close()
 
 
 # ---- FRONTEND ----

@@ -5,8 +5,159 @@ var _proformaItems = [];
 var _editingProformaId = null;
 var _sortState = {};
 var _tableData = {};
+var _currentUser = null;
 
 function $(id) { return document.getElementById(id); }
+
+function escapeHtml(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+async function downloadExport(url) {
+    var token = localStorage.getItem('token');
+    if (!token) { showLogin(); return; }
+    try {
+        var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (resp.status === 401) { localStorage.removeItem('token'); showLogin(); return; }
+        if (!resp.ok) { toast('Export failed'); return; }
+        var blob = await resp.blob();
+        var disposition = resp.headers.get('content-disposition') || '';
+        var filename = 'export';
+        var match = disposition.match(/filename=([^;]+)/);
+        if (match) filename = match[1].replace(/"/g, '');
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    } catch(e) { toast('Export failed'); }
+}
+
+async function viewFileAuth(url) {
+    var token = localStorage.getItem('token');
+    if (!token) { showLogin(); return; }
+    try {
+        var resp = await fetch('/api/view-file?url=' + encodeURIComponent(url), { headers: { 'Authorization': 'Bearer ' + token } });
+        if (resp.status === 401) { localStorage.removeItem('token'); showLogin(); return; }
+        if (!resp.ok) { toast('Failed to load file'); return; }
+        var blob = await resp.blob();
+        var ct = resp.headers.get('content-type') || 'application/octet-stream';
+        var ext = url.split('.').pop().toLowerCase();
+        var mimeMap = {pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif'};
+        var mime = mimeMap[ext] || ct;
+        var newBlob = new Blob([await blob.arrayBuffer()], {type: mime});
+        var blobUrl = URL.createObjectURL(newBlob);
+        if (mime.startsWith('image/') || mime === 'application/pdf') {
+            window.open(blobUrl, '_blank');
+        } else {
+            var a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = url.split('/').pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    } catch(e) { toast('Failed to load file'); }
+}
+
+function showLogin() {
+    var el = document.getElementById('login-overlay');
+    if (el) { el.style.display = 'flex'; document.getElementById('login-username').focus(); }
+}
+
+function hideLogin() {
+    var el = document.getElementById('login-overlay');
+    if (el) el.style.display = 'none';
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    var btn = document.getElementById('login-btn');
+    var errEl = document.getElementById('login-error');
+    btn.textContent = 'Signing in...';
+    btn.disabled = true;
+    errEl.style.display = 'none';
+    try {
+        var res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                username: document.getElementById('login-username').value,
+                password: document.getElementById('login-password').value,
+            })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Invalid credentials');
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        _currentUser = data.user;
+        hideLogin();
+        applyRoleUI();
+        go('dashboard');
+        toast('Welcome, ' + (data.user.full_name || data.user.username) + '!');
+    } catch(err) {
+        errEl.textContent = err.message || 'Invalid credentials';
+        errEl.style.display = 'block';
+    }
+    btn.textContent = 'Sign In';
+    btn.disabled = false;
+}
+
+function handleLogout() {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    _currentUser = null;
+    showLogin();
+}
+
+function getUser() {
+    if (!_currentUser) {
+        var stored = localStorage.getItem('user');
+        if (stored) _currentUser = JSON.parse(stored);
+    }
+    return _currentUser;
+}
+
+function hasPermission(module, action) {
+    var user = getUser();
+    if (!user) return false;
+    var perms = {
+        admin: {dashboard:['view'],products:['view','create','edit','delete','import','export'],orders:['view','create','edit','delete','import','export'],proforma_orders:['view','create','edit','delete','export'],customers:['view','create','edit','delete','import'],transporters:['view','create','edit','delete','import'],sales:['view','create','edit','delete','import','export','bulk_edit'],expenses:['view','create','edit','delete','import'],reports:['view','export'],settings:['view','edit'],users:['view','create','edit','delete']},
+        manager: {dashboard:['view'],products:['view','create','edit'],orders:['view','create','edit'],proforma_orders:['view','create','edit'],customers:['view','create','edit'],transporters:['view','create','edit'],sales:['view','create','edit'],expenses:['view','create','edit'],reports:['view'],settings:['view'],users:[]},
+        viewer: {dashboard:['view'],products:['view'],orders:['view'],proforma_orders:['view'],customers:['view'],transporters:['view'],sales:['view'],expenses:['view'],reports:['view'],settings:['view'],users:[]}
+    };
+    return ((perms[user.role] || {})[module] || []).indexOf(action) !== -1;
+}
+
+function applyRoleUI() {
+    var user = getUser();
+    if (!user) return;
+    var ud = document.getElementById('user-display');
+    var rb = document.getElementById('role-badge');
+    if (ud) ud.textContent = user.full_name || user.username;
+    if (rb) {
+        rb.textContent = user.role.toUpperCase();
+        var colors = {admin:'background:#fef2f2;color:#dc2626;', manager:'background:#eff6ff;color:#2563eb;', viewer:'background:#f0fdf4;color:#16a34a;'};
+        rb.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;' + (colors[user.role] || '');
+    }
+    var navItems = document.querySelectorAll('.nav-btn');
+    var navMap = ['dashboard','products','orders','customers','transporters','sales','expenses','reports','settings'];
+    navItems.forEach(function(item, i) {
+        var module = navMap[i];
+        if (module && !hasPermission(module, 'view')) {
+            item.style.display = 'none';
+        } else {
+            item.style.display = '';
+        }
+    });
+}
 
 document.addEventListener('input', function(e) {
     if (e.target.type === 'number' && e.target.min === '0' && parseFloat(e.target.value) < 0) {
@@ -35,8 +186,18 @@ function go(page, el) {
 async function api(url, opts) {
     opts = opts || {};
     var h = {'Content-Type': 'application/json'};
+    var token = localStorage.getItem('access_token');
+    if (token) h['Authorization'] = 'Bearer ' + token;
     if (opts.headers) Object.assign(h, opts.headers);
     var r = await fetch(url, {method: opts.method || 'GET', headers: h, body: opts.body ? opts.body : undefined});
+    if (r.status === 401) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        _currentUser = null;
+        showLogin();
+        throw new Error('Session expired');
+    }
     if (!r.ok) { var e = await r.text(); throw new Error(e); }
     return r.json();
 }
@@ -70,9 +231,9 @@ async function refreshDropdowns() {
     _products = await api('/api/products');
     _customers = await api('/api/customers');
     var po = '';
-    _products.forEach(function(p) { po += '<option value="' + p.id + '">' + p.part_no + ' - ' + p.name + ' (' + (p.size || 'N/A') + ')</option>'; });
+    _products.forEach(function(p) { po += '<option value="' + p.id + '">' + escapeHtml(p.part_no) + ' - ' + escapeHtml(p.name) + ' (' + escapeHtml(p.size || 'N/A') + ')</option>'; });
     var co = '';
-    _customers.forEach(function(c) { co += '<option value="' + c.id + '">' + c.customer_id + ' - ' + c.contact_name + '</option>'; });
+    _customers.forEach(function(c) { co += '<option value="' + c.id + '">' + escapeHtml(c.customer_id) + ' - ' + escapeHtml(c.contact_name) + '</option>'; });
     if ($('f-slprod')) $('f-slprod').innerHTML = po;
     if ($('f-slcust')) $('f-slcust').innerHTML = co;
     if ($('f-poocust')) $('f-poocust').innerHTML = co;
@@ -157,11 +318,11 @@ async function loadProducts() {
     _products.forEach(function(p) {
         var h = '<tr class="border-b data-row" onclick="editProduct(' + p.id + ')">';
         h += '<td class="px-3 py-2">' + p.id + '</td>';
-        h += '<td class="px-3 py-2">' + (p.part_no || '-') + '</td>';
-        h += '<td class="px-3 py-2 font-medium">' + p.name + '</td>';
-        h += '<td class="px-3 py-2">' + (p.category || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (p.size || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (p.load_rating || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + escapeHtml(p.part_no || '-') + '</td>';
+        h += '<td class="px-3 py-2 font-medium">' + escapeHtml(p.name) + '</td>';
+        h += '<td class="px-3 py-2">' + escapeHtml(p.category || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + escapeHtml(p.size || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + escapeHtml(p.load_rating || '-') + '</td>';
         h += '<td class="px-3 py-2">' + fmt(p.mrp) + '</td>';
         h += '<td class="px-3 py-2" onclick="event.stopPropagation()">';
         h += '<button onclick="editProduct(' + p.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
@@ -270,11 +431,11 @@ async function loadAllOrders() {
     rows.forEach(function(r) {
         var typeBadge = r.type === 'COGS'
             ? '<span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">COGS</span>'
-            : '<span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">' + r.type + '</span>';
+            : '<span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">' + escapeHtml(r.type) + '</span>';
         var statusBadge = '';
         if (r.status && r.status !== '-') {
             var sc = r.status === 'Paid' ? 'bg-green-100 text-green-700' : r.status === 'Partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700';
-            statusBadge = '<span class="px-2 py-1 rounded text-xs ' + sc + '">' + r.status + '</span>';
+            statusBadge = '<span class="px-2 py-1 rounded text-xs ' + sc + '">' + escapeHtml(r.status) + '</span>';
         }
         var editFn = r.type === 'COGS' ? 'editOrder(' + r.id + ')' : 'editProformaOrder(' + r.id + ')';
         var deleteFn = r.type === 'COGS' ? 'deleteOrder(' + r.id + ')' : 'deleteProformaOrder(' + r.id + ')';
@@ -282,12 +443,12 @@ async function loadAllOrders() {
 
         var rowH = '<tr class="border-b data-row" onclick="' + editFn + '">';
         rowH += '<td class="px-2 py-2">' + typeBadge + '</td>';
-        rowH += '<td class="px-2 py-2 font-medium">' + (r.ref || '-') + '</td>';
-        rowH += '<td class="px-2 py-2">' + (r.date || '-') + '</td>';
-        rowH += '<td class="px-2 py-2">' + r.customer + '</td>';
+        rowH += '<td class="px-2 py-2 font-medium">' + escapeHtml(r.ref || '-') + '</td>';
+        rowH += '<td class="px-2 py-2">' + escapeHtml(r.date || '-') + '</td>';
+        rowH += '<td class="px-2 py-2">' + escapeHtml(r.customer) + '</td>';
         rowH += '<td class="px-2 py-2">' + r.boxes + '</td>';
         rowH += '<td class="px-2 py-2">' + fmt(r.value) + '</td>';
-        rowH += '<td class="px-2 py-2">' + r.invoice_no + '</td>';
+        rowH += '<td class="px-2 py-2">' + escapeHtml(r.invoice_no) + '</td>';
         rowH += '<td class="px-2 py-2 font-bold">' + fmt(r.invoice_amt) + '</td>';
         rowH += '<td class="px-2 py-2">' + statusBadge + '</td>';
         rowH += '<td class="px-2 py-2" onclick="event.stopPropagation()">';
@@ -349,14 +510,14 @@ async function loadCustomers() {
     var sortRows = [];
     _customers.forEach(function(c) {
         var h = '<tr class="border-b data-row" onclick="editCustomer(' + c.id + ')">';
-        h += '<td class="px-2 py-2 font-medium">' + (c.customer_id || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (c.contact_name || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (c.gstin || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (c.state || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (c.district || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (c.city || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (c.contact_number || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (c.exec_name || '-') + '</td>';
+        h += '<td class="px-2 py-2 font-medium">' + escapeHtml(c.customer_id || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(c.contact_name || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(c.gstin || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(c.state || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(c.district || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(c.city || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(c.contact_number || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(c.exec_name || '-') + '</td>';
         h += '<td class="px-2 py-2"><span class="px-2 py-1 rounded text-xs ' + (c.blacklisted ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + (c.blacklisted ? 'Blacklisted' : 'Active') + '</span></td>';
         h += '<td class="px-2 py-2" onclick="event.stopPropagation()">';
         h += '<button onclick="editCustomer(' + c.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
@@ -376,13 +537,13 @@ async function loadTransporters() {
     var sortRows = [];
     _transporters.forEach(function(t) {
         var h = '<tr class="border-b data-row" onclick="editTransporter(' + t.id + ')">';
-        h += '<td class="px-2 py-2 font-medium">' + (t.transporter_id || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (t.name || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (t.phone || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (t.state || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (t.gst_number || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (t.pan_number || '-') + '</td>';
-        h += '<td class="px-2 py-2">' + (t.contact_person || '-') + '</td>';
+        h += '<td class="px-2 py-2 font-medium">' + escapeHtml(t.transporter_id || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(t.name || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(t.phone || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(t.state || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(t.gst_number || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(t.pan_number || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(t.contact_person || '-') + '</td>';
         h += '<td class="px-2 py-2"><span class="px-2 py-1 rounded text-xs ' + (t.blacklisted ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + (t.blacklisted ? 'Blacklisted' : 'Active') + '</span></td>';
         h += '<td class="px-2 py-2" onclick="event.stopPropagation()">';
         h += '<button onclick="editTransporter(' + t.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
@@ -414,8 +575,8 @@ function editTransporter(id) {
     $('f-tcontactnum').value = t.contact_number || '';
     $('f-ttrackurl').value = t.tracking_url_pattern || '';
     $('f-tblacklisted').checked = t.blacklisted === 1;
-    $('f-tgstfile-name').innerHTML = t.gst_certificate ? '<a href="/api/view-file?url=' + encodeURIComponent(t.gst_certificate) + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
-    $('f-tpanfile-name').innerHTML = t.pan_card ? '<a href="/api/view-file?url=' + encodeURIComponent(t.pan_card) + '" target="_blank" class="text-blue-600 underline">View uploaded file</a>' : '';
+    $('f-tgstfile-name').innerHTML = t.gst_certificate ? '<a onclick="viewFileAuth(\'' + escapeHtml(t.gst_certificate) + '\')" class="text-blue-600 underline" style="cursor:pointer;">View uploaded file</a>' : '';
+    $('f-tpanfile-name').innerHTML = t.pan_card ? '<a onclick="viewFileAuth(\'' + escapeHtml(t.pan_card) + '\')" class="text-blue-600 underline" style="cursor:pointer;">View uploaded file</a>' : '';
     $('m-trans-title').textContent = 'Edit Transporter';
     showModal('m-transporter');
 }
@@ -472,12 +633,12 @@ async function loadSales() {
     var rows = [];
     sales.forEach(function(s) {
         var tn = s.transporter_name || '-';
-        var tnDisplay = tn !== '-' ? '<span class="text-indigo-600 hover:text-indigo-800 underline cursor-pointer" onclick="event.stopPropagation(); addTransporterFromSales(\'' + tn.replace(/'/g, "\\'") + '\')">' + tn + '</span>' : tn;
+        var tnDisplay = tn !== '-' ? '<span class="text-indigo-600 hover:text-indigo-800 underline cursor-pointer" onclick="event.stopPropagation(); addTransporterFromSales(\'' + tn.replace(/'/g, "\\'") + '\')">' + escapeHtml(tn) + '</span>' : tn;
         var h = '<tr class="border-b data-row" onclick="editSale(' + s.id + ')">';
-        h += '<td class="px-3 py-2 font-medium">' + (s.invoice_no || '-') + '</td>';
+        h += '<td class="px-3 py-2 font-medium">' + escapeHtml(s.invoice_no || '-') + '</td>';
         h += '<td class="px-3 py-2">' + (s.sale_date ? s.sale_date.substring(0, 10) : '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (s.party_name || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (s.location || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + escapeHtml(s.party_name || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + escapeHtml(s.location || '-') + '</td>';
         h += '<td class="px-3 py-2">' + tnDisplay + '</td>';
         h += '<td class="px-3 py-2">' + fmt((s.freight_amount || 0) * (s.weight_kgs || 0)) + '</td>';
         h += '<td class="px-3 py-2 font-bold">' + fmt(s.total_amount || s.invoice_value) + '</td>';
@@ -494,7 +655,7 @@ async function loadSales() {
                 'Pending': {bg: '#f1f5f9', fg: '#64748b'}
             };
             var sc = statusColors[status] || statusColors['Pending'];
-            var trackLink = s.lr_tracking_url ? '<a href="' + s.lr_tracking_url + '" target="_blank" onclick="event.stopPropagation()" style="color:#4f46e5;font-size:10px;margin-left:4px;" title="Track on transporter website"><i class="fas fa-external-link-alt"></i></a>' : '';
+            var trackLink = s.lr_tracking_url ? '<a href="' + escapeHtml(s.lr_tracking_url) + '" target="_blank" onclick="event.stopPropagation()" style="color:#4f46e5;font-size:10px;margin-left:4px;" title="Track on transporter website"><i class="fas fa-external-link-alt"></i></a>' : '';
             var statusOptions = ['', 'In Transit', 'Out for Delivery', 'Delivered', 'Delayed'];
             var selHtml = '<select onchange="event.stopPropagation();quickUpdateLrStatus(' + s.id + ', this.value)" style="border:1px solid ' + sc.fg + '30;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:600;background:' + sc.bg + ';color:' + sc.fg + ';cursor:pointer;max-width:130px;outline:none;" onclick="event.stopPropagation()">';
             statusOptions.forEach(function(opt) {
@@ -502,7 +663,7 @@ async function loadSales() {
             });
             selHtml += '</select>';
             lrHtml = '<div style="display:flex;flex-direction:column;gap:3px;">' +
-                '<span style="font-size:11px;color:#64748b;font-weight:600;">' + s.lr_no + '</span>' +
+                '<span style="font-size:11px;color:#64748b;font-weight:600;">' + escapeHtml(s.lr_no) + '</span>' +
                 '<div style="display:flex;align-items:center;gap:3px;">' + selHtml + trackLink + '</div>' +
                 '</div>';
         } else {
@@ -614,12 +775,12 @@ async function fetchSingleTracking() {
             toast('Status fetched: ' + result.status + (result.location ? ' at ' + result.location : ''));
             if (result.history && result.history.length > 0) {
                 var histHtml = '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px;">';
-                histHtml += '<p style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">Tracking History (' + (result.source || '') + '):</p>';
+                histHtml += '<p style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">Tracking History (' + escapeHtml(result.source || '') + '):</p>';
                 result.history.reverse().forEach(function(h) {
                     histHtml += '<div style="display:flex;gap:8px;font-size:11px;padding:4px 0;border-bottom:1px solid #f1f5f9;">';
-                    histHtml += '<span style="color:#94a3b8;white-space:nowrap;">' + (h.date || '-') + '</span>';
-                    histHtml += '<span style="color:#64748b;">' + (h.location || '-') + '</span>';
-                    histHtml += '<span style="color:#0f172a;font-weight:600;">' + (h.status || '') + '</span>';
+                    histHtml += '<span style="color:#94a3b8;white-space:nowrap;">' + escapeHtml(h.date || '-') + '</span>';
+                    histHtml += '<span style="color:#64748b;">' + escapeHtml(h.location || '-') + '</span>';
+                    histHtml += '<span style="color:#0f172a;font-weight:600;">' + escapeHtml(h.status || '') + '</span>';
                     histHtml += '</div>';
                 });
                 histHtml += '</div>';
@@ -759,8 +920,8 @@ async function loadExpenses() {
             var h = '<tr class="border-b freight-row">';
             h += '<td class="px-3 py-2">' + (s.sale_date ? s.sale_date.substring(0, 10) : '-') + '</td>';
             h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs bg-orange-100 text-orange-700">Freight</span></td>';
-            h += '<td class="px-3 py-2">Freight for ' + (s.invoice_no || 'Sale #' + s.id) + ' (' + wt + ' kg x ' + fmt(frt) + '/kg)</td>';
-            h += '<td class="px-3 py-2">' + (s.transporter_name || '-') + '</td>';
+            h += '<td class="px-3 py-2">Freight for ' + escapeHtml(s.invoice_no || 'Sale #' + s.id) + ' (' + wt + ' kg x ' + fmt(frt) + '/kg)</td>';
+            h += '<td class="px-3 py-2">' + escapeHtml(s.transporter_name || '-') + '</td>';
             h += '<td class="px-3 py-2 font-bold text-orange-600">' + fmt(freightCost) + '</td>';
             h += '<td class="px-3 py-2"></td>';
             h += '</tr>';
@@ -771,9 +932,9 @@ async function loadExpenses() {
     expenses.forEach(function(e) {
         var h = '<tr class="border-b data-row" onclick="editExpense(' + e.id + ')">';
         h += '<td class="px-3 py-2">' + (e.expense_date ? e.expense_date.substring(0, 10) : '-') + '</td>';
-        h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">' + e.category + '</span></td>';
-        h += '<td class="px-3 py-2">' + (e.description || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + (e.vendor || '-') + '</td>';
+        h += '<td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">' + escapeHtml(e.category) + '</span></td>';
+        h += '<td class="px-3 py-2">' + escapeHtml(e.description || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + escapeHtml(e.vendor || '-') + '</td>';
         h += '<td class="px-3 py-2 font-bold text-red-600">' + fmt(e.amount) + '</td>';
         h += '<td class="px-3 py-2" onclick="event.stopPropagation()">';
         h += '<button onclick="editExpense(' + e.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
@@ -832,10 +993,10 @@ async function loadDashboard() {
     if (d.recent_orders && d.recent_orders.length) {
         d.recent_orders.forEach(function(o) {
             oh += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f1f5f9;transition:all 0.15s;border-radius:8px;cursor:pointer;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'transparent\'">';
-            oh += '<div><p style="font-weight:600;font-size:14px;color:#0f172a;">' + (o.po_no || 'Order #' + o.sl_no) + '</p>';
-            oh += '<p style="font-size:12px;color:#94a3b8;margin-top:2px;">' + (o.customer_name || o.billing_site || '') + (o.entry_date ? ' &middot; ' + o.entry_date : '') + '</p></div>';
+            oh += '<div><p style="font-weight:600;font-size:14px;color:#0f172a;">' + escapeHtml(o.po_no || 'Order #' + o.sl_no) + '</p>';
+            oh += '<p style="font-size:12px;color:#94a3b8;margin-top:2px;">' + escapeHtml(o.customer_name || o.billing_site || '') + (o.entry_date ? ' &middot; ' + escapeHtml(o.entry_date) : '') + '</p></div>';
             oh += '<div style="text-align:right;"><p style="font-weight:700;font-size:14px;color:#0f172a;">' + fmt(o.invoice_amount) + '</p>';
-            oh += '<p style="font-size:11px;color:#94a3b8;">' + (o.invoice_no || '-') + '</p></div></div>';
+            oh += '<p style="font-size:11px;color:#94a3b8;">' + escapeHtml(o.invoice_no || '-') + '</p></div></div>';
         });
     } else {
         oh = '<p style="color:#94a3b8;font-size:14px;text-align:center;padding:24px;">No orders yet</p>';
@@ -847,11 +1008,11 @@ async function loadDashboard() {
         d.recent_sales.forEach(function(s) {
             var statusColor = s.status === 'Paid' ? 'color:#10b981;background:#ecfdf5;' : 'color:#f59e0b;background:#fffbeb;';
             rh += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f1f5f9;transition:all 0.15s;border-radius:8px;cursor:pointer;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'transparent\'">';
-            rh += '<div><p style="font-weight:600;font-size:14px;color:#0f172a;">' + (s.customer || 'Unknown') + '</p>';
-            rh += '<p style="font-size:12px;color:#94a3b8;margin-top:2px;">' + (s.invoice || '') + (s.date ? ' &middot; ' + s.date : '') + '</p></div>';
+            rh += '<div><p style="font-weight:600;font-size:14px;color:#0f172a;">' + escapeHtml(s.customer || 'Unknown') + '</p>';
+            rh += '<p style="font-size:12px;color:#94a3b8;margin-top:2px;">' + escapeHtml(s.invoice || '') + (s.date ? ' &middot; ' + escapeHtml(s.date) : '') + '</p></div>';
             rh += '<div style="text-align:right;"><p style="font-weight:700;font-size:14px;color:#0f172a;">' + fmt(s.amount) + '</p>';
             if (s.status) {
-                rh += '<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;display:inline-block;margin-top:2px;' + statusColor + '">' + s.status + '</span>';
+                rh += '<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;display:inline-block;margin-top:2px;' + statusColor + '">' + escapeHtml(s.status) + '</span>';
             }
             rh += '</div></div>';
         });
@@ -945,7 +1106,7 @@ async function loadReport() {
     h += '<div style="margin-bottom:20px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;"><h4 style="font-weight:700;color:#d97706;margin-bottom:12px;font-size:15px;display:flex;align-items:center;gap:8px;"><span style="width:28px;height:28px;border-radius:8px;background:#fef3c7;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fas fa-building"></i></span>Operating Expenses</h4>';
     var keys = Object.keys(d.expenses || {});
     if (keys.length) {
-        keys.forEach(function(k) { h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">' + k + ':</span><span style="font-weight:700;color:#ef4444;">' + fmt(d.expenses[k]) + '</span></div>'; });
+        keys.forEach(function(k) { h += '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"><span style="color:#374151;">' + escapeHtml(k) + ':</span><span style="font-weight:700;color:#ef4444;">' + fmt(d.expenses[k]) + '</span></div>'; });
     } else {
         h += '<p style="color:#94a3b8;font-size:14px;text-align:center;padding:16px;">No expenses recorded</p>';
     }
@@ -1652,14 +1813,14 @@ function renderProformaItems() {
     _proformaItems.forEach(function(item, idx) {
         var prodOpts = '<option value="0">-- Select --</option>';
         _products.forEach(function(p) {
-            prodOpts += '<option value="' + p.id + '"' + (item.product_id == p.id ? ' selected' : '') + '>' + p.part_no + ' - ' + p.name + ' (' + (p.size || 'N/A') + ') [' + (p.load_rating || '5 Ton') + ']</option>';
+            prodOpts += '<option value="' + p.id + '"' + (item.product_id == p.id ? ' selected' : '') + '>' + escapeHtml(p.part_no) + ' - ' + escapeHtml(p.name) + ' (' + escapeHtml(p.size || 'N/A') + ') [' + escapeHtml(p.load_rating || '5 Ton') + ']</option>';
         });
         h += '<tr class="border-b">';
         h += '<td style="padding:4px;width:30px;">' + (idx + 1) + '</td>';
         h += '<td style="padding:4px;width:180px;"><select style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;" onchange="onProformaProductChange(' + idx + ', this.value)">' + prodOpts + '</select></td>';
-        h += '<td style="padding:4px;width:70px;background:#f9fafb;font-size:12px;">' + (item.category || '') + '</td>';
-        h += '<td style="padding:4px;width:60px;background:#f9fafb;font-size:12px;">' + (item.size || '') + '</td>';
-        h += '<td style="padding:4px;width:80px;background:#f9fafb;font-size:12px;">' + (item.part_no || '') + '</td>';
+        h += '<td style="padding:4px;width:70px;background:#f9fafb;font-size:12px;">' + escapeHtml(item.category || '') + '</td>';
+        h += '<td style="padding:4px;width:60px;background:#f9fafb;font-size:12px;">' + escapeHtml(item.size || '') + '</td>';
+        h += '<td style="padding:4px;width:80px;background:#f9fafb;font-size:12px;">' + escapeHtml(item.part_no || '') + '</td>';
         h += '<td style="padding:4px;width:50px;"><input type="number" min="0" value="' + (item.qty_boxes || '') + '" style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:2px;font-size:12px;text-align:center;" onchange="updateProformaItem(' + idx + ', \'qty_boxes\', Math.max(0,parseInt(this.value)||0)); calcProformaItemQty(' + idx + '); renderProformaItems(); calcProformaTotals()"></td>';
         h += '<td style="padding:4px;width:55px;background:#f9fafb;text-align:center;font-size:12px;">Boxes</td>';
         h += '<td style="padding:4px;width:65px;background:#f9fafb;text-align:center;font-size:12px;font-weight:bold;">' + (item.std_packaging || '') + '</td>';
@@ -1805,9 +1966,9 @@ function generateProformaPDF() {
         totalAmount += item.basic_amount;
         itemsHtml += '<tr>';
         itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:center;">' + (idx + 1) + '</td>';
-        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;">' + (item.description || '') + ' (' + (item.size || '') + ')</td>';
-        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;">' + (item.category || '-') + '</td>';
-        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;">' + (item.part_no || '-') + '</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;">' + escapeHtml(item.description || '') + ' (' + escapeHtml(item.size || '') + ')</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;">' + escapeHtml(item.category || '-') + '</td>';
+        itemsHtml += '<td style="padding:6px;border:1px solid #ddd;">' + escapeHtml(item.part_no || '-') + '</td>';
         itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:center;">' + (item.qty_boxes || 0) + '</td>';
         itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:center;">Boxes</td>';
         itemsHtml += '<td style="padding:6px;border:1px solid #ddd;text-align:center;">' + (item.std_packaging || '') + '</td>';
@@ -1850,9 +2011,9 @@ function generateProformaPDF() {
     html += '<div class="details"><table>';
     html += '<tr><td style="font-weight:bold;width:120px;">' + (orderType === 'PI' ? 'Quotation No:' : 'PO No:') + '</td><td>' + piNo + '</td>';
     html += '<td style="font-weight:bold;width:80px;">Date:</td><td>' + piDate + '</td></tr>';
-    html += '<tr><td style="font-weight:bold;">Customer:</td><td colspan="3">' + customerName + '</td></tr>';
-    if (billingSite) html += '<tr><td style="font-weight:bold;">Billing Site:</td><td colspan="3">' + billingSite + '</td></tr>';
-    if (shippingSite) html += '<tr><td style="font-weight:bold;">Shipping Site:</td><td colspan="3">' + shippingSite + '</td></tr>';
+    html += '<tr><td style="font-weight:bold;">Customer:</td><td colspan="3">' + escapeHtml(customerName) + '</td></tr>';
+    if (billingSite) html += '<tr><td style="font-weight:bold;">Billing Site:</td><td colspan="3">' + escapeHtml(billingSite) + '</td></tr>';
+    if (shippingSite) html += '<tr><td style="font-weight:bold;">Shipping Site:</td><td colspan="3">' + escapeHtml(shippingSite) + '</td></tr>';
     html += '</table></div>';
 
     html += '<table style="margin-top:15px;">';
@@ -1907,7 +2068,13 @@ function generateProformaPDF() {
 // ---- INIT ----
 try { $('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'}); } catch(e) {}
 try { $('f-edate').value = new Date().toISOString().split('T')[0]; } catch(e) {}
-loadDashboard();
+var _user = getUser();
+if (!_user || !localStorage.getItem('access_token')) {
+    showLogin();
+} else {
+    applyRoleUI();
+    go('dashboard');
+}
 
 // ---- KEYBOARD SHORTCUTS ----
 document.addEventListener('keydown', function(e) {
@@ -1933,14 +2100,85 @@ async function loadSettings() {
     try {
         var s = await api('/api/settings');
         var h = '<div style="display:flex;flex-direction:column;gap:20px;">';
-        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Company Name</label><input type="text" id="s-company" value="' + (s.company_name || 'Raksha') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Company Name</label><input type="text" id="s-company" value="' + escapeHtml(s.company_name || 'Raksha') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
         h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Default GST Rate %</label><input type="number" min="0" max="100" step="0.01" id="s-gst" value="' + (s.default_gst_rate || '18') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
-        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Invoice Prefix</label><input type="text" id="s-invprefix" value="' + (s.invoice_prefix || 'RFRP-') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Invoice Prefix</label><input type="text" id="s-invprefix" value="' + escapeHtml(s.invoice_prefix || 'RFRP-') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
         h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Tax Rate for P&L %</label><input type="number" min="0" max="100" step="0.01" id="s-taxrate" value="' + (s.tax_rate || '25') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
         h += '<button onclick="saveSettings()" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:10px 28px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.3);transition:all 0.15s;border:none;margin-top:12px;" onmouseover="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 4px 16px rgba(16,185,129,0.4)\'" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 2px 8px rgba(16,185,129,0.3)\'">Save Settings</button>';
         h += '</div>';
+        if (hasPermission('users', 'view')) {
+            h += '<div style="margin-top:32px;border-top:2px solid #f1f5f9;padding-top:24px;">';
+            h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="font-weight:700;font-size:18px;">User Management</h3>';
+            h += '<button onclick="showAddUserModal()" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;"><i class="fas fa-plus" style="margin-right:4px;"></i>Add User</button></div>';
+            h += '<table class="w-full text-sm"><thead class="bg-gray-50"><tr>';
+            h += '<th class="px-3 py-2 text-left">Username</th><th class="px-3 py-2 text-left">Full Name</th>';
+            h += '<th class="px-3 py-2 text-left">Role</th><th class="px-3 py-2 text-left">Status</th>';
+            h += '<th class="px-3 py-2 text-left">Last Login</th><th class="px-3 py-2 text-left">Actions</th>';
+            h += '</tr></thead><tbody id="t-users"></tbody></table></div>';
+        }
+        h += '</div>';
         $('settings-body').innerHTML = h;
+        if (hasPermission('users', 'view')) loadUsers();
     } catch(e) { console.error('Settings error:', e); }
+}
+
+async function loadUsers() {
+    var users = await api('/api/users');
+    var h = '';
+    users.forEach(function(u) {
+        var statusBadge = u.is_active ? '<span style="color:#16a34a;font-weight:600;">Active</span>' : '<span style="color:#dc2626;font-weight:600;">Disabled</span>';
+        var roleColor = u.role==='admin'?'#fef2f2;color:#dc2626':u.role==='manager'?'#eff6ff;color:#2563eb':'#f0fdf4;color:#16a34a';
+        h += '<tr style="border-bottom:1px solid #f1f5f9;">';
+        h += '<td class="px-3 py-3">' + escapeHtml(u.username) + '</td>';
+        h += '<td class="px-3 py-3">' + escapeHtml(u.full_name || '-') + '</td>';
+        h += '<td class="px-3 py-3"><span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;background:' + roleColor + ';">' + u.role.toUpperCase() + '</span></td>';
+        h += '<td class="px-3 py-3">' + statusBadge + '</td>';
+        h += '<td class="px-3 py-3" style="font-size:12px;color:#64748b;">' + (u.last_login ? new Date(u.last_login).toLocaleString() : 'Never') + '</td>';
+        h += '<td class="px-3 py-3">';
+        if (hasPermission('users', 'edit')) h += '<button onclick="editUser(' + u.id + ')" style="color:#4f46e5;font-size:12px;margin-right:8px;font-weight:600;">Edit</button>';
+        if (hasPermission('users', 'delete') && u.username !== 'admin') h += '<button onclick="deleteUser(' + u.id + ')" style="color:#ef4444;font-size:12px;font-weight:600;">Delete</button>';
+        h += '</td></tr>';
+    });
+    var tbody = document.getElementById('t-users');
+    if (tbody) tbody.innerHTML = h || '<tr><td colspan="6" class="text-center py-4 text-gray-400">No users found</td></tr>';
+}
+
+function showAddUserModal() {
+    $('f-uid').value = '';
+    $('f-uusername').value = '';
+    $('f-ufullname').value = '';
+    $('f-uemail').value = '';
+    $('f-upassword').value = '';
+    $('f-urole').value = 'viewer';
+    $('f-uisactive').checked = true;
+    $('m-user-title').textContent = 'Add User';
+    $('f-upw-hint').textContent = '(required)';
+    $('f-uusername').disabled = false;
+    showModal('m-user');
+}
+
+async function editUser(id) {
+    var users = await api('/api/users');
+    var u = users.find(function(x) { return x.id === id; });
+    if (!u) return;
+    $('f-uid').value = u.id;
+    $('f-uusername').value = u.username;
+    $('f-ufullname').value = u.full_name || '';
+    $('f-uemail').value = u.email || '';
+    $('f-upassword').value = '';
+    $('f-urole').value = u.role;
+    $('f-uisactive').checked = u.is_active;
+    $('m-user-title').textContent = 'Edit User';
+    $('f-upw-hint').textContent = '(leave blank to keep)';
+    $('f-uusername').disabled = true;
+    showModal('m-user');
+}
+
+async function deleteUser(id) {
+    if (!confirm('Delete this user?')) return;
+    await api('/api/users/' + id, {method: 'DELETE'});
+    toast('User deleted');
+    loadUsers();
 }
 
 async function saveSettings() {
@@ -1953,3 +2191,31 @@ async function saveSettings() {
     await api('/api/settings', {method: 'PUT', body: JSON.stringify(data)});
     toast('Settings saved!');
 }
+
+document.getElementById('f-user').onsubmit = async function(e) {
+    e.preventDefault();
+    var id = $('f-uid').value;
+    var data = {
+        username: $('f-uusername').value,
+        full_name: $('f-ufullname').value,
+        email: $('f-uemail').value,
+        role: $('f-urole').value,
+        is_active: $('f-uisactive').checked ? 1 : 0,
+    };
+    var pw = $('f-upassword').value;
+    if (pw) data.password = pw;
+    try {
+        if (id) {
+            await api('/api/users/' + id, {method: 'PUT', body: JSON.stringify(data)});
+            toast('User updated');
+        } else {
+            if (!pw) { alert('Password is required for new users'); return; }
+            await api('/api/users', {method: 'POST', body: JSON.stringify(data)});
+            toast('User created');
+        }
+        hideModal('m-user');
+        loadUsers();
+    } catch(err) {
+        alert(err.message || 'Error saving user');
+    }
+};
