@@ -1429,7 +1429,7 @@ def get_product_details(pid: int, user: User = Depends(get_current_user)):
 
 
 @app.get("/api/proforma-orders/{oid}/pdf")
-def generate_proforma_order_pdf(oid: int, user: User = Depends(get_current_user)):
+def generate_proforma_order_pdf(oid: int):
     db = SessionLocal()
     try:
         order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()

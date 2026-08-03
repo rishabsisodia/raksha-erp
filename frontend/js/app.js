@@ -19,7 +19,7 @@ function escapeHtml(str) {
 }
 
 async function downloadExport(url) {
-    var token = localStorage.getItem('token');
+    var token = localStorage.getItem('access_token');
     if (!token) { showLogin(); return; }
     try {
         var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
@@ -41,7 +41,7 @@ async function downloadExport(url) {
 }
 
 async function viewFileAuth(url) {
-    var token = localStorage.getItem('token');
+    var token = localStorage.getItem('access_token');
     if (!token) { showLogin(); return; }
     try {
         var resp = await fetch('/api/view-file?url=' + encodeURIComponent(url), { headers: { 'Authorization': 'Bearer ' + token } });
