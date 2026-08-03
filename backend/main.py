@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response, HTMLResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text, text, func
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Date, ForeignKey, Text, text, func
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -331,6 +331,15 @@ class ProformaOrder(Base):
     notes = Column(String, default="")
     terms = Column(Text, default="")
     order_type = Column(String, default="PI")
+    po_no = Column(String, default="")
+    po_date = Column(DateTime, nullable=True)
+    purchase_total = Column(Float, default=0)
+    transport_cost = Column(Float, default=0)
+    gross_profit = Column(Float, default=0)
+    net_profit = Column(Float, default=0)
+    transporter_id = Column(Integer, ForeignKey("transporters.id"), nullable=True)
+    whatsapp_status = Column(String, default="pending")
+    status = Column(String, default="draft")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     customer = relationship("Customer")
@@ -378,6 +387,30 @@ class BillingSite(Base):
     gstin = Column(String, default="")
     state_code = Column(String, default="")
     pan = Column(String, default="")
+
+
+class PurchaseRate(Base):
+    __tablename__ = "purchase_rates"
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"))
+    rate = Column(Float, default=0)
+    supplier = Column(String, default="")
+    effective_date = Column(Date, default=date.today)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    product = relationship("Product")
+
+
+class TransporterQuote(Base):
+    __tablename__ = "transporter_quotes"
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("proforma_orders.id"))
+    transporter_id = Column(Integer, ForeignKey("transporters.id"))
+    rate_per_kg = Column(Float, default=0)
+    total_cost = Column(Float, default=0)
+    status = Column(String, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    proforma_order = relationship("ProformaOrder")
+    transporter = relationship("Transporter")
 
 
 @app.get("/api/db-info")
@@ -1982,6 +2015,146 @@ def delete_transporter(tid: int, user: User = Depends(require_permission("transp
         db.delete(t)
         db.commit()
         return {"message": "Deleted"}
+    finally:
+        db.close()
+
+
+# ---- PURCHASE RATES ----
+@app.get("/api/purchase-rates")
+def list_purchase_rates(user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        rates = db.query(PurchaseRate).all()
+        result = []
+        for r in rates:
+            p = db.query(Product).filter(Product.id == r.product_id).first()
+            result.append({
+                "id": r.id, "product_id": r.product_id,
+                "product_name": p.name if p else "", "part_no": p.part_no if p else "",
+                "category": p.category if p else "", "size": p.size if p else "",
+                "rate": r.rate, "supplier": r.supplier,
+                "effective_date": r.effective_date.isoformat() if r.effective_date else ""
+            })
+        return result
+    finally:
+        db.close()
+
+
+@app.post("/api/purchase-rates")
+def create_purchase_rate(inp: dict, user: User = Depends(require_permission("products", "edit"))):
+    db = SessionLocal()
+    try:
+        pr = PurchaseRate(
+            product_id=inp["product_id"], rate=inp.get("rate", 0),
+            supplier=inp.get("supplier", ""),
+            effective_date=date.fromisoformat(inp["effective_date"]) if inp.get("effective_date") else date.today()
+        )
+        db.add(pr)
+        db.commit()
+        return {"id": pr.id, "message": "Purchase rate added"}
+    finally:
+        db.close()
+
+
+@app.put("/api/purchase-rates/{prid}")
+def update_purchase_rate(prid: int, inp: dict, user: User = Depends(require_permission("products", "edit"))):
+    db = SessionLocal()
+    try:
+        pr = db.query(PurchaseRate).filter(PurchaseRate.id == prid).first()
+        if not pr:
+            raise HTTPException(404, "Not found")
+        pr.rate = inp.get("rate", pr.rate)
+        pr.supplier = inp.get("supplier", pr.supplier)
+        if inp.get("effective_date"):
+            pr.effective_date = date.fromisoformat(inp["effective_date"])
+        db.commit()
+        return {"message": "Updated"}
+    finally:
+        db.close()
+
+
+@app.delete("/api/purchase-rates/{prid}")
+def delete_purchase_rate(prid: int, user: User = Depends(require_permission("products", "edit"))):
+    db = SessionLocal()
+    try:
+        pr = db.query(PurchaseRate).filter(PurchaseRate.id == prid).first()
+        if not pr:
+            raise HTTPException(404, "Not found")
+        db.delete(pr)
+        db.commit()
+        return {"message": "Deleted"}
+    finally:
+        db.close()
+
+
+@app.post("/api/purchase-rates/bulk")
+def bulk_create_purchase_rates(inp: dict, user: User = Depends(require_permission("products", "edit"))):
+    db = SessionLocal()
+    try:
+        rates = inp.get("rates", [])
+        created = 0
+        for r in rates:
+            pr = PurchaseRate(
+                product_id=r["product_id"], rate=r.get("rate", 0),
+                supplier=r.get("supplier", ""),
+                effective_date=date.fromisoformat(r["effective_date"]) if r.get("effective_date") else date.today()
+            )
+            db.add(pr)
+            created += 1
+        db.commit()
+        return {"message": f"{created} rates added", "count": created}
+    finally:
+        db.close()
+
+
+# ---- GP CALCULATION ----
+@app.get("/api/proforma-orders/{oid}/gp")
+def calculate_gp(oid: int, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
+        if not order:
+            raise HTTPException(404, "Order not found")
+        items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).all()
+
+        purchase_total = 0
+        for item in items:
+            pr = db.query(PurchaseRate).filter(PurchaseRate.product_id == item.product_id).order_by(PurchaseRate.effective_date.desc()).first()
+            if pr:
+                purchase_total += (item.final_qty or 0) * pr.rate
+
+        sales_value = order.value_excl_gst or 0
+        transport = order.transport_cost or 0
+        gp = sales_value - purchase_total - transport
+        gst_component = order.gst_amount or 0
+        np_val = gp - gst_component
+
+        order.purchase_total = purchase_total
+        order.gross_profit = gp
+        order.net_profit = np_val
+        db.commit()
+
+        return {
+            "sales_value": sales_value, "purchase_total": purchase_total,
+            "transport_cost": transport, "gross_profit": gp,
+            "gst_amount": gst_component, "net_profit": np_val,
+            "gp_percent": round(gp / sales_value * 100, 2) if sales_value else 0
+        }
+    finally:
+        db.close()
+
+
+@app.put("/api/proforma-orders/{oid}/transport")
+def update_transport(oid: int, inp: dict, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
+        if not order:
+            raise HTTPException(404, "Order not found")
+        order.transport_cost = inp.get("transport_cost", 0)
+        order.transporter_id = inp.get("transporter_id")
+        db.commit()
+        return {"message": "Transport updated"}
     finally:
         db.close()
 
