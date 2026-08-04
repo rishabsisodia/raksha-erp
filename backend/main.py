@@ -2476,6 +2476,18 @@ def get_whatsapp_config(user: User = Depends(get_current_user)):
     }
 
 
+@app.post("/api/whatsapp/test")
+def whatsapp_test(inp: dict, user: User = Depends(get_current_user)):
+    """Send a simple test text message"""
+    phone = inp.get("phone", "")
+    if not phone:
+        raise HTTPException(400, "Phone number required")
+    
+    message = "Test message from Raksha ERP. If you received this, WhatsApp is working!"
+    result = send_whatsapp_message(phone, message)
+    return result
+
+
 # ---- SALES ----
 @app.get("/api/sales")
 def list_sales(user: User = Depends(get_current_user)):
