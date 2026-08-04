@@ -1660,6 +1660,26 @@ function showWhatsAppModal(oid, orderNo, customer) {
     showModal('m-whatsapp');
 }
 
+// Test WhatsApp
+async function testWhatsApp() {
+    var phone = prompt("Enter your phone number to test WhatsApp:");
+    if (!phone) return;
+    toast("Sending test message...");
+    try {
+        var result = await api('/api/whatsapp/test', {
+            method: 'POST',
+            body: JSON.stringify({phone: phone})
+        });
+        if (result.success) {
+            toast("Test message sent! Check your WhatsApp.");
+        } else {
+            toast("Failed: " + (result.error || "Unknown error"), true);
+        }
+    } catch(e) {
+        toast("Error: " + e.message, true);
+    }
+}
+
 async function sendWhatsAppPI() {
     var oid = $('f-waoid').value;
     var phone = $('f-waphone').value.trim();
