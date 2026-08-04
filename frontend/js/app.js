@@ -464,7 +464,7 @@ async function loadAllOrders() {
         var editFn = r.type === 'COGS' ? 'editOrder(' + r.id + ')' : 'editProformaOrder(' + r.id + ')';
         var deleteFn = r.type === 'COGS' ? 'deleteOrder(' + r.id + ')' : 'deleteProformaOrder(' + r.id + ')';
         var viewFn = r.type === 'COGS' ? '' : '<button onclick="viewProformaOrder(' + r.id + ')" class="action-btn action-btn-view" title="View"><i class="fas fa-eye"></i> View</button>';
-        var whatsappFn = r.type === 'COGS' ? '' : '<button onclick="showWhatsAppModal(' + r.id + ',\'' + escapeHtml(r.ref || '').replace(/'/g, "\\'") + '\',\'' + escapeHtml(r.customer || '').replace(/'/g, "\\'") + '\')" class="action-btn" style="background:#25d366;color:white;margin-left:4px;" title="Send WhatsApp"><i class="fab fa-whatsapp"></i></button>';
+        var whatsappFn = r.type === 'COGS' ? '' : '<button onclick="openWhatsApp(' + r.id + ')" class="action-btn" style="background:#25d366;color:white;margin-left:4px;" title="Send WhatsApp"><i class="fab fa-whatsapp"></i></button>';
 
         var rowH = '<tr class="border-b data-row" onclick="' + editFn + '">';
         rowH += '<td class="px-2 py-2">' + typeBadge + '</td>';
@@ -1637,6 +1637,20 @@ $('f-purchase-rate').addEventListener('submit', async function(e) {
 });
 
 // WhatsApp Functions
+function openWhatsApp(oid) {
+    // Fetch order details and open modal
+    api('/api/proforma-orders/' + oid).then(function(order) {
+        $('f-waoid').value = oid;
+        $('f-waorder').textContent = order.pi_no || 'Order #' + oid;
+        $('f-wacustomer').textContent = order.customer_name || '';
+        $('f-waphone').value = '';
+        $('wa-status').style.display = 'none';
+        showModal('m-whatsapp');
+    }).catch(function(e) {
+        toast('Error loading order: ' + e.message, true);
+    });
+}
+
 function showWhatsAppModal(oid, orderNo, customer) {
     $('f-waoid').value = oid;
     $('f-waorder').textContent = orderNo;
