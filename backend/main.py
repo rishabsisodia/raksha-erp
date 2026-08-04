@@ -2192,6 +2192,10 @@ def send_whatsapp_message(phone_number, message, media_url=None):
     if not phone.startswith("91") and len(phone) == 10:
         phone = "91" + phone
     
+    # Validate phone number
+    if len(phone) < 12:
+        return {"success": False, "error": "Invalid phone number. Use 10-digit Indian number."}
+    
     payload = {
         "messaging_product": "whatsapp",
         "to": phone,
@@ -2209,7 +2213,16 @@ def send_whatsapp_message(phone_number, message, media_url=None):
         if resp.status_code == 200:
             return {"success": True, "message_id": result.get("messages", [{}])[0].get("id")}
         else:
-            return {"success": False, "error": result.get("error", {}).get("message", "Unknown error")}
+            error_msg = result.get("error", {}).get("message", "Unknown error")
+            error_code = result.get("error", {}).get("code", 0)
+            
+            # Provide helpful error messages
+            if error_code == 131047:
+                error_msg = "Recepient hasn't messaged yet. Send a message to this number first, then try again."
+            elif error_code == 131026:
+                error_msg = "Message undeliverable. Check phone number and try again."
+            
+            return {"success": False, "error": error_msg, "error_code": error_code}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

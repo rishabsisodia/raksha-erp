@@ -228,6 +228,9 @@ async function showModal(id) {
     if (id === 'm-sale') {
         await refreshDropdowns();
     }
+    if (id === 'm-purchase-rate') {
+        await refreshProductDropdown();
+    }
 }
 
 async function refreshDropdowns() {
