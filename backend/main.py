@@ -2179,7 +2179,7 @@ def update_transport(oid: int, inp: dict, user: User = Depends(get_current_user)
 # ---- WHATSAPP INTEGRATION ----
 import requests
 
-def send_whatsapp_message(phone_number, message, media_url=None):
+def send_whatsapp_message(phone_number, message, media_url=None, doc_url=None, doc_filename=None):
     """Send a WhatsApp message using Meta Cloud API"""
     url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_ID}/messages"
     headers = {
@@ -2196,16 +2196,33 @@ def send_whatsapp_message(phone_number, message, media_url=None):
     if len(phone) < 12:
         return {"success": False, "error": "Invalid phone number. Use 10-digit Indian number."}
     
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": phone,
-        "type": "text",
-        "text": {"body": message}
-    }
-    
-    if media_url:
-        payload["type"] = "image"
-        payload["image"] = {"link": media_url}
+    # Send document (PDF)
+    if doc_url:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": phone,
+            "type": "document",
+            "document": {
+                "link": doc_url,
+                "filename": doc_filename or "document.pdf"
+            }
+        }
+    # Send image
+    elif media_url:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": phone,
+            "type": "image",
+            "image": {"link": media_url}
+        }
+    # Send text
+    else:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": phone,
+            "type": "text",
+            "text": {"body": message}
+        }
     
     try:
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
@@ -2218,7 +2235,7 @@ def send_whatsapp_message(phone_number, message, media_url=None):
             
             # Provide helpful error messages
             if error_code == 131047:
-                error_msg = "Recepient hasn't messaged yet. Send a message to this number first, then try again."
+                error_msg = "Recipient hasn't messaged yet. Send a message to this number first, then try again."
             elif error_code == 131026:
                 error_msg = "Message undeliverable. Check phone number and try again."
             
@@ -2251,6 +2268,7 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
             raise HTTPException(404, "Order not found")
         
         customer = db.query(Customer).filter(Customer.id == order.customer_id).first()
+        items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).all()
         phone = inp.get("phone", "")
         if not phone and customer:
             phone = customer.contact_number
@@ -2258,19 +2276,91 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
         if not phone:
             raise HTTPException(400, "Phone number required")
         
-        # Generate PI PDF and upload to Cloudinary
-        # For now, send a text message with order details
-        message = f"""*Raksha Pipes Pvt. Ltd.*
-Proforma Invoice: {order.pi_no}
-Date: {order.pi_date.strftime('%d-%m-%Y') if order.pi_date else '-'}
-Customer: {customer.contact_name if customer else '-'}
-Amount: ₹{order.total_amount:,.2f}
-Status: {order.payment_status}
-
-Please find the attached PI PDF.
-For queries, contact: +91-XXXXXXXXXX"""
+        # Get billing site
+        billing_site = None
+        if order.billing_site:
+            try:
+                billing_site = db.query(BillingSite).filter(BillingSite.id == int(order.billing_site)).first()
+            except (ValueError, TypeError):
+                pass
         
-        result = send_whatsapp_message(phone, message)
+        # Generate PI HTML
+        pi_date = order.pi_date.strftime("%d-%b-%Y") if order.pi_date else ""
+        html = _generate_pi_html(order, customer, items, pi_date, billing_site)
+        
+        # Convert HTML to PDF using fpdf2
+        from fpdf import FPDF
+        import tempfile
+        import os
+        
+        class HTMLPDF(FPDF):
+            def header(self):
+                pass
+            def footer(self):
+                self.set_y(-15)
+                self.set_font('Arial', 'I', 8)
+                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+        
+        pdf = HTMLPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        # Simple HTML to PDF conversion
+        pdf.set_font('Arial', 'B', 16)
+        pdf.cell(0, 10, f"Proforma Invoice - {order.pi_no}", 0, 1, 'C')
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(0, 6, f"Date: {pi_date}", 0, 1, 'L')
+        pdf.cell(0, 6, f"Customer: {customer.contact_name if customer else '-'}", 0, 1, 'L')
+        pdf.ln(5)
+        
+        # Items table
+        pdf.set_font('Arial', 'B', 9)
+        pdf.cell(15, 7, 'S.No', 1, 0, 'C')
+        pdf.cell(30, 7, 'Part No', 1, 0, 'C')
+        pdf.cell(50, 7, 'Description', 1, 0, 'C')
+        pdf.cell(20, 7, 'Qty', 1, 0, 'C')
+        pdf.cell(30, 7, 'Rate', 1, 0, 'C')
+        pdf.cell(35, 7, 'Amount', 1, 1, 'C')
+        
+        pdf.set_font('Arial', '', 9)
+        for i, item in enumerate(items, 1):
+            pdf.cell(15, 6, str(i), 1, 0, 'C')
+            pdf.cell(30, 6, str(item.part_no or '')[:15], 1, 0, 'C')
+            pdf.cell(50, 6, str(item.description or '')[:25], 1, 0, 'L')
+            pdf.cell(20, 6, str(item.final_qty or 0), 1, 0, 'C')
+            pdf.cell(30, 6, f"₹{item.net_rate:,.2f}", 1, 0, 'R')
+            pdf.cell(35, 6, f"₹{item.basic_amount:,.2f}", 1, 1, 'R')
+        
+        # Totals
+        pdf.ln(3)
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(115, 7, 'Total:', 0, 0, 'R')
+        pdf.cell(35, 7, f"₹{order.value_excl_gst:,.2f}", 0, 1, 'R')
+        pdf.cell(115, 7, 'GST (18%):', 0, 0, 'R')
+        pdf.cell(35, 7, f"₹{order.gst_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(115, 7, 'Freight:', 0, 0, 'R')
+        pdf.cell(35, 7, f"₹{order.freight_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(115, 7, 'Grand Total:', 0, 0, 'R')
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(35, 7, f"₹{order.total_amount:,.2f}", 0, 1, 'R')
+        
+        # Save to temp file and upload to Cloudinary
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+            pdf.output(tmp.name)
+            tmp_path = tmp.name
+        
+        try:
+            # Upload to Cloudinary
+            upload_result = cloudinary.uploader.upload(tmp_path, resource_type="raw", folder="whatsapp_pi")
+            pdf_url = upload_result.get("secure_url")
+        finally:
+            os.unlink(tmp_path)
+        
+        if not pdf_url:
+            return {"success": False, "error": "Failed to upload PDF"}
+        
+        # Send PDF via WhatsApp
+        result = send_whatsapp_message(phone, "", doc_url=pdf_url, doc_filename=f"PI_{order.pi_no}.pdf")
         
         # Update whatsapp_status
         if result["success"]:
@@ -2284,7 +2374,7 @@ For queries, contact: +91-XXXXXXXXXX"""
 
 @app.post("/api/whatsapp/send-po/{oid}")
 def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permission("proforma_orders", "edit"))):
-    """Send PO to WhatsApp group in table format"""
+    """Send PO PDF to a phone number via WhatsApp"""
     db = SessionLocal()
     try:
         order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
@@ -2293,34 +2383,104 @@ def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permissio
         
         customer = db.query(Customer).filter(Customer.id == order.customer_id).first()
         items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).all()
-        
-        # Build PO message in table format
-        item_lines = ""
-        for i, item in enumerate(items, 1):
-            item_lines += f"{i}. {item.part_no} | {item.description} | {item.size} | Qty: {item.final_qty} | ₹{item.basic_amount:,.2f}\n"
-        
-        message = f"""*PURCHASE ORDER*
-*Raksha Pipes Pvt. Ltd.*
-
-PO No: {order.po_no or order.pi_no}
-Date: {order.pi_date.strftime('%d-%m-%Y') if order.pi_date else '-'}
-Party: {customer.contact_name if customer else '-'}
-
-*Items:*
-{item_lines}
-Total Qty: {order.total_qty}
-Total Value: ₹{order.value_excl_gst:,.2f}
-GST: ₹{order.gst_amount:,.2f}
-Freight: ₹{order.freight_amount:,.2f}
-*Grand Total: ₹{order.total_amount:,.2f}*
-
-Please confirm availability and rates."""
-        
         phone = inp.get("phone", "")
-        if not phone:
-            raise HTTPException(400, "Phone number required for PO")
+        if not phone and customer:
+            phone = customer.contact_number
         
-        result = send_whatsapp_message(phone, message)
+        if not phone:
+            raise HTTPException(400, "Phone number required")
+        
+        # Get billing site
+        billing_site = None
+        if order.billing_site:
+            try:
+                billing_site = db.query(BillingSite).filter(BillingSite.id == int(order.billing_site)).first()
+            except (ValueError, TypeError):
+                pass
+        
+        # Generate PO HTML
+        pi_date = order.pi_date.strftime("%d-%b-%Y") if order.pi_date else ""
+        html = _generate_po_html(order, customer, items, pi_date, billing_site)
+        
+        # Convert HTML to PDF using fpdf2
+        from fpdf import FPDF
+        import tempfile
+        import os
+        
+        class HTMLPDF(FPDF):
+            def header(self):
+                pass
+            def footer(self):
+                self.set_y(-15)
+                self.set_font('Arial', 'I', 8)
+                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+        
+        pdf = HTMLPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        # Simple HTML to PDF conversion
+        pdf.set_font('Arial', 'B', 16)
+        pdf.cell(0, 10, f"Purchase Order - {order.po_no or order.pi_no}", 0, 1, 'C')
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(0, 6, f"Date: {pi_date}", 0, 1, 'L')
+        pdf.cell(0, 6, f"Party: {customer.contact_name if customer else '-'}", 0, 1, 'L')
+        pdf.ln(5)
+        
+        # Items table
+        pdf.set_font('Arial', 'B', 9)
+        pdf.cell(15, 7, 'S.No', 1, 0, 'C')
+        pdf.cell(30, 7, 'Part No', 1, 0, 'C')
+        pdf.cell(50, 7, 'Description', 1, 0, 'C')
+        pdf.cell(20, 7, 'Qty', 1, 0, 'C')
+        pdf.cell(30, 7, 'Rate', 1, 0, 'C')
+        pdf.cell(35, 7, 'Amount', 1, 1, 'C')
+        
+        pdf.set_font('Arial', '', 9)
+        for i, item in enumerate(items, 1):
+            pdf.cell(15, 6, str(i), 1, 0, 'C')
+            pdf.cell(30, 6, str(item.part_no or '')[:15], 1, 0, 'C')
+            pdf.cell(50, 6, str(item.description or '')[:25], 1, 0, 'L')
+            pdf.cell(20, 6, str(item.final_qty or 0), 1, 0, 'C')
+            pdf.cell(30, 6, f"₹{item.net_rate:,.2f}", 1, 0, 'R')
+            pdf.cell(35, 6, f"₹{item.basic_amount:,.2f}", 1, 1, 'R')
+        
+        # Totals
+        pdf.ln(3)
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(115, 7, 'Total:', 0, 0, 'R')
+        pdf.cell(35, 7, f"₹{order.value_excl_gst:,.2f}", 0, 1, 'R')
+        pdf.cell(115, 7, 'GST (18%):', 0, 0, 'R')
+        pdf.cell(35, 7, f"₹{order.gst_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(115, 7, 'Freight:', 0, 0, 'R')
+        pdf.cell(35, 7, f"₹{order.freight_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(115, 7, 'Grand Total:', 0, 0, 'R')
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(35, 7, f"₹{order.total_amount:,.2f}", 0, 1, 'R')
+        
+        # Save to temp file and upload to Cloudinary
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+            pdf.output(tmp.name)
+            tmp_path = tmp.name
+        
+        try:
+            # Upload to Cloudinary
+            upload_result = cloudinary.uploader.upload(tmp_path, resource_type="raw", folder="whatsapp_po")
+            pdf_url = upload_result.get("secure_url")
+        finally:
+            os.unlink(tmp_path)
+        
+        if not pdf_url:
+            return {"success": False, "error": "Failed to upload PDF"}
+        
+        # Send PDF via WhatsApp
+        result = send_whatsapp_message(phone, "", doc_url=pdf_url, doc_filename=f"PO_{order.po_no or order.pi_no}.pdf")
+        
+        # Update whatsapp_status
+        if result["success"]:
+            order.whatsapp_status = "sent"
+            db.commit()
+        
         return result
     finally:
         db.close()
