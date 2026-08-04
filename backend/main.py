@@ -17,6 +17,7 @@ import io
 import bcrypt
 import jwt
 import requests
+from fpdf import FPDF
 from html import escape as escape_html
 
 app = FastAPI(title="Raksha ERP")
@@ -2284,30 +2285,18 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
             except (ValueError, TypeError):
                 pass
         
-        # Generate PI HTML
+        # Generate PI PDF
         pi_date = order.pi_date.strftime("%d-%b-%Y") if order.pi_date else ""
-        html = _generate_pi_html(order, customer, items, pi_date, billing_site)
         
-        # Convert HTML to PDF using fpdf2
-        from fpdf import FPDF
-        import tempfile
-        import os
-        
-        class HTMLPDF(FPDF):
-            def header(self):
-                pass
-            def footer(self):
-                self.set_y(-15)
-                self.set_font('Arial', 'I', 8)
-                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-        
-        pdf = HTMLPDF()
+        pdf = FPDF()
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
         
-        # Simple HTML to PDF conversion
+        # Header
         pdf.set_font('Arial', 'B', 16)
-        pdf.cell(0, 10, f"Proforma Invoice - {order.pi_no}", 0, 1, 'C')
+        pdf.cell(0, 10, "Raksha Pipes Pvt. Ltd.", 0, 1, 'C')
+        pdf.set_font('Arial', 'B', 14)
+        pdf.cell(0, 8, f"Proforma Invoice - {order.pi_no}", 0, 1, 'C')
         pdf.set_font('Arial', '', 10)
         pdf.cell(0, 6, f"Date: {pi_date}", 0, 1, 'L')
         pdf.cell(0, 6, f"Customer: {customer.contact_name if customer else '-'}", 0, 1, 'L')
@@ -2328,29 +2317,30 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
             pdf.cell(30, 6, str(item.part_no or '')[:15], 1, 0, 'C')
             pdf.cell(50, 6, str(item.description or '')[:25], 1, 0, 'L')
             pdf.cell(20, 6, str(item.final_qty or 0), 1, 0, 'C')
-            pdf.cell(30, 6, f"₹{item.net_rate:,.2f}", 1, 0, 'R')
-            pdf.cell(35, 6, f"₹{item.basic_amount:,.2f}", 1, 1, 'R')
+            pdf.cell(30, 6, f"Rs.{item.net_rate:,.2f}", 1, 0, 'R')
+            pdf.cell(35, 6, f"Rs.{item.basic_amount:,.2f}", 1, 1, 'R')
         
         # Totals
         pdf.ln(3)
         pdf.set_font('Arial', 'B', 10)
         pdf.cell(115, 7, 'Total:', 0, 0, 'R')
-        pdf.cell(35, 7, f"₹{order.value_excl_gst:,.2f}", 0, 1, 'R')
+        pdf.cell(35, 7, f"Rs.{order.value_excl_gst:,.2f}", 0, 1, 'R')
         pdf.cell(115, 7, 'GST (18%):', 0, 0, 'R')
-        pdf.cell(35, 7, f"₹{order.gst_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(35, 7, f"Rs.{order.gst_amount:,.2f}", 0, 1, 'R')
         pdf.cell(115, 7, 'Freight:', 0, 0, 'R')
-        pdf.cell(35, 7, f"₹{order.freight_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(35, 7, f"Rs.{order.freight_amount:,.2f}", 0, 1, 'R')
         pdf.cell(115, 7, 'Grand Total:', 0, 0, 'R')
         pdf.set_font('Arial', 'B', 12)
-        pdf.cell(35, 7, f"₹{order.total_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(35, 7, f"Rs.{order.total_amount:,.2f}", 0, 1, 'R')
         
         # Save to temp file and upload to Cloudinary
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-            pdf.output(tmp.name)
-            tmp_path = tmp.name
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+        tmp_path = tmp.name
+        tmp.close()
+        pdf.output(tmp_path)
         
         try:
-            # Upload to Cloudinary
             upload_result = cloudinary.uploader.upload(tmp_path, resource_type="raw", folder="whatsapp_pi")
             pdf_url = upload_result.get("secure_url")
         finally:
@@ -2398,30 +2388,18 @@ def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permissio
             except (ValueError, TypeError):
                 pass
         
-        # Generate PO HTML
+        # Generate PO PDF
         pi_date = order.pi_date.strftime("%d-%b-%Y") if order.pi_date else ""
-        html = _generate_po_html(order, customer, items, pi_date, billing_site)
         
-        # Convert HTML to PDF using fpdf2
-        from fpdf import FPDF
-        import tempfile
-        import os
-        
-        class HTMLPDF(FPDF):
-            def header(self):
-                pass
-            def footer(self):
-                self.set_y(-15)
-                self.set_font('Arial', 'I', 8)
-                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-        
-        pdf = HTMLPDF()
+        pdf = FPDF()
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
         
-        # Simple HTML to PDF conversion
+        # Header
         pdf.set_font('Arial', 'B', 16)
-        pdf.cell(0, 10, f"Purchase Order - {order.po_no or order.pi_no}", 0, 1, 'C')
+        pdf.cell(0, 10, "Raksha Pipes Pvt. Ltd.", 0, 1, 'C')
+        pdf.set_font('Arial', 'B', 14)
+        pdf.cell(0, 8, f"Purchase Order - {order.po_no or order.pi_no}", 0, 1, 'C')
         pdf.set_font('Arial', '', 10)
         pdf.cell(0, 6, f"Date: {pi_date}", 0, 1, 'L')
         pdf.cell(0, 6, f"Party: {customer.contact_name if customer else '-'}", 0, 1, 'L')
@@ -2442,29 +2420,30 @@ def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permissio
             pdf.cell(30, 6, str(item.part_no or '')[:15], 1, 0, 'C')
             pdf.cell(50, 6, str(item.description or '')[:25], 1, 0, 'L')
             pdf.cell(20, 6, str(item.final_qty or 0), 1, 0, 'C')
-            pdf.cell(30, 6, f"₹{item.net_rate:,.2f}", 1, 0, 'R')
-            pdf.cell(35, 6, f"₹{item.basic_amount:,.2f}", 1, 1, 'R')
+            pdf.cell(30, 6, f"Rs.{item.net_rate:,.2f}", 1, 0, 'R')
+            pdf.cell(35, 6, f"Rs.{item.basic_amount:,.2f}", 1, 1, 'R')
         
         # Totals
         pdf.ln(3)
         pdf.set_font('Arial', 'B', 10)
         pdf.cell(115, 7, 'Total:', 0, 0, 'R')
-        pdf.cell(35, 7, f"₹{order.value_excl_gst:,.2f}", 0, 1, 'R')
+        pdf.cell(35, 7, f"Rs.{order.value_excl_gst:,.2f}", 0, 1, 'R')
         pdf.cell(115, 7, 'GST (18%):', 0, 0, 'R')
-        pdf.cell(35, 7, f"₹{order.gst_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(35, 7, f"Rs.{order.gst_amount:,.2f}", 0, 1, 'R')
         pdf.cell(115, 7, 'Freight:', 0, 0, 'R')
-        pdf.cell(35, 7, f"₹{order.freight_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(35, 7, f"Rs.{order.freight_amount:,.2f}", 0, 1, 'R')
         pdf.cell(115, 7, 'Grand Total:', 0, 0, 'R')
         pdf.set_font('Arial', 'B', 12)
-        pdf.cell(35, 7, f"₹{order.total_amount:,.2f}", 0, 1, 'R')
+        pdf.cell(35, 7, f"Rs.{order.total_amount:,.2f}", 0, 1, 'R')
         
         # Save to temp file and upload to Cloudinary
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-            pdf.output(tmp.name)
-            tmp_path = tmp.name
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+        tmp_path = tmp.name
+        tmp.close()
+        pdf.output(tmp_path)
         
         try:
-            # Upload to Cloudinary
             upload_result = cloudinary.uploader.upload(tmp_path, resource_type="raw", folder="whatsapp_po")
             pdf_url = upload_result.get("secure_url")
         finally:
