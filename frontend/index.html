@@ -40,6 +40,7 @@
             <a href="#" onclick="go('orders',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-clipboard-list" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Orders</a>
             <a href="#" onclick="go('customers',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-users" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Customers</a>
             <a href="#" onclick="go('transporters',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-truck" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Transporters</a>
+            <a href="#" onclick="go('purchase-rates',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-tags" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Purchase Rates</a>
             <a href="#" onclick="go('sales',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-shopping-cart" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Sales</a>
             <a href="#" onclick="go('expenses',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-receipt" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Expenses</a>
             <div style="height:1px;background:rgba(255,255,255,0.1);margin:12px 0;"></div>
@@ -163,7 +164,7 @@
                                 <a onclick="downloadExport('/api/export/orders?format=pdf')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
                             </div>
                         </div>
-                        <button onclick="showProformaOrderModal()" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(59,130,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>New PI/PO</button>
+                        <button onclick="showProformaOrderModal()" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(59,130,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Create a PI</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -238,6 +239,35 @@
                     <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-transporters',7,'str')">Status<span class="sort-arrow"></span></th>
                     <th class="px-2 py-2 text-left">Actions</th>
                 </tr></thead><tbody id="t-transporters"></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <div id="p-purchase-rates" class="hidden">
+            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
+                <div class="flex justify-between items-center mb-5">
+                    <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Purchase Rates</h3>
+                    <div class="flex gap-2 items-center">
+                        <div style="position:relative;">
+                            <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
+                            <input type="text" id="search-purchase-rates" placeholder="Search rates..." oninput="filterTable('t-purchase-rates', this.value, [1,2,3,4,5])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+                        </div>
+                        <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importPurchaseRatesCSV(this)"></label>
+                        <button onclick="showModal('m-purchase-rate')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Rate</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-purchase-rates',0,'num')">ID<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-purchase-rates',1,'str')">Part No.<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-purchase-rates',2,'str')">Product<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-purchase-rates',3,'str')">Category<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-purchase-rates',4,'str')">Size<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-purchase-rates',5,'num')">Rate (₹)<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-purchase-rates',6,'str')">Supplier<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-purchase-rates',7,'str')">Effective Date<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left">Actions</th>
+                </tr></thead><tbody id="t-purchase-rates"></tbody></table>
                 </div>
             </div>
         </div>
@@ -529,6 +559,14 @@
                     <div style="display:flex;justify-content:space-between;padding:8px 0 0;margin-top:8px;border-top:2px solid #e2e8f0;font-size:18px;"><span style="font-weight:700;">Grand Total:</span><span id="pov-total" style="font-weight:800;color:#10b981;">₹0.00</span></div>
                 </div>
 
+                <div id="gp-section" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:10px;padding:16px;border:1px solid #bfdbfe;font-size:14px;">
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#1e40af;">Purchase Total:</span><span id="pov-purchase-total" style="font-weight:600;color:#1e40af;">₹0.00</span></div>
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#1e40af;">Transport Cost:</span><span id="pov-transport-cost" style="font-weight:600;color:#1e40af;">₹0.00</span></div>
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#1e40af;">Gross Profit:</span><span id="pov-gp" style="font-weight:700;color:#1e40af;">₹0.00</span></div>
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#1e40af;">GP %:</span><span id="pov-gp-percent" style="font-weight:700;color:#1e40af;">0%</span></div>
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#1e40af;">Net Profit:</span><span id="pov-np" style="font-weight:700;color:#1e40af;">₹0.00</span></div>
+                </div>
+
                 <div><label class="block text-sm">Notes</label><textarea id="f-poonotes" rows="2" class="w-full border rounded px-3 py-2"></textarea></div>
 
                 <div style="display:flex;justify-content:flex-end;gap:12px;position:sticky;bottom:0;background:white;padding:16px 0 0;border-top:1px solid #f1f5f9;">
@@ -647,6 +685,58 @@
                     <button type="submit" class="btn-save">Save Transporter</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="m-purchase-rate" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
+            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-pr-title">Add Purchase Rate</h3>
+                <button onclick="hideModal('m-purchase-rate')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+            </div>
+            <form id="f-purchase-rate" style="padding:24px;" class="space-y-4">
+                <input type="hidden" id="f-prid">
+                <label class="block text-sm font-medium text-gray-700">Product *</label><select id="f-prproduct" required class="w-full border rounded px-3 py-2"></select>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-sm font-medium text-gray-700">Rate (₹) *</label><input type="number" min="0" step="0.01" id="f-prrate" required class="w-full border rounded px-3 py-2"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Effective Date *</label><input type="date" id="f-predate" required class="w-full border rounded px-3 py-2"></div>
+                </div>
+                <label class="block text-sm font-medium text-gray-700">Supplier</label><input type="text" id="f-prsupplier" class="w-full border rounded px-3 py-2" placeholder="Supplier name (optional)">
+                <div class="flex justify-end gap-3 pt-4 border-t">
+                    <button type="button" onclick="hideModal('m-purchase-rate')" class="btn-cancel">Cancel</button>
+                    <button type="submit" class="btn-save">Save Rate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="m-whatsapp" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:450px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
+            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;display:flex;align-items:center;gap:8px;">
+                    <i class="fab fa-whatsapp" style="color:#25d366;font-size:22px;"></i> Send WhatsApp
+                </h3>
+                <button onclick="hideModal('m-whatsapp')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+            </div>
+            <div style="padding:24px;">
+                <input type="hidden" id="f-waoid">
+                <input type="hidden" id="f-watype">
+                <div style="background:#f0fdf4;border-radius:8px;padding:12px;margin-bottom:16px;border:1px solid #bbf7d0;">
+                    <p style="font-size:13px;color:#166534;"><strong>Order:</strong> <span id="f-waorder"></span></p>
+                    <p style="font-size:13px;color:#166534;"><strong>Customer:</strong> <span id="f-wacustomer"></span></p>
+                </div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+                <input type="tel" id="f-waphone" placeholder="Enter 10-digit mobile number" maxlength="10" class="w-full border rounded px-3 py-2 mb-4" style="border:1.5px solid #e2e8f0;">
+                <div style="display:flex;gap:8px;">
+                    <button onclick="sendWhatsAppPI()" style="flex:1;background:#25d366;color:white;padding:10px;border-radius:8px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                        <i class="fas fa-file-pdf"></i> Send PI
+                    </button>
+                    <button onclick="sendWhatsAppPO()" style="flex:1;background:#075e54;color:white;padding:10px;border-radius:8px;font-weight:600;border:none;cursor-pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                        <i class="fas fa-shopping-cart"></i> Send PO
+                    </button>
+                </div>
+                <div id="wa-status" style="margin-top:12px;display:none;padding:10px;border-radius:8px;font-size:13px;"></div>
+            </div>
         </div>
     </div>
 

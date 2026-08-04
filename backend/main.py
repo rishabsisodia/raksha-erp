@@ -16,6 +16,7 @@ import csv
 import io
 import bcrypt
 import jwt
+import requests
 from html import escape as escape_html
 
 app = FastAPI(title="Raksha ERP")
@@ -42,6 +43,12 @@ if CLOUDINARY_URL and "@" in CLOUDINARY_URL:
         cloud_name=parts[1],
         secure=True
     )
+
+# WhatsApp Cloud API Config
+WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "EAIh7PXiG5U4BSNlPZA7T6WMmzKHEeTb97Tdu0geHj9ZASqHYGcogKSVZBENh6VAVO4KemGJ2OpL0X6pHfWCLygviFrkwj3n79FwylG3Y23m6hMcdGlhAKsHPpgZCmLQgFEga7176vipcl1zGZAK7jbBTK1UFUTCUvLAYpxupOMeTOkKVuX9gU8RWZBwTNeyEn2s55EOPZCsULZCuEzCRKLaiCgviYoZCiBpAMnJOHoBLGg2KLpyu9HeQgKcBjvrf2FtiPBYD2LDZBkVSTsF02XztEg8fpy")
+WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID", "1299086943278503")
+WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get("WHATSAPP_BUSINESS_ACCOUNT_ID", "4397763287203081")
+WHATSAPP_API_URL = "https://graph.facebook.com/v18.0"
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./raksha_erp.db")
 if DATABASE_URL.startswith("postgres://"):
@@ -493,6 +500,16 @@ def startup_event():
         safe_ddl("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP")
         safe_ddl("ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
         safe_ddl("UPDATE users SET role = 'admin' WHERE username = 'admin' AND (role = 'user' OR role IS NULL OR role = '')")
+        # Proforma Orders new columns
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS po_no VARCHAR DEFAULT ''")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS po_date TIMESTAMP")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS purchase_total FLOAT DEFAULT 0")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS transport_cost FLOAT DEFAULT 0")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS gross_profit FLOAT DEFAULT 0")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS net_profit FLOAT DEFAULT 0")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS transporter_id INTEGER REFERENCES transporters(id)")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS whatsapp_status VARCHAR DEFAULT 'pending'")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'draft'")
     backfill_part_numbers()
     backfill_pieces_per_box()
     backfill_product_names()
@@ -2157,6 +2174,154 @@ def update_transport(oid: int, inp: dict, user: User = Depends(get_current_user)
         return {"message": "Transport updated"}
     finally:
         db.close()
+
+
+# ---- WHATSAPP INTEGRATION ----
+import requests
+
+def send_whatsapp_message(phone_number, message, media_url=None):
+    """Send a WhatsApp message using Meta Cloud API"""
+    url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    # Format phone number (remove spaces, dashes, + sign)
+    phone = phone_number.replace(" ", "").replace("-", "").replace("+", "")
+    if not phone.startswith("91") and len(phone) == 10:
+        phone = "91" + phone
+    
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "text",
+        "text": {"body": message}
+    }
+    
+    if media_url:
+        payload["type"] = "image"
+        payload["image"] = {"link": media_url}
+    
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        result = resp.json()
+        if resp.status_code == 200:
+            return {"success": True, "message_id": result.get("messages", [{}])[0].get("id")}
+        else:
+            return {"success": False, "error": result.get("error", {}).get("message", "Unknown error")}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/whatsapp/send")
+def whatsapp_send(inp: dict, user: User = Depends(require_permission("proforma_orders", "edit"))):
+    """Send a WhatsApp message"""
+    phone = inp.get("phone", "")
+    message = inp.get("message", "")
+    media_url = inp.get("media_url")
+    
+    if not phone or not message:
+        raise HTTPException(400, "Phone and message are required")
+    
+    result = send_whatsapp_message(phone, message, media_url)
+    return result
+
+
+@app.post("/api/whatsapp/send-pi/{oid}")
+def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permission("proforma_orders", "edit"))):
+    """Send PI PDF to a phone number via WhatsApp"""
+    db = SessionLocal()
+    try:
+        order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
+        if not order:
+            raise HTTPException(404, "Order not found")
+        
+        customer = db.query(Customer).filter(Customer.id == order.customer_id).first()
+        phone = inp.get("phone", "")
+        if not phone and customer:
+            phone = customer.contact_number
+        
+        if not phone:
+            raise HTTPException(400, "Phone number required")
+        
+        # Generate PI PDF and upload to Cloudinary
+        # For now, send a text message with order details
+        message = f"""*Raksha Pipes Pvt. Ltd.*
+Proforma Invoice: {order.pi_no}
+Date: {order.pi_date.strftime('%d-%m-%Y') if order.pi_date else '-'}
+Customer: {customer.contact_name if customer else '-'}
+Amount: ₹{order.total_amount:,.2f}
+Status: {order.payment_status}
+
+Please find the attached PI PDF.
+For queries, contact: +91-XXXXXXXXXX"""
+        
+        result = send_whatsapp_message(phone, message)
+        
+        # Update whatsapp_status
+        if result["success"]:
+            order.whatsapp_status = "sent"
+            db.commit()
+        
+        return result
+    finally:
+        db.close()
+
+
+@app.post("/api/whatsapp/send-po/{oid}")
+def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permission("proforma_orders", "edit"))):
+    """Send PO to WhatsApp group in table format"""
+    db = SessionLocal()
+    try:
+        order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
+        if not order:
+            raise HTTPException(404, "Order not found")
+        
+        customer = db.query(Customer).filter(Customer.id == order.customer_id).first()
+        items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).all()
+        
+        # Build PO message in table format
+        item_lines = ""
+        for i, item in enumerate(items, 1):
+            item_lines += f"{i}. {item.part_no} | {item.description} | {item.size} | Qty: {item.final_qty} | ₹{item.basic_amount:,.2f}\n"
+        
+        message = f"""*PURCHASE ORDER*
+*Raksha Pipes Pvt. Ltd.*
+
+PO No: {order.po_no or order.pi_no}
+Date: {order.pi_date.strftime('%d-%m-%Y') if order.pi_date else '-'}
+Party: {customer.contact_name if customer else '-'}
+
+*Items:*
+{item_lines}
+Total Qty: {order.total_qty}
+Total Value: ₹{order.value_excl_gst:,.2f}
+GST: ₹{order.gst_amount:,.2f}
+Freight: ₹{order.freight_amount:,.2f}
+*Grand Total: ₹{order.total_amount:,.2f}*
+
+Please confirm availability and rates."""
+        
+        phone = inp.get("phone", "")
+        if not phone:
+            raise HTTPException(400, "Phone number required for PO")
+        
+        result = send_whatsapp_message(phone, message)
+        return result
+    finally:
+        db.close()
+
+
+@app.get("/api/whatsapp/config")
+def get_whatsapp_config(user: User = Depends(get_current_user)):
+    """Get WhatsApp configuration status"""
+    return {
+        "configured": bool(WHATSAPP_TOKEN and WHATSAPP_PHONE_ID),
+        "phone_id": WHATSAPP_PHONE_ID[:10] + "..." if WHATSAPP_PHONE_ID else None,
+        "business_account_id": WHATSAPP_BUSINESS_ACCOUNT_ID[:10] + "..." if WHATSAPP_BUSINESS_ACCOUNT_ID else None,
+        "token_set": bool(WHATSAPP_TOKEN)
+    }
 
 
 # ---- SALES ----

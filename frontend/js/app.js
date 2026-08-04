@@ -172,13 +172,14 @@ function go(page, el) {
     document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('bg-indigo-700'); });
     $('p-' + page).classList.remove('hidden');
     if (el) el.classList.add('bg-indigo-700');
-    var t = {dashboard:'Dashboard',products:'Products',orders:'Orders',customers:'Customers',transporters:'Transporters',sales:'Sales',expenses:'Expenses',reports:'Reports',settings:'Settings'};
+    var t = {dashboard:'Dashboard',products:'Products',orders:'Orders',customers:'Customers',transporters:'Transporters','purchase-rates':'Purchase Rates',sales:'Sales',expenses:'Expenses',reports:'Reports',settings:'Settings'};
     $('pg-title').textContent = t[page] || page;
     if (page === 'dashboard') loadDashboard();
     if (page === 'products') loadProducts();
     if (page === 'orders') loadAllOrders();
     if (page === 'customers') loadCustomers();
     if (page === 'transporters') loadTransporters();
+    if (page === 'purchase-rates') loadPurchaseRates();
     if (page === 'sales') loadSales();
     if (page === 'expenses') loadExpenses();
     if (page === 'reports') loadReport();
@@ -460,6 +461,7 @@ async function loadAllOrders() {
         var editFn = r.type === 'COGS' ? 'editOrder(' + r.id + ')' : 'editProformaOrder(' + r.id + ')';
         var deleteFn = r.type === 'COGS' ? 'deleteOrder(' + r.id + ')' : 'deleteProformaOrder(' + r.id + ')';
         var viewFn = r.type === 'COGS' ? '' : '<button onclick="viewProformaOrder(' + r.id + ')" class="action-btn action-btn-view" title="View"><i class="fas fa-eye"></i> View</button>';
+        var whatsappFn = r.type === 'COGS' ? '' : '<button onclick="showWhatsAppModal(' + r.id + ',\'' + escapeHtml(r.ref || '').replace(/'/g, "\\'") + '\',\'' + escapeHtml(r.customer || '').replace(/'/g, "\\'") + '\')" class="action-btn" style="background:#25d366;color:white;margin-left:4px;" title="Send WhatsApp"><i class="fab fa-whatsapp"></i></button>';
 
         var rowH = '<tr class="border-b data-row" onclick="' + editFn + '">';
         rowH += '<td class="px-2 py-2">' + typeBadge + '</td>';
@@ -474,6 +476,7 @@ async function loadAllOrders() {
         rowH += '<td class="px-2 py-2" onclick="event.stopPropagation()">';
         rowH += '<button onclick="' + editFn + '" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
         rowH += viewFn;
+        rowH += whatsappFn;
         rowH += '<button onclick="' + deleteFn + '" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         rowH += '</td></tr>';
         sortRows.push({vals: [r.type, r.ref, r.date, r.customer, r.boxes, r.value, r.invoice_no, r.invoice_amt, r.status], html: rowH});
@@ -606,6 +609,88 @@ async function deleteTransporter(id) {
     await api('/api/transporters/' + id, {method: 'DELETE'});
     toast('Transporter deleted');
     loadTransporters();
+}
+
+var _purchaseRates = [];
+async function loadPurchaseRates() {
+    showLoading('t-purchase-rates', 9);
+    _purchaseRates = await api('/api/purchase-rates');
+    var sortRows = [];
+    _purchaseRates.forEach(function(r) {
+        var h = '<tr class="border-b data-row" onclick="editPurchaseRate(' + r.id + ')">';
+        h += '<td class="px-2 py-2">' + r.id + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(r.part_no || '-') + '</td>';
+        h += '<td class="px-2 py-2 font-medium">' + escapeHtml(r.product_name || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(r.category || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(r.size || '-') + '</td>';
+        h += '<td class="px-2 py-2 font-bold">' + fmt(r.rate) + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(r.supplier || '-') + '</td>';
+        h += '<td class="px-2 py-2">' + escapeHtml(r.effective_date || '-') + '</td>';
+        h += '<td class="px-2 py-2" onclick="event.stopPropagation()">';
+        h += '<button onclick="editPurchaseRate(' + r.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
+        h += '<button onclick="deletePurchaseRate(' + r.id + ')" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
+        h += '</td></tr>';
+        sortRows.push({vals: [r.id, r.part_no||'', r.product_name||'', r.category||'', r.size||'', r.rate||0, r.supplier||'', r.effective_date||''], html: h});
+    });
+    _tableData['t-purchase-rates'] = sortRows;
+    _sortState['t-purchase-rates'] = null;
+    $('t-purchase-rates').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="9" class="text-center py-4 text-gray-400">No purchase rates</td></tr>';
+}
+
+async function editPurchaseRate(id) {
+    var r = _purchaseRates.find(function(x) { return x.id === id; });
+    if (!r) return;
+    $('f-prid').value = r.id;
+    $('f-prrate').value = r.rate || '';
+    $('f-predate').value = r.effective_date || '';
+    $('f-prsupplier').value = r.supplier || '';
+    $('m-pr-title').textContent = 'Edit Purchase Rate';
+    await refreshProductDropdown();
+    $('f-prproduct').value = r.product_id;
+    showModal('m-purchase-rate');
+}
+
+async function deletePurchaseRate(id) {
+    if (!confirm('Delete this purchase rate?')) return;
+    await api('/api/purchase-rates/' + id, {method: 'DELETE'});
+    toast('Purchase rate deleted');
+    loadPurchaseRates();
+}
+
+async function refreshProductDropdown() {
+    if (!_products.length) _products = await api('/api/products');
+    var po = '<option value="">Select Product</option>';
+    _products.forEach(function(p) { po += '<option value="' + p.id + '">' + escapeHtml(p.part_no) + ' - ' + escapeHtml(p.name) + ' (' + escapeHtml(p.size || 'N/A') + ')</option>'; });
+    if ($('f-prproduct')) $('f-prproduct').innerHTML = po;
+}
+
+async function importPurchaseRatesCSV(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var text = await file.text();
+    var lines = text.split('\n').filter(function(l) { return l.trim(); });
+    if (lines.length < 2) { toast('CSV is empty', true); return; }
+    var header = lines[0].toLowerCase();
+    var rates = [];
+    for (var i = 1; i < lines.length; i++) {
+        var cols = lines[i].split(',').map(function(c) { return c.trim().replace(/^"|"$/g, ''); });
+        if (cols.length < 2) continue;
+        var product = _products.find(function(p) { return p.part_no === cols[0] || p.name === cols[0]; });
+        if (!product) continue;
+        rates.push({
+            product_id: product.id,
+            rate: parseFloat(cols[1]) || 0,
+            supplier: cols[2] || '',
+            effective_date: cols[3] || new Date().toISOString().split('T')[0]
+        });
+    }
+    if (rates.length === 0) { toast('No matching products found', true); return; }
+    try {
+        var r = await api('/api/purchase-rates/bulk', {method: 'POST', body: JSON.stringify({rates: rates})});
+        toast(r.message);
+        loadPurchaseRates();
+    } catch(e) { toast('Import failed: ' + e.message, true); }
+    input.value = '';
 }
 
 function editCustomer(id) {
@@ -1521,6 +1606,113 @@ $('f-transporter').addEventListener('submit', async function(e) {
     }
 });
 
+$('f-purchase-rate').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var id = $('f-prid').value;
+    var payload = {
+        product_id: parseInt($('f-prproduct').value),
+        rate: parseFloat($('f-prrate').value) || 0,
+        supplier: $('f-prsupplier').value,
+        effective_date: $('f-predate').value
+    };
+    if (!payload.product_id) { toast('Product is required', true); return; }
+    try {
+        if (id) {
+            await api('/api/purchase-rates/' + id, {method: 'PUT', body: JSON.stringify(payload)});
+            toast('Purchase rate updated!');
+        } else {
+            await api('/api/purchase-rates', {method: 'POST', body: JSON.stringify(payload)});
+            toast('Purchase rate added!');
+        }
+        hideModal('m-purchase-rate');
+        $('f-purchase-rate').reset();
+        $('f-prid').value = '';
+        loadPurchaseRates();
+    } catch(err) {
+        toast('Error: ' + err.message, true);
+    }
+});
+
+// WhatsApp Functions
+function showWhatsAppModal(oid, orderNo, customer) {
+    $('f-waoid').value = oid;
+    $('f-waorder').textContent = orderNo;
+    $('f-wacustomer').textContent = customer;
+    $('f-waphone').value = '';
+    $('wa-status').style.display = 'none';
+    showModal('m-whatsapp');
+}
+
+async function sendWhatsAppPI() {
+    var oid = $('f-waoid').value;
+    var phone = $('f-waphone').value.trim();
+    if (!phone || phone.length < 10) {
+        toast('Enter a valid 10-digit phone number', true);
+        return;
+    }
+    var statusEl = $('wa-status');
+    statusEl.style.display = 'block';
+    statusEl.style.background = '#dbeafe';
+    statusEl.style.color = '#1e40af';
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending PI...';
+    
+    try {
+        var result = await api('/api/whatsapp/send-pi/' + oid, {
+            method: 'POST',
+            body: JSON.stringify({phone: phone})
+        });
+        if (result.success) {
+            statusEl.style.background = '#dcfce7';
+            statusEl.style.color = '#166534';
+            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> PI sent successfully!';
+            toast('WhatsApp PI sent!');
+        } else {
+            statusEl.style.background = '#fef2f2';
+            statusEl.style.color = '#991b1b';
+            statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Failed: ' + (result.error || 'Unknown error');
+        }
+    } catch(e) {
+        statusEl.style.background = '#fef2f2';
+        statusEl.style.color = '#991b1b';
+        statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Error: ' + e.message;
+    }
+}
+
+async function sendWhatsAppPO() {
+    var oid = $('f-waoid').value;
+    var phone = $('f-waphone').value.trim();
+    if (!phone || phone.length < 10) {
+        toast('Enter a valid 10-digit phone number', true);
+        return;
+    }
+    var statusEl = $('wa-status');
+    statusEl.style.display = 'block';
+    statusEl.style.background = '#dbeafe';
+    statusEl.style.color = '#1e40af';
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending PO...';
+    
+    try {
+        var result = await api('/api/whatsapp/send-po/' + oid, {
+            method: 'POST',
+            body: JSON.stringify({phone: phone})
+        });
+        if (result.success) {
+            statusEl.style.background = '#dcfce7';
+            statusEl.style.color = '#166534';
+            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> PO sent successfully!';
+            toast('WhatsApp PO sent!');
+        } else {
+            statusEl.style.background = '#fef2f2';
+            statusEl.style.color = '#991b1b';
+            statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Failed: ' + (result.error || 'Unknown error');
+        }
+    } catch(e) {
+        statusEl.style.background = '#fef2f2';
+        statusEl.style.color = '#991b1b';
+        statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Error: ' + e.message;
+    }
+}
+
 $('f-sale').addEventListener('submit', async function(e) {
     e.preventDefault();
     var id = $('f-slid') ? $('f-slid').value : '';
@@ -1724,6 +1916,8 @@ async function showProformaOrderModal() {
 async function editProformaOrder(id) {
     var order = await api('/api/proforma-orders/' + id);
     _editingProformaId = id;
+    // Load purchase rates for GP calculation
+    try { _purchaseRates = await api('/api/purchase-rates'); } catch(e) { _purchaseRates = []; }
     $('f-pooid').value = id;
     $('f-pootype').value = order.order_type;
     $('f-poobilling').value = order.billing_site || '';
@@ -1767,6 +1961,8 @@ async function editProformaOrder(id) {
 async function viewProformaOrder(id) {
     var order = await api('/api/proforma-orders/' + id);
     _editingProformaId = id;
+    // Load purchase rates for GP calculation
+    try { _purchaseRates = await api('/api/purchase-rates'); } catch(e) { _purchaseRates = []; }
     $('f-pooid').value = id;
     $('f-pootype').value = order.order_type;
     $('f-poobilling').value = order.billing_site || '';
@@ -1932,6 +2128,26 @@ function calcProformaTotals() {
     $('pov-gst').textContent = fmt(gst);
     $('pov-freight').textContent = fmt(freight);
     $('pov-total').textContent = fmt(grandTotal);
+
+    // Calculate GP from purchase rates
+    var purchaseTotal = 0;
+    _proformaItems.forEach(function(item) {
+        if (item.product_id && item.final_qty) {
+            var pr = _purchaseRates.find(function(r) { return r.product_id == item.product_id; });
+            if (pr) {
+                purchaseTotal += item.final_qty * pr.rate;
+            }
+        }
+    });
+    var gp = totalAmount - purchaseTotal - freight;
+    var gpPercent = totalAmount > 0 ? (gp / totalAmount * 100) : 0;
+    var np = gp - gst;
+
+    $('pov-purchase-total').textContent = fmt(purchaseTotal);
+    $('pov-transport-cost').textContent = fmt(freight);
+    $('pov-gp').textContent = fmt(gp);
+    $('pov-gp-percent').textContent = gpPercent.toFixed(1) + '%';
+    $('pov-np').textContent = fmt(np);
 }
 
 $('f-proforma-order').addEventListener('submit', async function(e) {
