@@ -2570,6 +2570,24 @@ def list_sales(user: User = Depends(get_current_user)):
                     cust_name = cust.contact_name if cust else ""
                 party = s.party_name or cust_name or ""
                 loc = s.location or ""
+                sale_items = []
+                try:
+                    sale_items = [
+                        {
+                            "id": si.id, "sl_no": si.sl_no,
+                            "product_id": si.product_id,
+                            "quantity": si.quantity, "unit_price": si.unit_price,
+                            "discount_percent": si.discount_percent,
+                            "taxable_amount": si.taxable_amount,
+                            "gst_rate": si.gst_rate,
+                            "cgst_amount": si.cgst_amount,
+                            "sgst_amount": si.sgst_amount,
+                            "total_amount": si.total_amount,
+                        }
+                        for si in db.query(SaleItem).filter(SaleItem.sale_id == s.id).order_by(SaleItem.sl_no).all()
+                    ]
+                except Exception:
+                    sale_items = []
                 out.append({
                     "id": s.id, "invoice_no": s.invoice_no or "",
                     "customer_id": s.customer_id or None,
@@ -2599,22 +2617,10 @@ def list_sales(user: User = Depends(get_current_user)):
                     "lr_tracking_status": s.lr_tracking_status or "",
                     "lr_tracking_url": s.lr_tracking_url or "",
                     "lr_last_checked": s.lr_last_checked.isoformat() if s.lr_last_checked else None,
-                    "items": [
-                        {
-                            "id": si.id, "sl_no": si.sl_no,
-                            "product_id": si.product_id,
-                            "quantity": si.quantity, "unit_price": si.unit_price,
-                            "discount_percent": si.discount_percent,
-                            "taxable_amount": si.taxable_amount,
-                            "gst_rate": si.gst_rate,
-                            "cgst_amount": si.cgst_amount,
-                            "sgst_amount": si.sgst_amount,
-                            "total_amount": si.total_amount,
-                        }
-                        for si in db.query(SaleItem).filter(SaleItem.sale_id == s.id).order_by(SaleItem.sl_no).all()
-                    ],
+                    "items": sale_items,
                 })
-            except Exception:
+            except Exception as e:
+                print(f"Error loading sale {s.id}: {e}")
                 continue
         return out
     finally:
@@ -2638,7 +2644,7 @@ def create_sale(inp: SaleIn, user: User = Depends(require_permission("sales", "c
             freight_amount=inp.freight_amount,
             payment_status=inp.payment_status, payment_method=inp.payment_method,
             notes=inp.notes, transporter_name=inp.transporter_name, lr_no=inp.lr_no,
-            invoice_value=inp.invoice_value
+            invoice_value=inp.invoice_value, sale_date=datetime.utcnow()
         )
         db.add(s)
         db.flush()
