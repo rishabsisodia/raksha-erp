@@ -258,6 +258,27 @@ class Sale(Base):
     lr_last_checked = Column(DateTime, nullable=True)
     customer = relationship("Customer")
     product = relationship("Product")
+    items = relationship("SaleItem", cascade="all,delete-orphan", back_populates="sale")
+
+
+class SaleItem(Base):
+    __tablename__ = "sale_items"
+    id = Column(Integer, primary_key=True, index=True)
+    sale_id = Column(Integer, ForeignKey("sales.id"))
+    sl_no = Column(Integer, default=1)
+    product_id = Column(Integer, ForeignKey("products.id"))
+    quantity = Column(Integer, default=0)
+    unit_price = Column(Float, default=0)
+    discount_percent = Column(Float, default=0)
+    discount_amount = Column(Float, default=0)
+    taxable_amount = Column(Float, default=0)
+    gst_rate = Column(Float, default=18)
+    cgst_amount = Column(Float, default=0)
+    sgst_amount = Column(Float, default=0)
+    total_amount = Column(Float, default=0)
+    basic_amount = Column(Float, default=0)
+    sale = relationship("Sale", back_populates="items")
+    product = relationship("Product")
 
 
 class Expense(Base):
@@ -511,6 +532,23 @@ def startup_event():
         safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS transporter_id INTEGER REFERENCES transporters(id)")
         safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS whatsapp_status VARCHAR DEFAULT 'pending'")
         safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'draft'")
+        # Sale items table
+        safe_ddl("""CREATE TABLE IF NOT EXISTS sale_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER REFERENCES sales(id),
+            sl_no INTEGER DEFAULT 1,
+            product_id INTEGER REFERENCES products(id),
+            quantity INTEGER DEFAULT 0,
+            unit_price FLOAT DEFAULT 0,
+            discount_percent FLOAT DEFAULT 0,
+            discount_amount FLOAT DEFAULT 0,
+            taxable_amount FLOAT DEFAULT 0,
+            gst_rate FLOAT DEFAULT 18,
+            cgst_amount FLOAT DEFAULT 0,
+            sgst_amount FLOAT DEFAULT 0,
+            total_amount FLOAT DEFAULT 0,
+            basic_amount FLOAT DEFAULT 0
+        )""")
     backfill_part_numbers()
     backfill_pieces_per_box()
     backfill_product_names()
@@ -955,9 +993,16 @@ class TransporterIn(BaseModel):
     blacklisted: int = 0
 
 
+class SaleItemIn(BaseModel):
+    product_id: int
+    quantity: int = Field(0, ge=0)
+    unit_price: float = Field(0, ge=0)
+    discount_percent: float = Field(0, ge=0, le=100)
+
+
 class SaleIn(BaseModel):
     customer_id: int
-    product_id: int
+    product_id: int = 0
     quantity: int = Field(0, ge=0)
     unit_price: float = Field(0, ge=0)
     discount_percent: float = Field(0, ge=0, le=100)
@@ -968,6 +1013,7 @@ class SaleIn(BaseModel):
     notes: str = ""
     transporter_name: str = ""
     lr_no: str = ""
+    items: List[SaleItemIn] = []
 
 
 class ExpenseIn(BaseModel):
@@ -2553,6 +2599,20 @@ def list_sales(user: User = Depends(get_current_user)):
                     "lr_tracking_status": s.lr_tracking_status or "",
                     "lr_tracking_url": s.lr_tracking_url or "",
                     "lr_last_checked": s.lr_last_checked.isoformat() if s.lr_last_checked else None,
+                    "items": [
+                        {
+                            "id": si.id, "sl_no": si.sl_no,
+                            "product_id": si.product_id,
+                            "quantity": si.quantity, "unit_price": si.unit_price,
+                            "discount_percent": si.discount_percent,
+                            "taxable_amount": si.taxable_amount,
+                            "gst_rate": si.gst_rate,
+                            "cgst_amount": si.cgst_amount,
+                            "sgst_amount": si.sgst_amount,
+                            "total_amount": si.total_amount,
+                        }
+                        for si in db.query(SaleItem).filter(SaleItem.sale_id == s.id).order_by(SaleItem.sl_no).all()
+                    ],
                 })
             except Exception:
                 continue
@@ -2565,36 +2625,68 @@ def list_sales(user: User = Depends(get_current_user)):
 def create_sale(inp: SaleIn, user: User = Depends(require_permission("sales", "create"))):
     db = SessionLocal()
     try:
-        prod = db.query(Product).filter(Product.id == inp.product_id).first()
-        if not prod:
-            raise HTTPException(404, "Product not found")
-        pr = db.query(Pricing).filter(Pricing.product_id == inp.product_id).first()
-        gst_rate = pr.gst_rate if pr else 18
-
-        taxable = inp.quantity * inp.unit_price
-        disc_amt = taxable * inp.discount_percent / 100
-        taxable -= disc_amt
-        cgst = taxable * gst_rate / 200
-        sgst = taxable * gst_rate / 200
-        total = taxable + cgst + sgst + inp.freight_amount
-
         max_id = db.query(func.max(Sale.id)).scalar() or 0
         invoice_no = f"RFRP-{max_id + 1:05d}"
 
+        total_taxable = 0
+        total_cgst = 0
+        total_sgst = 0
+        total_amount = 0
+
         s = Sale(
             invoice_no=invoice_no, customer_id=inp.customer_id,
-            product_id=inp.product_id, quantity=inp.quantity,
-            unit_price=inp.unit_price, discount_percent=inp.discount_percent,
-            discount_amount=disc_amt, taxable_amount=taxable,
-            cgst_rate=gst_rate / 2, cgst_amount=cgst,
-            sgst_rate=gst_rate / 2, sgst_amount=sgst,
-            freight_amount=inp.freight_amount, total_amount=total,
+            freight_amount=inp.freight_amount,
             payment_status=inp.payment_status, payment_method=inp.payment_method,
-            invoice_value=inp.invoice_value or total, notes=inp.notes
+            notes=inp.notes, transporter_name=inp.transporter_name, lr_no=inp.lr_no,
+            invoice_value=inp.invoice_value
         )
         db.add(s)
+        db.flush()
+
+        for idx, item in enumerate(inp.items):
+            prod = db.query(Product).filter(Product.id == item.product_id).first()
+            if not prod:
+                continue
+            pr = db.query(Pricing).filter(Pricing.product_id == item.product_id).first()
+            gst_rate = pr.gst_rate if pr else 18
+
+            taxable = item.quantity * item.unit_price
+            disc_amt = taxable * item.discount_percent / 100
+            taxable -= disc_amt
+            cgst = taxable * gst_rate / 200
+            sgst = taxable * gst_rate / 200
+            item_total = taxable + cgst + sgst
+
+            total_taxable += taxable
+            total_cgst += cgst
+            total_sgst += sgst
+            total_amount += item_total
+
+            db.add(SaleItem(
+                sale_id=s.id, sl_no=idx + 1,
+                product_id=item.product_id, quantity=item.quantity,
+                unit_price=item.unit_price, discount_percent=item.discount_percent,
+                discount_amount=disc_amt, taxable_amount=taxable,
+                gst_rate=gst_rate, cgst_amount=cgst, sgst_amount=sgst,
+                total_amount=item_total, basic_amount=item_total
+            ))
+
+        grand_total = total_amount + inp.freight_amount
+        s.taxable_amount = total_taxable
+        s.cgst_amount = total_cgst
+        s.sgst_amount = total_sgst
+        s.total_amount = grand_total
+        if not s.invoice_value:
+            s.invoice_value = grand_total
+
+        if not inp.product_id and inp.items:
+            s.product_id = inp.items[0].product_id
+            s.quantity = sum(i.quantity for i in inp.items)
+            s.unit_price = inp.items[0].unit_price
+            s.discount_percent = inp.items[0].discount_percent
+
         db.commit()
-        return {"invoice_no": invoice_no, "total": total}
+        return {"invoice_no": invoice_no, "total": grand_total}
     finally:
         db.close()
 
@@ -2638,41 +2730,63 @@ def update_sale(sid: int, inp: SaleIn, user: User = Depends(require_permission("
         if not s:
             raise HTTPException(404, "Not found")
 
-        prod = db.query(Product).filter(Product.id == inp.product_id).first()
-        if not prod:
-            raise HTTPException(404, "Product not found")
-        pr = db.query(Pricing).filter(Pricing.product_id == inp.product_id).first()
-        gst_rate = pr.gst_rate if pr else 18
+        total_taxable = 0
+        total_cgst = 0
+        total_sgst = 0
+        total_amount = 0
 
-        taxable = inp.quantity * inp.unit_price
-        disc_amt = taxable * inp.discount_percent / 100
-        taxable -= disc_amt
-        cgst = taxable * gst_rate / 200
-        sgst = taxable * gst_rate / 200
-        total = taxable + cgst + sgst + inp.freight_amount
+        db.query(SaleItem).filter(SaleItem.sale_id == sid).delete()
 
+        for idx, item in enumerate(inp.items):
+            prod = db.query(Product).filter(Product.id == item.product_id).first()
+            if not prod:
+                continue
+            pr = db.query(Pricing).filter(Pricing.product_id == item.product_id).first()
+            gst_rate = pr.gst_rate if pr else 18
+
+            taxable = item.quantity * item.unit_price
+            disc_amt = taxable * item.discount_percent / 100
+            taxable -= disc_amt
+            cgst = taxable * gst_rate / 200
+            sgst = taxable * gst_rate / 200
+            item_total = taxable + cgst + sgst
+
+            total_taxable += taxable
+            total_cgst += cgst
+            total_sgst += sgst
+            total_amount += item_total
+
+            db.add(SaleItem(
+                sale_id=s.id, sl_no=idx + 1,
+                product_id=item.product_id, quantity=item.quantity,
+                unit_price=item.unit_price, discount_percent=item.discount_percent,
+                discount_amount=disc_amt, taxable_amount=taxable,
+                gst_rate=gst_rate, cgst_amount=cgst, sgst_amount=sgst,
+                total_amount=item_total, basic_amount=item_total
+            ))
+
+        grand_total = total_amount + inp.freight_amount
         s.customer_id = inp.customer_id
-        s.product_id = inp.product_id
-        s.quantity = inp.quantity
-        s.unit_price = inp.unit_price
-        s.discount_percent = inp.discount_percent
-        s.discount_amount = disc_amt
-        s.taxable_amount = taxable
-        s.cgst_rate = gst_rate / 2
-        s.cgst_amount = cgst
-        s.sgst_rate = gst_rate / 2
-        s.sgst_amount = sgst
         s.freight_amount = inp.freight_amount
-        s.total_amount = total
+        s.taxable_amount = total_taxable
+        s.cgst_amount = total_cgst
+        s.sgst_amount = total_sgst
+        s.total_amount = grand_total
+        s.invoice_value = inp.invoice_value or grand_total
         s.payment_status = inp.payment_status
         s.payment_method = inp.payment_method
-        s.invoice_value = inp.invoice_value or total
         s.notes = inp.notes
         s.transporter_name = inp.transporter_name or s.transporter_name or ""
         s.lr_no = inp.lr_no or s.lr_no or ""
 
+        if inp.items:
+            s.product_id = inp.items[0].product_id
+            s.quantity = sum(i.quantity for i in inp.items)
+            s.unit_price = inp.items[0].unit_price
+            s.discount_percent = inp.items[0].discount_percent
+
         db.commit()
-        return {"message": "Sale updated", "total": total}
+        return {"message": "Sale updated", "total": grand_total}
     finally:
         db.close()
 

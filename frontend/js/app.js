@@ -4,6 +4,7 @@ var _customers = [];
 var _billingSites = [];
 var _selectedBillingSite = null;
 var _proformaItems = [];
+var _saleItems = [];
 var _editingProformaId = null;
 var _sortState = {};
 var _tableData = {};
@@ -227,6 +228,10 @@ async function showModal(id) {
     $(id).classList.remove('hidden');
     if (id === 'm-sale') {
         await refreshDropdowns();
+        if (!$('f-slid').value) {
+            _saleItems = [];
+            addSaleItem();
+        }
     }
     if (id === 'm-purchase-rate') {
         await refreshProductDropdown();
@@ -1020,49 +1025,119 @@ async function editSale(id) {
     $('f-slid').value = s.id;
     $('m-sale-title').textContent = 'Edit Sale';
     if ($('f-slcust')) $('f-slcust').value = s.customer_id || '';
-    if ($('f-slprod')) $('f-slprod').value = s.product_id || '';
-    if ($('f-slqty')) $('f-slqty').value = s.quantity || '';
-    if ($('f-slprice')) $('f-slprice').value = s.unit_price || '';
-    if ($('f-sldisc')) $('f-sldisc').value = s.discount_percent || 0;
     if ($('f-slfrt')) $('f-slfrt').value = s.freight_amount || 0;
     if ($('f-slinvval')) $('f-slinvval').value = s.invoice_value || 0;
     if ($('f-slstatus')) $('f-slstatus').value = s.payment_status || 'Pending';
     if ($('f-slmethod')) $('f-slmethod').value = s.payment_method || 'Cash';
     if ($('f-sltransporter')) $('f-sltransporter').value = s.transporter_name || '';
     if ($('f-sllrno')) $('f-sllrno').value = s.lr_no || '';
-    $('sv-tax').textContent = fmt(s.taxable_amount || 0);
-    $('sv-cgst').textContent = fmt(s.cgst_amount || 0);
-    $('sv-sgst').textContent = fmt(s.sgst_amount || 0);
-    $('sv-frt').textContent = fmt(s.freight_amount || 0);
-    $('sv-total').textContent = fmt(s.invoice_value || s.total_amount || 0);
+    _saleItems = (s.items && s.items.length > 0) ? s.items.map(function(item) {
+        return {
+            product_id: item.product_id, quantity: item.quantity,
+            unit_price: item.unit_price, discount_percent: item.discount_percent,
+            taxable_amount: item.taxable_amount, gst_rate: item.gst_rate,
+            cgst_amount: item.cgst_amount, sgst_amount: item.sgst_amount,
+            total_amount: item.total_amount
+        };
+    }) : [{
+        product_id: s.product_id || 0, quantity: s.quantity || 0,
+        unit_price: s.unit_price || 0, discount_percent: s.discount_percent || 0,
+        taxable_amount: s.taxable_amount || 0, gst_rate: 18,
+        cgst_amount: s.cgst_amount || 0, sgst_amount: s.sgst_amount || 0,
+        total_amount: s.total_amount || 0
+    }];
+    renderSaleItems();
+    calcSaleTotals();
     showModal('m-sale');
 }
 
-async function calcSale() {
-    var qty = parseFloat($('f-slqty').value) || 0;
-    var price = parseFloat($('f-slprice').value) || 0;
-    var disc = parseFloat($('f-sldisc').value) || 0;
-    var frt = parseFloat($('f-slfrt').value) || 0;
-    var taxable = qty * price;
-    var discAmt = taxable * disc / 100;
+function addSaleItem() {
+    _saleItems.push({
+        product_id: 0, quantity: 1, unit_price: 0, discount_percent: 0,
+        taxable_amount: 0, gst_rate: 18, cgst_amount: 0, sgst_amount: 0, total_amount: 0
+    });
+    renderSaleItems();
+}
+
+function removeSaleItem(idx) {
+    _saleItems.splice(idx, 1);
+    renderSaleItems();
+    calcSaleTotals();
+}
+
+function updateSaleItem(idx, field, value) {
+    _saleItems[idx][field] = value;
+}
+
+async function onSaleProductChange(idx, pid) {
+    if (!pid) return;
+    try {
+        var pr = await api('/api/products/' + pid + '/pricing');
+        if (pr) {
+            _saleItems[idx].unit_price = pr.selling_price || pr.mrp || 0;
+            _saleItems[idx].gst_rate = pr.gst_rate || 18;
+        }
+    } catch(e) {}
+    calcSaleItemAmount(idx);
+    renderSaleItems();
+    calcSaleTotals();
+}
+
+function calcSaleItemAmount(idx) {
+    var item = _saleItems[idx];
+    var taxable = (item.quantity || 0) * (item.unit_price || 0);
+    var discAmt = taxable * (item.discount_percent || 0) / 100;
     taxable -= discAmt;
-    var gstRate = 18;
-    var prodId = $('f-slprod') ? $('f-slprod').value : '';
-    if (prodId) {
-        try {
-            var pr = await api('/api/products/' + prodId + '/pricing');
-            if (pr && pr.gst_rate) gstRate = pr.gst_rate;
-        } catch(e) {}
-    }
-    var cgst = taxable * gstRate / 200;
-    var sgst = taxable * gstRate / 200;
-    var total = taxable + cgst + sgst + frt;
-    $('sv-tax').textContent = fmt(taxable);
-    $('sv-cgst').textContent = fmt(cgst);
-    $('sv-sgst').textContent = fmt(sgst);
+    var cgst = taxable * (item.gst_rate || 18) / 200;
+    var sgst = taxable * (item.gst_rate || 18) / 200;
+    item.taxable_amount = taxable;
+    item.cgst_amount = cgst;
+    item.sgst_amount = sgst;
+    item.total_amount = taxable + cgst + sgst;
+}
+
+function calcSaleTotals() {
+    var totalQty = 0;
+    var totalTaxable = 0;
+    var totalCgst = 0;
+    var totalSgst = 0;
+    var frt = parseFloat($('f-slfrt').value) || 0;
+    _saleItems.forEach(function(item) {
+        calcSaleItemAmount(_saleItems.indexOf(item));
+        totalQty += item.quantity || 0;
+        totalTaxable += item.taxable_amount;
+        totalCgst += item.cgst_amount;
+        totalSgst += item.sgst_amount;
+    });
+    var grandTotal = totalTaxable + totalCgst + totalSgst + frt;
+    $('sale-total-qty').textContent = totalQty;
+    $('sale-total-amount').textContent = fmt(grandTotal);
+    $('sv-tax').textContent = fmt(totalTaxable);
+    $('sv-cgst').textContent = fmt(totalCgst);
+    $('sv-sgst').textContent = fmt(totalSgst);
     $('sv-frt').textContent = fmt(frt);
-    $('sv-total').textContent = fmt(total);
-    if ($('f-slinvval')) $('f-slinvval').value = total.toFixed(2);
+    $('sv-total').textContent = fmt(grandTotal);
+    if ($('f-slinvval')) $('f-slinvval').value = grandTotal.toFixed(2);
+}
+
+function renderSaleItems() {
+    var h = '';
+    _saleItems.forEach(function(item, idx) {
+        var prodOpts = '<option value="0">-- Select --</option>';
+        _products.forEach(function(p) {
+            var sel = item.product_id == p.id ? ' selected' : '';
+            prodOpts += '<option value="' + p.id + '"' + sel + '>' + escapeHtml(p.name) + '</option>';
+        });
+        h += '<tr style="border-bottom:1px solid #f1f5f9;">';
+        h += '<td class="px-2 py-1"><select onchange="updateSaleItem(' + idx + ',\'product_id\',parseInt(this.value));onSaleProductChange(' + idx + ',this.value)" style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:4px;font-size:12px;">' + prodOpts + '</select></td>';
+        h += '<td class="px-2 py-1"><input type="number" min="0" value="' + (item.quantity || 0) + '" onchange="updateSaleItem(' + idx + ',\'quantity\',parseInt(this.value));calcSaleItemAmount(' + idx + ');renderSaleItems();calcSaleTotals()" style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:4px;text-align:right;font-size:12px;"></td>';
+        h += '<td class="px-2 py-1"><input type="number" min="0" step="0.01" value="' + (item.unit_price || 0) + '" onchange="updateSaleItem(' + idx + ',\'unit_price\',parseFloat(this.value));calcSaleItemAmount(' + idx + ');renderSaleItems();calcSaleTotals()" style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:4px;text-align:right;font-size:12px;"></td>';
+        h += '<td class="px-2 py-1"><input type="number" min="0" max="100" step="0.01" value="' + (item.discount_percent || 0) + '" onchange="updateSaleItem(' + idx + ',\'discount_percent\',parseFloat(this.value));calcSaleItemAmount(' + idx + ');renderSaleItems();calcSaleTotals()" style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:4px;text-align:right;font-size:12px;"></td>';
+        h += '<td class="px-2 py-1 text-right" style="font-size:12px;font-weight:600;">' + fmt(item.total_amount || 0) + '</td>';
+        h += '<td class="px-2 py-1 text-center"><button type="button" onclick="removeSaleItem(' + idx + ')" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:14px;" title="Remove"><i class="fas fa-times"></i></button></td>';
+        h += '</tr>';
+    });
+    $('sale-items-body').innerHTML = h || '<tr><td colspan="6" class="text-center py-3 text-gray-400" style="font-size:12px;">No items. Click "Add Item" to begin.</td></tr>';
 }
 
 async function loadExpenses() {
@@ -1806,29 +1881,37 @@ async function sendWhatsAppPO() {
 $('f-sale').addEventListener('submit', async function(e) {
     e.preventDefault();
     var id = $('f-slid') ? $('f-slid').value : '';
+    var validItems = _saleItems.filter(function(item) { return item.product_id > 0; });
+    if (validItems.length === 0) {
+        toast('Add at least one product', true);
+        return;
+    }
     var data = {
         customer_id: parseInt($('f-slcust').value),
-        product_id: parseInt($('f-slprod').value),
-        quantity: parseInt($('f-slqty').value),
-        unit_price: parseFloat($('f-slprice').value),
-        discount_percent: parseFloat($('f-sldisc').value) || 0,
+        product_id: validItems[0] ? validItems[0].product_id : 0,
+        quantity: validItems.reduce(function(sum, i) { return sum + (i.quantity || 0); }, 0),
+        unit_price: validItems[0] ? validItems[0].unit_price : 0,
+        discount_percent: validItems[0] ? validItems[0].discount_percent : 0,
         freight_amount: parseFloat($('f-slfrt').value) || 0,
         invoice_value: parseFloat($('f-slinvval').value) || 0,
         payment_status: $('f-slstatus').value,
         payment_method: $('f-slmethod').value,
         transporter_name: $('f-sltransporter') ? $('f-sltransporter').value : '',
-        lr_no: $('f-sllrno') ? $('f-sllrno').value : ''
+        lr_no: $('f-sllrno') ? $('f-sllrno').value : '',
+        items: validItems
     };
     if (id) {
         var res = await api('/api/sales/' + id, {method: 'PUT', body: JSON.stringify(data)});
         hideModal('m-sale');
         $('f-sale').reset();
         $('f-slid').value = '';
+        _saleItems = [];
         toast('Sale updated!');
     } else {
         var res = await api('/api/sales', {method: 'POST', body: JSON.stringify(data)});
         hideModal('m-sale');
         $('f-sale').reset();
+        _saleItems = [];
         toast('Sale created! ' + res.invoice_no);
     }
     loadSales();

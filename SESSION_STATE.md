@@ -55,6 +55,7 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Button Rename**: Changed "+ New PI/PO" to "Create a PI"
 - [x] **Order Status Tracking**: `PUT /api/proforma-orders/{oid}/status` endpoint with draft→confirmed→po_created→transport_pending→transport_finalized→billing→completed workflow
 - [x] **Order Status UI**: Status column with dropdown in orders table, color-coded badges, search support
+- **Commit**: b72ce6d
 
 ## In Progress (Do This First)
 1. **Add purchase rates UI page** — Create frontend page for managing purchase rate cards (CRUD + bulk upload) ✅ DONE
