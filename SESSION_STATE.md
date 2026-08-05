@@ -56,14 +56,17 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Order Status Tracking**: `PUT /api/proforma-orders/{oid}/status` endpoint with draft→confirmed→po_created→transport_pending→transport_finalized→billing→completed workflow
 - [x] **Order Status UI**: Status column with dropdown in orders table, color-coded badges, search support
 - **Commit**: b72ce6d
+- [x] **Sales Edit Fix**: Edit modal now shows stored invoice value as Total (not recalculated)
+- [x] **Orders Table Split**: "Customer Name" and "Billing / Shipping Site" are now separate searchable columns
+- [x] **Sales Multi-Item Support**: SaleItem model, items table in modal, add/remove/render/calc functions
+- **Commit**: 5447f78 + 1c9234b + 8209112 + 72f7b54
 
 ## In Progress (Do This First)
-1. **Add purchase rates UI page** — Create frontend page for managing purchase rate cards (CRUD + bulk upload) ✅ DONE
-2. **Verify transporter UI** — Transporter management page already exists, verify it works with new fields ✅ VERIFIED
-3. **Add GP display** — Show GP/NP in order details modal ✅ DONE
-4. **Rename button** — Change "+ New PI/PO" to "Create a PI" in index.html ✅ DONE
-5. **Frontend for order status** — Add status tracking (draft → confirmed → processing → shipped) ✅ DONE
-6. **Update SESSION_STATE.md** — Add commit hash after push
+1. **Sales Page Errors** — User reports "a lot of errors" on the Sales page after multi-item changes. Backend API works (177 sales returned). Need to investigate what errors user is seeing — could be browser console errors, slow loading (N+1 query on 177 sales × SaleItem), or rendering issues. Check browser F12 console for specific errors.
+2. **Fix WhatsApp token** — Generate from test number page
+3. **Test WhatsApp PDF sending**
+4. **Add discount structure** — User to share tier details
+5. **WhatsApp message formats** — User to share screenshots
 
 ## Next Steps (After UI is done)
 1. **WhatsApp Integration** — Using Meta WhatsApp Cloud API (user to provide credentials)
@@ -87,9 +90,9 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 4. Any additional business requirements
 
 ## Files Modified
-- `backend/main.py` (~4500+ lines) — auth, bug fixes, endpoints, billing sites, PDF generation, purchase rates, GP calc, WhatsApp integration, order status endpoint
-- `frontend/js/app.js` (~2690+ lines) — auth, escapeHtml, user mgmt, PO/PI form/PDF, billing site dropdown, purchase rates UI, GP display, order status UI
-- `frontend/index.html` (~906+ lines) — full UI with login overlay, user header, modals, purchase rates page, GP section, order status column
+- `backend/main.py` (~4620+ lines) — auth, bug fixes, endpoints, billing sites, PDF generation, purchase rates, GP calc, WhatsApp integration, order status endpoint, SaleItem model, multi-item sales CRUD
+- `frontend/js/app.js` (~2790+ lines) — auth, escapeHtml, user mgmt, PO/PI form/PDF, billing site dropdown, purchase rates UI, GP display, order status UI, sales multi-item functions
+- `frontend/index.html` (~906+ lines) — full UI with login overlay, user header, modals, purchase rates page, GP section, order status column, sales items table
 - `requirements.txt` — fastapi, bcrypt, PyJWT, fpdf2, beautifulsoup4, requests
 
 ## How to Test
@@ -103,4 +106,8 @@ http://localhost:8000
 
 # Login: admin / RS@2026
 # Test: Purchase Rates, Transporters, GP Calculation, PDF Generation
+# TEST: Sales page — check for errors, try creating multi-item sale, try editing sale
 ```
+
+## Tomorrow's First Task
+Open SESSION_STATE.md, read "In Progress" section, and continue with fixing Sales Page Errors. Check browser F12 console for specific error messages.
