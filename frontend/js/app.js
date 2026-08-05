@@ -415,7 +415,8 @@ async function loadAllOrders() {
                     value: o.value_excl_gst_freight || 0,
                     invoice_no: o.invoice_no || '-',
                     invoice_amt: o.invoice_amount || 0,
-                    status: '-',
+                    payment_status: '-',
+                    order_status: '-',
                     id: o.id,
                     raw: o
                 });
@@ -436,7 +437,8 @@ async function loadAllOrders() {
                     value: o.value_excl_gst || 0,
                     invoice_no: '-',
                     invoice_amt: o.total_amount || 0,
-                    status: o.payment_status || 'Pending',
+                    payment_status: o.payment_status || 'Pending',
+                    order_status: o.status || 'draft',
                     id: o.id,
                     raw: o
                 });
@@ -456,10 +458,42 @@ async function loadAllOrders() {
         var typeBadge = r.type === 'COGS'
             ? '<span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">COGS</span>'
             : '<span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">' + escapeHtml(r.type) + '</span>';
-        var statusBadge = '';
-        if (r.status && r.status !== '-') {
-            var sc = r.status === 'Paid' ? 'bg-green-100 text-green-700' : r.status === 'Partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700';
-            statusBadge = '<span class="px-2 py-1 rounded text-xs ' + sc + '">' + escapeHtml(r.status) + '</span>';
+        var paymentBadge = '';
+        if (r.payment_status && r.payment_status !== '-') {
+            var sc = r.payment_status === 'Paid' ? 'bg-green-100 text-green-700' : r.payment_status === 'Partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700';
+            paymentBadge = '<span class="px-2 py-1 rounded text-xs ' + sc + '">' + escapeHtml(r.payment_status) + '</span>';
+        }
+        var orderStatusBadge = '';
+        if (r.order_status && r.order_status !== '-') {
+            var statusLabels = {
+                'draft': 'Draft', 'confirmed': 'Confirmed', 'po_created': 'PO Created',
+                'transport_pending': 'Transport Pending', 'transport_finalized': 'Transport Finalized',
+                'billing': 'Billing', 'completed': 'Completed'
+            };
+            var osc = r.order_status === 'draft' ? 'bg-gray-100 text-gray-600'
+                : r.order_status === 'confirmed' ? 'bg-blue-100 text-blue-700'
+                : r.order_status === 'po_created' ? 'bg-indigo-100 text-indigo-700'
+                : r.order_status === 'transport_pending' ? 'bg-yellow-100 text-yellow-700'
+                : r.order_status === 'transport_finalized' ? 'bg-orange-100 text-orange-700'
+                : r.order_status === 'billing' ? 'bg-purple-100 text-purple-700'
+                : r.order_status === 'completed' ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-600';
+            orderStatusBadge = '<span class="px-2 py-1 rounded text-xs ' + osc + '">' + escapeHtml(statusLabels[r.order_status] || r.order_status) + '</span>';
+        }
+        var statusOptions = ['draft','confirmed','po_created','transport_pending','transport_finalized','billing','completed'];
+        var statusLabels = {
+            'draft': 'Draft', 'confirmed': 'Confirmed', 'po_created': 'PO Created',
+            'transport_pending': 'Transport Pending', 'transport_finalized': 'Transport Finalized',
+            'billing': 'Billing', 'completed': 'Completed'
+        };
+        var statusSelect = '';
+        if (r.type !== 'COGS') {
+            statusSelect = '<select onchange="changeOrderStatus(' + r.id + ', this.value)" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 4px;font-size:11px;font-family:Inter,sans-serif;cursor:pointer;">';
+            statusOptions.forEach(function(s) {
+                var sel = r.order_status === s ? ' selected' : '';
+                statusSelect += '<option value="' + s + '"' + sel + '>' + statusLabels[s] + '</option>';
+            });
+            statusSelect += '</select>';
         }
         var editFn = r.type === 'COGS' ? 'editOrder(' + r.id + ')' : 'editProformaOrder(' + r.id + ')';
         var deleteFn = r.type === 'COGS' ? 'deleteOrder(' + r.id + ')' : 'deleteProformaOrder(' + r.id + ')';
@@ -475,18 +509,31 @@ async function loadAllOrders() {
         rowH += '<td class="px-2 py-2">' + fmt(r.value) + '</td>';
         rowH += '<td class="px-2 py-2">' + escapeHtml(r.invoice_no) + '</td>';
         rowH += '<td class="px-2 py-2 font-bold">' + fmt(r.invoice_amt) + '</td>';
-        rowH += '<td class="px-2 py-2">' + statusBadge + '</td>';
+        rowH += '<td class="px-2 py-2">' + paymentBadge + '</td>';
+        rowH += '<td class="px-2 py-2" onclick="event.stopPropagation()">' + statusSelect + '</td>';
         rowH += '<td class="px-2 py-2" onclick="event.stopPropagation()">';
         rowH += '<button onclick="' + editFn + '" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
         rowH += viewFn;
         rowH += whatsappFn;
         rowH += '<button onclick="' + deleteFn + '" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         rowH += '</td></tr>';
-        sortRows.push({vals: [r.type, r.ref, r.date, r.customer, r.boxes, r.value, r.invoice_no, r.invoice_amt, r.status], html: rowH});
+        sortRows.push({vals: [r.type, r.ref, r.date, r.customer, r.boxes, r.value, r.invoice_no, r.invoice_amt, r.payment_status, r.order_status], html: rowH});
     });
     _tableData['t-all-orders'] = sortRows;
     _sortState['t-all-orders'] = null;
-    $('t-all-orders').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="10" class="text-center py-4 text-gray-400">No orders</td></tr>';
+    $('t-all-orders').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="11" class="text-center py-4 text-gray-400">No orders</td></tr>';
+}
+
+function changeOrderStatus(orderId, newStatus) {
+    api('/api/proforma-orders/' + orderId + '/status', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: newStatus})
+    }).then(function() {
+        loadAllOrders();
+    }).catch(function(e) {
+        alert('Failed to update status: ' + e.message);
+    });
 }
 
 function editOrder(id) {

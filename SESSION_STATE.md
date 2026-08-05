@@ -41,7 +41,7 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] Frontend PDF: `generateProformaPDF()` uses `_selectedBillingSite`
 - [x] Billing Site Dropdown: `f-poobilling` changed to `<select>`, `onBillingSiteChange()` updates `_selectedBillingSite`
 - [x] Dedup Products: `POST /api/products/dedup` + "Clean Dups" button
-- [x] Cache Busting: `app.js?v=20260801v1`
+- [x] Cache Busting: `app.js?v=20260805v1`
 - [x] **Removed Terms & Conditions** from PO/PI PDFs: `COMPANY_TERMS = ""`
 - [x] **PDF Auth Fix**: Removed auth from `/api/proforma-orders/{oid}/pdf` endpoint (read-only)
 - [x] **Token Key Fix**: `downloadExport()` and `viewFileAuth()` now use `access_token` (matching login storage)
@@ -53,13 +53,15 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Purchase Rates UI Page**: Full CRUD + CSV import in frontend
 - [x] **GP Display**: Shows Purchase Total, Transport Cost, GP, GP%, NP in order modal
 - [x] **Button Rename**: Changed "+ New PI/PO" to "Create a PI"
+- [x] **Order Status Tracking**: `PUT /api/proforma-orders/{oid}/status` endpoint with draft→confirmed→po_created→transport_pending→transport_finalized→billing→completed workflow
+- [x] **Order Status UI**: Status column with dropdown in orders table, color-coded badges, search support
 
 ## In Progress (Do This First)
 1. **Add purchase rates UI page** — Create frontend page for managing purchase rate cards (CRUD + bulk upload) ✅ DONE
 2. **Verify transporter UI** — Transporter management page already exists, verify it works with new fields ✅ VERIFIED
 3. **Add GP display** — Show GP/NP in order details modal ✅ DONE
 4. **Rename button** — Change "+ New PI/PO" to "Create a PI" in index.html ✅ DONE
-5. **Frontend for order status** — Add status tracking (draft → confirmed → processing → shipped)
+5. **Frontend for order status** — Add status tracking (draft → confirmed → processing → shipped) ✅ DONE
 6. **Update SESSION_STATE.md** — Add commit hash after push
 
 ## Next Steps (After UI is done)
@@ -84,9 +86,9 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 4. Any additional business requirements
 
 ## Files Modified
-- `backend/main.py` (~4300+ lines) — auth, bug fixes, endpoints, billing sites, PDF generation, purchase rates, GP calc, WhatsApp integration
-- `frontend/js/app.js` (~2530+ lines) — auth, escapeHtml, user mgmt, PO/PI form/PDF, billing site dropdown, purchase rates UI, GP display
-- `frontend/index.html` (~870+ lines) — full UI with login overlay, user header, modals, purchase rates page, GP section
+- `backend/main.py` (~4500+ lines) — auth, bug fixes, endpoints, billing sites, PDF generation, purchase rates, GP calc, WhatsApp integration, order status endpoint
+- `frontend/js/app.js` (~2690+ lines) — auth, escapeHtml, user mgmt, PO/PI form/PDF, billing site dropdown, purchase rates UI, GP display, order status UI
+- `frontend/index.html` (~906+ lines) — full UI with login overlay, user header, modals, purchase rates page, GP section, order status column
 - `requirements.txt` — fastapi, bcrypt, PyJWT, fpdf2, beautifulsoup4, requests
 
 ## How to Test

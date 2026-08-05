@@ -1267,6 +1267,7 @@ def list_proforma_orders(order_type: str = None, user: User = Depends(get_curren
                 "payment_status": o.payment_status, "payment_method": o.payment_method,
                 "transport_mode": o.transport_mode, "delivery_days": o.delivery_days,
                 "notes": o.notes, "terms": o.terms, "order_type": o.order_type,
+                "status": o.status or "draft",
                 "item_count": len(items),
                 "created_at": o.created_at.isoformat() if o.created_at else None
             })
@@ -1316,6 +1317,7 @@ def get_proforma_order(oid: int, user: User = Depends(get_current_user)):
             "payment_status": o.payment_status, "payment_method": o.payment_method,
             "transport_mode": o.transport_mode, "delivery_days": o.delivery_days,
             "notes": o.notes, "terms": o.terms, "order_type": o.order_type,
+            "status": o.status or "draft",
             "items": items_out,
             "created_at": o.created_at.isoformat() if o.created_at else None
         }
@@ -2173,6 +2175,25 @@ def update_transport(oid: int, inp: dict, user: User = Depends(get_current_user)
         order.transporter_id = inp.get("transporter_id")
         db.commit()
         return {"message": "Transport updated"}
+    finally:
+        db.close()
+
+
+@app.put("/api/proforma-orders/{oid}/status")
+def update_order_status(oid: int, inp: dict, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
+        if not order:
+            raise HTTPException(404, "Order not found")
+        new_status = inp.get("status", "draft")
+        valid_statuses = ["draft", "confirmed", "po_created", "transport_pending", "transport_finalized", "billing", "completed"]
+        if new_status not in valid_statuses:
+            raise HTTPException(400, f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+        order.status = new_status
+        order.updated_at = datetime.utcnow()
+        db.commit()
+        return {"message": f"Order status updated to {new_status}"}
     finally:
         db.close()
 
