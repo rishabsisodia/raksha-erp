@@ -1028,7 +1028,11 @@ async function editSale(id) {
     if ($('f-slmethod')) $('f-slmethod').value = s.payment_method || 'Cash';
     if ($('f-sltransporter')) $('f-sltransporter').value = s.transporter_name || '';
     if ($('f-sllrno')) $('f-sllrno').value = s.lr_no || '';
-    calcSale();
+    $('sv-tax').textContent = fmt(s.taxable_amount || 0);
+    $('sv-cgst').textContent = fmt(s.cgst_amount || 0);
+    $('sv-sgst').textContent = fmt(s.sgst_amount || 0);
+    $('sv-frt').textContent = fmt(s.freight_amount || 0);
+    $('sv-total').textContent = fmt(s.invoice_value || s.total_amount || 0);
     showModal('m-sale');
 }
 
