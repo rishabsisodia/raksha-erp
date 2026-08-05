@@ -405,12 +405,12 @@ async function loadAllOrders() {
         try {
             var cogs = await api('/api/orders');
             cogs.forEach(function(o) {
-                var cust = o.customer_name || o.billing_site || o.shipping_site || '-';
                 rows.push({
                     type: 'COGS',
                     ref: o.po_no || ('Order #' + o.sl_no),
                     date: o.po_date || o.entry_date || '',
-                    customer: cust,
+                    customer_name: o.customer_name || '-',
+                    billing_site: o.billing_site || o.shipping_site || '-',
                     boxes: o.no_of_boxes || 0,
                     value: o.value_excl_gst_freight || 0,
                     invoice_no: o.invoice_no || '-',
@@ -432,7 +432,8 @@ async function loadAllOrders() {
                     type: o.order_type || 'PI',
                     ref: o.pi_no,
                     date: o.pi_date ? o.pi_date.substring(0, 10) : '',
-                    customer: o.customer_name || '-',
+                    customer_name: o.customer_name || '-',
+                    billing_site: o.billing_site || o.shipping_site || '-',
                     boxes: o.no_of_boxes || 0,
                     value: o.value_excl_gst || 0,
                     invoice_no: '-',
@@ -504,7 +505,8 @@ async function loadAllOrders() {
         rowH += '<td class="px-2 py-2">' + typeBadge + '</td>';
         rowH += '<td class="px-2 py-2 font-medium">' + escapeHtml(r.ref || '-') + '</td>';
         rowH += '<td class="px-2 py-2">' + escapeHtml(r.date || '-') + '</td>';
-        rowH += '<td class="px-2 py-2">' + escapeHtml(r.customer) + '</td>';
+        rowH += '<td class="px-2 py-2">' + escapeHtml(r.customer_name) + '</td>';
+        rowH += '<td class="px-2 py-2">' + escapeHtml(r.billing_site) + '</td>';
         rowH += '<td class="px-2 py-2">' + r.boxes + '</td>';
         rowH += '<td class="px-2 py-2">' + fmt(r.value) + '</td>';
         rowH += '<td class="px-2 py-2">' + escapeHtml(r.invoice_no) + '</td>';
@@ -517,11 +519,11 @@ async function loadAllOrders() {
         rowH += whatsappFn;
         rowH += '<button onclick="' + deleteFn + '" class="action-btn action-btn-delete ml-1" title="Delete"><i class="fas fa-trash"></i></button>';
         rowH += '</td></tr>';
-        sortRows.push({vals: [r.type, r.ref, r.date, r.customer, r.boxes, r.value, r.invoice_no, r.invoice_amt, r.payment_status, r.order_status], html: rowH});
+        sortRows.push({vals: [r.type, r.ref, r.date, r.customer_name, r.billing_site, r.boxes, r.value, r.invoice_no, r.invoice_amt, r.payment_status, r.order_status], html: rowH});
     });
     _tableData['t-all-orders'] = sortRows;
     _sortState['t-all-orders'] = null;
-    $('t-all-orders').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="11" class="text-center py-4 text-gray-400">No orders</td></tr>';
+    $('t-all-orders').innerHTML = sortRows.map(function(r){return r.html;}).join('') || '<tr><td colspan="12" class="text-center py-4 text-gray-400">No orders</td></tr>';
 }
 
 function changeOrderStatus(orderId, newStatus) {

@@ -142,7 +142,7 @@
                     <div class="flex gap-2 items-center">
                         <div style="position:relative;">
                             <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-orders" placeholder="Search orders..." oninput="filterTable('t-all-orders', this.value, [0,1,2,3,6,9])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:200px;">
+                            <input type="text" id="search-orders" placeholder="Search orders..." oninput="filterTable('t-all-orders', this.value, [0,1,2,3,4,7,10])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:200px;">
                         </div>
                         <select id="f-orderfilter" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;font-family:'Inter',sans-serif;" onchange="loadAllOrders()">
                             <option value="">All Orders</option>
@@ -173,13 +173,14 @@
                     <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',0,'str')">Type<span class="sort-arrow"></span></th>
                     <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',1,'str')">PI/PO No<span class="sort-arrow"></span></th>
                     <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',2,'str')">Date<span class="sort-arrow"></span></th>
-                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',3,'str')">Customer/Site<span class="sort-arrow"></span></th>
-                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',4,'num')">Boxes<span class="sort-arrow"></span></th>
-                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',5,'num')">Value (Excl. GST)<span class="sort-arrow"></span></th>
-                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',6,'str')">Invoice No<span class="sort-arrow"></span></th>
-                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',7,'num')">Invoice Amt<span class="sort-arrow"></span></th>
-                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',8,'str')">Payment<span class="sort-arrow"></span></th>
-                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',9,'str')">Order Status<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',3,'str')">Customer Name<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',4,'str')">Billing / Shipping Site<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',5,'num')">Boxes<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',6,'num')">Value (Excl. GST)<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',7,'str')">Invoice No<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',8,'num')">Invoice Amt<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',9,'str')">Payment<span class="sort-arrow"></span></th>
+                    <th class="px-2 py-2 text-left sortable" onclick="sortTable('t-all-orders',10,'str')">Order Status<span class="sort-arrow"></span></th>
                     <th class="px-2 py-2 text-left">Actions</th>
                 </tr></thead><tbody id="t-all-orders"></tbody></table>
                 </div>
@@ -901,6 +902,6 @@
 
     <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl hidden" style="font-weight:600;font-size:14px;background:#10b981;"></div>
 
-    <script src="/static/js/app.js?v=20260805v2"></script>
+    <script src="/static/js/app.js?v=20260805v3"></script>
 </body>
 </html>
