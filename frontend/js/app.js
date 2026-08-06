@@ -1026,21 +1026,28 @@ async function editSale(id) {
     if ($('f-slcust')) {
         if (s.customer_id) {
             $('f-slcust').value = s.customer_id;
-        } else if (s.party_name) {
-            var dd = $('f-slcust');
-            var found = false;
+        } else {
+            $('f-slcust').value = '';
+        }
+    }
+    if (s.party_name) {
+        var dd = $('f-slcust');
+        if (dd) {
+            var alreadyThere = false;
             for (var i = 0; i < dd.options.length; i++) {
-                if (dd.options[i].text.indexOf(s.party_name) !== -1) { dd.selectedIndex = i; found = true; break; }
+                if (dd.options[i].text === s.party_name || dd.options[i].text.indexOf(s.party_name) !== -1) {
+                    dd.selectedIndex = i;
+                    alreadyThere = true;
+                    break;
+                }
             }
-            if (!found) {
+            if (!alreadyThere && !s.customer_id) {
                 var opt = document.createElement('option');
-                opt.value = '0';
-                opt.textContent = s.party_name + ' (unlinked)';
+                opt.value = '';
+                opt.textContent = s.party_name;
                 opt.selected = true;
                 dd.prepend(opt);
             }
-        } else {
-            $('f-slcust').value = '';
         }
     }
     if ($('f-slfrt')) $('f-slfrt').value = s.freight_amount || 0;
