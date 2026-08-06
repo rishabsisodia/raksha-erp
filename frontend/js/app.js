@@ -244,7 +244,7 @@ async function refreshDropdowns() {
     _billingSites = await api('/api/billing-sites');
     var po = '';
     _products.forEach(function(p) { po += '<option value="' + p.id + '">' + escapeHtml(p.part_no) + ' - ' + escapeHtml(p.name) + ' (' + escapeHtml(p.size || 'N/A') + ')</option>'; });
-    var co = '';
+    var co = '<option value="">-- Select Customer --</option>';
     _customers.forEach(function(c) { co += '<option value="' + c.id + '">' + escapeHtml(c.customer_id) + ' - ' + escapeHtml(c.contact_name) + '</option>'; });
     var bs = '<option value="">Select Billing Site</option>';
     _billingSites.forEach(function(s) { bs += '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>'; });
