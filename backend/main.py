@@ -2732,6 +2732,12 @@ def create_sale(inp: SaleIn, user: User = Depends(require_permission("sales", "c
             notes=inp.notes, transporter_name=inp.transporter_name, lr_no=inp.lr_no,
             invoice_value=inp.invoice_value, sale_date=datetime.utcnow()
         )
+        if inp.customer_id:
+            cust = db.query(Customer).filter(Customer.id == inp.customer_id).first()
+            if cust:
+                s.party_name = cust.contact_name or cust.name or ""
+                s.location = cust.billing_address or cust.city or ""
+                s.state = cust.state or ""
         db.add(s)
         db.flush()
 
@@ -2859,6 +2865,12 @@ def update_sale(sid: int, inp: SaleIn, user: User = Depends(require_permission("
 
         grand_total = total_amount + inp.freight_amount
         s.customer_id = inp.customer_id
+        if inp.customer_id:
+            cust = db.query(Customer).filter(Customer.id == inp.customer_id).first()
+            if cust:
+                s.party_name = cust.contact_name or cust.name or ""
+                s.location = cust.billing_address or cust.city or ""
+                s.state = cust.state or ""
         s.freight_amount = inp.freight_amount
         s.taxable_amount = total_taxable
         s.cgst_amount = total_cgst

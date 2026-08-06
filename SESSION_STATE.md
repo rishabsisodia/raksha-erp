@@ -65,6 +65,7 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Freight Summary Endpoint**: GET /api/sales/freight-summary (lightweight, no items)
 - [x] **loadExpenses() Optimization**: Uses freight-summary instead of full sales list
 - [x] **Sale Form Error Handling**: try-catch on submit, null checks in calcSaleTotals()
+- [x] **Sales Customer Name Fix**: party_name/location/state now populated from Customer on create/update
 - **Commit**: 5447f78 + 1c9234b + 8209112 + 72f7b54 + (Sales N+1 fix)
 
 ## In Progress (Do This First)
