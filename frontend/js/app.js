@@ -1023,7 +1023,21 @@ async function editSale(id) {
     if (!s) return;
     $('f-slid').value = s.id;
     $('m-sale-title').textContent = 'Edit Sale';
-    if ($('f-slcust')) $('f-slcust').value = s.customer_id || '';
+    if ($('f-slcust')) {
+        if (s.customer_id) {
+            $('f-slcust').value = s.customer_id;
+        } else {
+            $('f-slcust').value = '';
+            if (s.party_name) {
+                var opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = s.party_name + ' (unlinked)';
+                opt.disabled = true;
+                opt.selected = true;
+                $('f-slcust').prepend(opt);
+            }
+        }
+    }
     if ($('f-slfrt')) $('f-slfrt').value = s.freight_amount || 0;
     if ($('f-slinvval')) $('f-slinvval').value = s.invoice_value || 0;
     if ($('f-slstatus')) $('f-slstatus').value = s.payment_status || 'Pending';
