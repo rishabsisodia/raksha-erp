@@ -1026,16 +1026,21 @@ async function editSale(id) {
     if ($('f-slcust')) {
         if (s.customer_id) {
             $('f-slcust').value = s.customer_id;
+        } else if (s.party_name) {
+            var dd = $('f-slcust');
+            var found = false;
+            for (var i = 0; i < dd.options.length; i++) {
+                if (dd.options[i].text.indexOf(s.party_name) !== -1) { dd.selectedIndex = i; found = true; break; }
+            }
+            if (!found) {
+                var opt = document.createElement('option');
+                opt.value = '0';
+                opt.textContent = s.party_name + ' (unlinked)';
+                opt.selected = true;
+                dd.prepend(opt);
+            }
         } else {
             $('f-slcust').value = '';
-            if (s.party_name) {
-                var opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = s.party_name + ' (unlinked)';
-                opt.disabled = true;
-                opt.selected = true;
-                $('f-slcust').prepend(opt);
-            }
         }
     }
     if ($('f-slfrt')) $('f-slfrt').value = s.freight_amount || 0;
