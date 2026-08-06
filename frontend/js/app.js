@@ -226,12 +226,10 @@ document.head.appendChild(style);
 
 async function showModal(id) {
     $(id).classList.remove('hidden');
-    if (id === 'm-sale') {
+    if (id === 'm-sale' && !$('f-slid').value) {
         await refreshDropdowns();
-        if (!$('f-slid').value) {
-            _saleItems = [];
-            addSaleItem();
-        }
+        _saleItems = [];
+        addSaleItem();
     }
     if (id === 'm-purchase-rate') {
         await refreshProductDropdown();
