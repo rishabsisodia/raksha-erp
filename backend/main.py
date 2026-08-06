@@ -2561,33 +2561,38 @@ def list_sales(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Sale).order_by(Sale.id.desc()).all()
+        # Batch-load customer names to avoid N+1
+        cust_ids = list(set(s.customer_id for s in rows if s.customer_id))
+        cust_map = {}
+        if cust_ids:
+            custs = db.query(Customer).filter(Customer.id.in_(cust_ids)).all()
+            cust_map = {c.id: c.contact_name for c in custs}
+        # Batch-load all sale items to avoid N+1
+        sale_ids = [s.id for s in rows]
+        all_items = db.query(SaleItem).filter(SaleItem.sale_id.in_(sale_ids)).order_by(SaleItem.sl_no).all()
+        items_map = {}
+        for si in all_items:
+            items_map.setdefault(si.sale_id, []).append(si)
         out = []
         for s in rows:
             try:
-                cust_name = ""
-                if s.customer_id:
-                    cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
-                    cust_name = cust.contact_name if cust else ""
+                cust_name = cust_map.get(s.customer_id, "") if s.customer_id else ""
                 party = s.party_name or cust_name or ""
                 loc = s.location or ""
-                sale_items = []
-                try:
-                    sale_items = [
-                        {
-                            "id": si.id, "sl_no": si.sl_no,
-                            "product_id": si.product_id,
-                            "quantity": si.quantity, "unit_price": si.unit_price,
-                            "discount_percent": si.discount_percent,
-                            "taxable_amount": si.taxable_amount,
-                            "gst_rate": si.gst_rate,
-                            "cgst_amount": si.cgst_amount,
-                            "sgst_amount": si.sgst_amount,
-                            "total_amount": si.total_amount,
-                        }
-                        for si in db.query(SaleItem).filter(SaleItem.sale_id == s.id).order_by(SaleItem.sl_no).all()
-                    ]
-                except Exception:
-                    sale_items = []
+                sale_items = [
+                    {
+                        "id": si.id, "sl_no": si.sl_no,
+                        "product_id": si.product_id,
+                        "quantity": si.quantity, "unit_price": si.unit_price,
+                        "discount_percent": si.discount_percent,
+                        "taxable_amount": si.taxable_amount,
+                        "gst_rate": si.gst_rate,
+                        "cgst_amount": si.cgst_amount,
+                        "sgst_amount": si.sgst_amount,
+                        "total_amount": si.total_amount,
+                    }
+                    for si in items_map.get(s.id, [])
+                ]
                 out.append({
                     "id": s.id, "invoice_no": s.invoice_no or "",
                     "customer_id": s.customer_id or None,
@@ -2622,6 +2627,87 @@ def list_sales(user: User = Depends(get_current_user)):
             except Exception as e:
                 print(f"Error loading sale {s.id}: {e}")
                 continue
+        return out
+    finally:
+        db.close()
+
+
+@app.get("/api/sales/{sid}")
+def get_sale(sid: int, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        s = db.query(Sale).filter(Sale.id == sid).first()
+        if not s:
+            raise HTTPException(status_code=404, detail="Sale not found")
+        cust_name = ""
+        if s.customer_id:
+            cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
+            cust_name = cust.contact_name if cust else ""
+        party = s.party_name or cust_name or ""
+        loc = s.location or ""
+        sale_items = [
+            {
+                "id": si.id, "sl_no": si.sl_no,
+                "product_id": si.product_id,
+                "quantity": si.quantity, "unit_price": si.unit_price,
+                "discount_percent": si.discount_percent,
+                "taxable_amount": si.taxable_amount,
+                "gst_rate": si.gst_rate,
+                "cgst_amount": si.cgst_amount,
+                "sgst_amount": si.sgst_amount,
+                "total_amount": si.total_amount,
+            }
+            for si in db.query(SaleItem).filter(SaleItem.sale_id == s.id).order_by(SaleItem.sl_no).all()
+        ]
+        return {
+            "id": s.id, "invoice_no": s.invoice_no or "",
+            "customer_id": s.customer_id or None,
+            "product_id": s.product_id or None,
+            "quantity": s.quantity or 0,
+            "unit_price": s.unit_price or 0,
+            "discount_percent": s.discount_percent or 0,
+            "taxable_amount": s.taxable_amount or 0,
+            "cgst_amount": s.cgst_amount or 0,
+            "sgst_amount": s.sgst_amount or 0,
+            "freight_amount": s.freight_amount or 0,
+            "payment_status": s.payment_status or "",
+            "payment_method": s.payment_method or "",
+            "notes": s.notes or "",
+            "party_name": party, "location": loc,
+            "state": s.state or "",
+            "transporter_name": s.transporter_name or "",
+            "lr_no": s.lr_no or "",
+            "weight_kgs": s.weight_kgs or 0,
+            "gp": s.gp or 0,
+            "gp_percent": s.gp_percent or 0,
+            "invoice_value": s.invoice_value or 0,
+            "total_amount": s.total_amount or 0,
+            "sale_date": s.sale_date.isoformat() if s.sale_date else None,
+            "payment_terms": s.payment_terms or "",
+            "source_csv": s.source_csv or "",
+            "lr_tracking_status": s.lr_tracking_status or "",
+            "lr_tracking_url": s.lr_tracking_url or "",
+            "lr_last_checked": s.lr_last_checked.isoformat() if s.lr_last_checked else None,
+            "items": sale_items,
+        }
+    finally:
+        db.close()
+
+
+@app.get("/api/sales/freight-summary")
+def freight_summary(user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        rows = db.query(Sale).filter(Sale.freight_amount > 0, Sale.weight_kgs > 0).order_by(Sale.id.desc()).all()
+        out = []
+        for s in rows:
+            out.append({
+                "id": s.id, "invoice_no": s.invoice_no or "",
+                "sale_date": s.sale_date.isoformat() if s.sale_date else None,
+                "freight_amount": s.freight_amount or 0,
+                "weight_kgs": s.weight_kgs or 0,
+                "transporter_name": s.transporter_name or "",
+            })
         return out
     finally:
         db.close()

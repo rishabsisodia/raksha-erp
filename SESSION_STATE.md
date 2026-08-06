@@ -59,10 +59,16 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Sales Edit Fix**: Edit modal now shows stored invoice value as Total (not recalculated)
 - [x] **Orders Table Split**: "Customer Name" and "Billing / Shipping Site" are now separate searchable columns
 - [x] **Sales Multi-Item Support**: SaleItem model, items table in modal, add/remove/render/calc functions
-- **Commit**: 5447f78 + 1c9234b + 8209112 + 72f7b54
+- [x] **Sales Page N+1 Fix**: Batch-loaded customers + items in GET /api/sales (354 queries → 3)
+- [x] **Single Sale Endpoint**: GET /api/sales/{id} for efficient single-sale fetch
+- [x] **editSale() Optimization**: Fetches single sale instead of all 177
+- [x] **Freight Summary Endpoint**: GET /api/sales/freight-summary (lightweight, no items)
+- [x] **loadExpenses() Optimization**: Uses freight-summary instead of full sales list
+- [x] **Sale Form Error Handling**: try-catch on submit, null checks in calcSaleTotals()
+- **Commit**: 5447f78 + 1c9234b + 8209112 + 72f7b54 + (Sales N+1 fix)
 
 ## In Progress (Do This First)
-1. **Sales Page Errors** — User reports "a lot of errors" on the Sales page after multi-item changes. Backend API works (177 sales returned). Need to investigate what errors user is seeing — could be browser console errors, slow loading (N+1 query on 177 sales × SaleItem), or rendering issues. Check browser F12 console for specific errors.
+1. **Sales Page Errors** — FIXED: N+1 query optimization (354 queries → 3 batch queries), added GET /api/sales/{id} endpoint, editSale() now fetches single sale instead of all 177, loadExpenses() uses lightweight freight-summary endpoint, added try-catch on sale form submit, null checks on calcSaleTotals(). Deploy and verify.
 2. **Fix WhatsApp token** — Generate from test number page
 3. **Test WhatsApp PDF sending**
 4. **Add discount structure** — User to share tier details
@@ -109,5 +115,5 @@ http://localhost:8000
 # TEST: Sales page — check for errors, try creating multi-item sale, try editing sale
 ```
 
-## Tomorrow's First Task
-Open SESSION_STATE.md, read "In Progress" section, and continue with fixing Sales Page Errors. Check browser F12 console for specific error messages.
+## Next Task
+Deploy changes and verify Sales page loads fast. Then continue with WhatsApp token fix and testing.

@@ -1019,8 +1019,7 @@ async function fetchBulkTracking() {
 
 async function editSale(id) {
     await refreshDropdowns();
-    var sales = await api('/api/sales');
-    var s = sales.find(function(x) { return x.id === id; });
+    var s = await api('/api/sales/' + id);
     if (!s) return;
     $('f-slid').value = s.id;
     $('m-sale-title').textContent = 'Edit Sale';
@@ -1074,7 +1073,7 @@ async function onSaleProductChange(idx, pid) {
     try {
         var pr = await api('/api/products/' + pid + '/pricing');
         if (pr) {
-            _saleItems[idx].unit_price = pr.selling_price || pr.mrp || 0;
+            _saleItems[idx].unit_price = pr.mrp || pr.dealer_price || pr.distributor_price || 0;
             _saleItems[idx].gst_rate = pr.gst_rate || 18;
         }
     } catch(e) {}
@@ -1101,7 +1100,8 @@ function calcSaleTotals() {
     var totalTaxable = 0;
     var totalCgst = 0;
     var totalSgst = 0;
-    var frt = parseFloat($('f-slfrt').value) || 0;
+    var frtEl = $('f-slfrt');
+    var frt = frtEl ? (parseFloat(frtEl.value) || 0) : 0;
     _saleItems.forEach(function(item) {
         calcSaleItemAmount(_saleItems.indexOf(item));
         totalQty += item.quantity || 0;
@@ -1110,13 +1110,13 @@ function calcSaleTotals() {
         totalSgst += item.sgst_amount;
     });
     var grandTotal = totalTaxable + totalCgst + totalSgst + frt;
-    $('sale-total-qty').textContent = totalQty;
-    $('sale-total-amount').textContent = fmt(grandTotal);
-    $('sv-tax').textContent = fmt(totalTaxable);
-    $('sv-cgst').textContent = fmt(totalCgst);
-    $('sv-sgst').textContent = fmt(totalSgst);
-    $('sv-frt').textContent = fmt(frt);
-    $('sv-total').textContent = fmt(grandTotal);
+    if ($('sale-total-qty')) $('sale-total-qty').textContent = totalQty;
+    if ($('sale-total-amount')) $('sale-total-amount').textContent = fmt(grandTotal);
+    if ($('sv-tax')) $('sv-tax').textContent = fmt(totalTaxable);
+    if ($('sv-cgst')) $('sv-cgst').textContent = fmt(totalCgst);
+    if ($('sv-sgst')) $('sv-sgst').textContent = fmt(totalSgst);
+    if ($('sv-frt')) $('sv-frt').textContent = fmt(frt);
+    if ($('sv-total')) $('sv-total').textContent = fmt(grandTotal);
     if ($('f-slinvval')) $('f-slinvval').value = grandTotal.toFixed(2);
 }
 
@@ -1143,7 +1143,7 @@ function renderSaleItems() {
 async function loadExpenses() {
     showLoading('t-expenses', 6);
     var expenses = await api('/api/expenses');
-    var sales = await api('/api/sales');
+    var sales = await api('/api/sales/freight-summary');
     var sortRows = [];
     var totalFreight = 0;
 
@@ -1880,41 +1880,45 @@ async function sendWhatsAppPO() {
 
 $('f-sale').addEventListener('submit', async function(e) {
     e.preventDefault();
-    var id = $('f-slid') ? $('f-slid').value : '';
-    var validItems = _saleItems.filter(function(item) { return item.product_id > 0; });
-    if (validItems.length === 0) {
-        toast('Add at least one product', true);
-        return;
+    try {
+        var id = $('f-slid') ? $('f-slid').value : '';
+        var validItems = _saleItems.filter(function(item) { return item.product_id > 0; });
+        if (validItems.length === 0) {
+            toast('Add at least one product', true);
+            return;
+        }
+        var data = {
+            customer_id: parseInt($('f-slcust').value),
+            product_id: validItems[0] ? validItems[0].product_id : 0,
+            quantity: validItems.reduce(function(sum, i) { return sum + (i.quantity || 0); }, 0),
+            unit_price: validItems[0] ? validItems[0].unit_price : 0,
+            discount_percent: validItems[0] ? validItems[0].discount_percent : 0,
+            freight_amount: parseFloat($('f-slfrt').value) || 0,
+            invoice_value: parseFloat($('f-slinvval').value) || 0,
+            payment_status: $('f-slstatus').value,
+            payment_method: $('f-slmethod').value,
+            transporter_name: $('f-sltransporter') ? $('f-sltransporter').value : '',
+            lr_no: $('f-sllrno') ? $('f-sllrno').value : '',
+            items: validItems
+        };
+        if (id) {
+            var res = await api('/api/sales/' + id, {method: 'PUT', body: JSON.stringify(data)});
+            hideModal('m-sale');
+            $('f-sale').reset();
+            $('f-slid').value = '';
+            _saleItems = [];
+            toast('Sale updated!');
+        } else {
+            var res = await api('/api/sales', {method: 'POST', body: JSON.stringify(data)});
+            hideModal('m-sale');
+            $('f-sale').reset();
+            _saleItems = [];
+            toast('Sale created! ' + res.invoice_no);
+        }
+        loadSales();
+    } catch(err) {
+        toast('Error saving sale: ' + (err.message || 'Unknown error'), true);
     }
-    var data = {
-        customer_id: parseInt($('f-slcust').value),
-        product_id: validItems[0] ? validItems[0].product_id : 0,
-        quantity: validItems.reduce(function(sum, i) { return sum + (i.quantity || 0); }, 0),
-        unit_price: validItems[0] ? validItems[0].unit_price : 0,
-        discount_percent: validItems[0] ? validItems[0].discount_percent : 0,
-        freight_amount: parseFloat($('f-slfrt').value) || 0,
-        invoice_value: parseFloat($('f-slinvval').value) || 0,
-        payment_status: $('f-slstatus').value,
-        payment_method: $('f-slmethod').value,
-        transporter_name: $('f-sltransporter') ? $('f-sltransporter').value : '',
-        lr_no: $('f-sllrno') ? $('f-sllrno').value : '',
-        items: validItems
-    };
-    if (id) {
-        var res = await api('/api/sales/' + id, {method: 'PUT', body: JSON.stringify(data)});
-        hideModal('m-sale');
-        $('f-sale').reset();
-        $('f-slid').value = '';
-        _saleItems = [];
-        toast('Sale updated!');
-    } else {
-        var res = await api('/api/sales', {method: 'POST', body: JSON.stringify(data)});
-        hideModal('m-sale');
-        $('f-sale').reset();
-        _saleItems = [];
-        toast('Sale created! ' + res.invoice_no);
-    }
-    loadSales();
 });
 
 $('f-expense').addEventListener('submit', async function(e) {
