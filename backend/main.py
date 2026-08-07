@@ -2410,14 +2410,18 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
         try:
             upload_result = cloudinary.uploader.upload(tmp_path, resource_type="raw", folder="whatsapp_pi")
             pdf_url = upload_result.get("secure_url")
+        except Exception as e:
+            pdf_url = None
+            upload_error = str(e)
         finally:
             os.unlink(tmp_path)
         
         if not pdf_url:
-            return {"success": False, "error": "Failed to upload PDF"}
+            return {"success": False, "error": f"PDF upload failed: {upload_error if not pdf_url else 'unknown'}"}
         
         # Send PDF via WhatsApp
         result = send_whatsapp_message(phone, "", doc_url=pdf_url, doc_filename=f"PI_{order.pi_no}.pdf")
+        result["pdf_url"] = pdf_url
         
         # Update whatsapp_status
         if result["success"]:
