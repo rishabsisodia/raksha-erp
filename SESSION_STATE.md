@@ -66,14 +66,27 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **loadExpenses() Optimization**: Uses freight-summary instead of full sales list
 - [x] **Sale Form Error Handling**: try-catch on submit, null checks in calcSaleTotals()
 - [x] **Sales Customer Name Fix**: party_name/location/state now populated from Customer on create/update
-- **Commit**: 5447f78 + 1c9234b + 8209112 + 72f7b54 + (Sales N+1 fix)
+- [x] **showModal Fix**: Only refreshDropdowns for new sales, not edits (was wiping customer selection)
+- [x] **Customer Dropdown Fix**: Shows party_name for unlinked CSV-imported sales
 
-## In Progress (Do This First)
-1. **Sales Page Errors** — FIXED: N+1 query optimization (354 queries → 3 batch queries), added GET /api/sales/{id} endpoint, editSale() now fetches single sale instead of all 177, loadExpenses() uses lightweight freight-summary endpoint, added try-catch on sale form submit, null checks on calcSaleTotals(). Deploy and verify.
-2. **Fix WhatsApp token** — Generate from test number page
-3. **Test WhatsApp PDF sending**
+## Important: Two Git Remotes
+- `origin` = raksha-erp-deploy.git
+- `original` = raksha-erp.git ← **Render connects here, deploy from `main` branch**
+- Always push to: `git push original master:main`
+- **Commit**: 5447f78 + 1c9234b + 8209112 + 72f7b54 + (N+1 fix + customer name fix + showModal fix)
+
+## In Progress
+1. **Sales Page Errors** — FIXED and deployed. N+1 query fix, single sale endpoint, customer name on edit (showModal was wiping dropdown), freight-summary endpoint, error handling.
+2. **Fix WhatsApp token** — FIXED. Permanent token configured, tested working.
+3. **Test WhatsApp PDF sending** — NEXT TASK
 4. **Add discount structure** — User to share tier details
 5. **WhatsApp message formats** — User to share screenshots
+
+## WhatsApp Token
+- **Phone**: +1 555-203-8077 (test number)
+- **Phone ID**: 1299086943278503
+- **Business Account ID**: 4397763287203081
+- **Tested with**: +916366263535 ✅
 
 ## Next Steps (After UI is done)
 1. **WhatsApp Integration** — Using Meta WhatsApp Cloud API (user to provide credentials)
@@ -104,17 +117,17 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 
 ## How to Test
 ```bash
-# Start server (local)
-cd C:\Users\BusinessIntelligence\raksha-erp-deploy
-python -m uvicorn backend.main:app --reload --port 8000
-
-# Open browser
-http://localhost:8000
-
+# Everything is LIVE on Render — no local server needed
+# API base: https://raksha-erp-deploy.onrender.com
 # Login: admin / RS@2026
-# Test: Purchase Rates, Transporters, GP Calculation, PDF Generation
-# TEST: Sales page — check for errors, try creating multi-item sale, try editing sale
+
+# IMPORTANT: Do NOT try localhost — nothing runs locally
+# IMPORTANT: Render deploys from 'original' remote, 'main' branch
+# Push with: git push original master:main
+
+# Test via API:
+# python -c "import requests; r=requests.post('https://raksha-erp-deploy.onrender.com/api/auth/login', json={'username':'admin','password':'RS@2026'}); print(r.json())"
 ```
 
 ## Next Task
-Deploy changes and verify Sales page loads fast. Then continue with WhatsApp token fix and testing.
+Fix WhatsApp token, test WhatsApp PDF sending.
