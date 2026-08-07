@@ -78,9 +78,16 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 ## In Progress
 1. **Sales Page Errors** — FIXED and deployed. N+1 query fix, single sale endpoint, customer name on edit (showModal was wiping dropdown), freight-summary endpoint, error handling.
 2. **Fix WhatsApp token** — FIXED. Permanent token configured, tested working.
-3. **Test WhatsApp PDF sending** — DONE ✅. PI and PO PDFs both sent successfully via WhatsApp.
+3. **Test WhatsApp PDF sending** — WORKS locally with permanent token. **BLOCKED: Render env var still has old test token.**
 4. **Add discount structure** — User to share tier details
 5. **WhatsApp message formats** — User to share screenshots
+
+## IMPORTANT: WhatsApp PDF Fix Needed on Render
+- **Root cause**: Test token can send text but NOT PDFs. Permanent token works for both.
+- **What user must do**: Update `WHATSAPP_TOKEN` env var on Render to permanent token, then Manual Deploy.
+- **Permanent token**: `EAIh7PXiG5U4BSC9DVTzhQAqwCA9oB2ZB4lB8OKYggcDqmBCBISoUWFpQtS97JgBFOGwgcgNB005tHuKedF8ORr3ccmEMDYoZCrDQPNYRD3l9yPAy6y4LngHZCZB2SjgneJj2i9oBzc6bonTVOUa45ZANFXXZBNLlFOPpcgr5hv2iS2ZCY88CubYhLK1L0KRGlRNagZDZD`
+- **Test phone**: +916366263535
+- **Verified**: Media upload + send works with permanent token (tested locally)
 
 ## WhatsApp Token
 - **Phone**: +1 555-203-8077 (test number)
