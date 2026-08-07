@@ -2414,10 +2414,15 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
         pdf.cell(35, 7, f"Rs.{order.total_amount:,.2f}", 0, 1, 'R')
         
         # Generate PDF and serve via temp endpoint
-        import io
-        pdf_bytes = io.BytesIO()
-        pdf.output(pdf_bytes)
-        pdf_bytes = pdf_bytes.getvalue()
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+        tmp_path = tmp.name
+        tmp.close()
+        pdf.output(tmp_path)
+        
+        with open(tmp_path, "rb") as f:
+            pdf_bytes = f.read()
+        os.unlink(tmp_path)
         
         pdf_id = str(uuid.uuid4())[:12]
         _TEMP_PDFS[pdf_id] = {"bytes": pdf_bytes, "filename": f"PI_{order.pi_no}.pdf"}
@@ -2426,6 +2431,8 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
         
         # Send PDF via WhatsApp
         result = send_whatsapp_message(phone, "", doc_url=pdf_url, doc_filename=f"PI_{order.pi_no}.pdf")
+        result["pdf_url"] = pdf_url
+        result["pdf_size"] = len(pdf_bytes)
         
         # Update whatsapp_status
         if result["success"]:
@@ -2511,12 +2518,16 @@ def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permissio
         pdf.set_font('Arial', 'B', 12)
         pdf.cell(35, 7, f"Rs.{order.total_amount:,.2f}", 0, 1, 'R')
         
-        # Save to temp file and upload to Cloudinary
         # Generate PDF and serve via temp endpoint
-        import io
-        pdf_bytes = io.BytesIO()
-        pdf.output(pdf_bytes)
-        pdf_bytes = pdf_bytes.getvalue()
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+        tmp_path = tmp.name
+        tmp.close()
+        pdf.output(tmp_path)
+        
+        with open(tmp_path, "rb") as f:
+            pdf_bytes = f.read()
+        os.unlink(tmp_path)
         
         pdf_id = str(uuid.uuid4())[:12]
         _TEMP_PDFS[pdf_id] = {"bytes": pdf_bytes, "filename": f"PO_{order.po_no or order.pi_no}.pdf"}
