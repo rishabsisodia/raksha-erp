@@ -2260,7 +2260,22 @@ def update_order_status(oid: int, inp: dict, user: User = Depends(get_current_us
 # ---- WHATSAPP INTEGRATION ----
 import requests
 
-def send_whatsapp_message(phone_number, message, media_url=None, doc_url=None, doc_filename=None):
+def upload_whatsapp_media(file_bytes, filename):
+    """Upload a file to WhatsApp media endpoint, returns media_id"""
+    url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_ID}/media"
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
+    files = {"file": (filename, file_bytes, "application/pdf")}
+    data = {"messaging_product": "whatsapp", "type": "application/pdf"}
+    try:
+        resp = requests.post(url, headers=headers, files=files, data=data, timeout=30)
+        result = resp.json()
+        if resp.status_code == 200:
+            return result.get("id")
+    except Exception:
+        pass
+    return None
+
+def send_whatsapp_message(phone_number, message, media_url=None, doc_url=None, doc_filename=None, doc_media_id=None):
     """Send a WhatsApp message using Meta Cloud API"""
     url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_ID}/messages"
     headers = {
@@ -2277,8 +2292,19 @@ def send_whatsapp_message(phone_number, message, media_url=None, doc_url=None, d
     if len(phone) < 12:
         return {"success": False, "error": "Invalid phone number. Use 10-digit Indian number."}
     
-    # Send document (PDF)
-    if doc_url:
+    # Send document (PDF) via media_id (preferred - no external URL needed)
+    if doc_media_id:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": phone,
+            "type": "document",
+            "document": {
+                "id": doc_media_id,
+                "filename": doc_filename or "document.pdf"
+            }
+        }
+    # Send document (PDF) via URL
+    elif doc_url:
         payload = {
             "messaging_product": "whatsapp",
             "to": phone,
@@ -2413,7 +2439,7 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
         pdf.set_font('Arial', 'B', 12)
         pdf.cell(35, 7, f"Rs.{order.total_amount:,.2f}", 0, 1, 'R')
         
-        # Generate PDF and serve via temp endpoint
+        # Generate PDF
         import tempfile
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
         tmp_path = tmp.name
@@ -2424,15 +2450,23 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
             pdf_bytes = f.read()
         os.unlink(tmp_path)
         
-        pdf_id = str(uuid.uuid4())[:12]
-        _TEMP_PDFS[pdf_id] = {"bytes": pdf_bytes, "filename": f"PI_{order.pi_no}.pdf"}
+        # Upload to WhatsApp media (no Cloudinary needed)
+        media_id = upload_whatsapp_media(pdf_bytes, f"PI_{order.pi_no}.pdf")
         
-        pdf_url = f"https://raksha-erp-deploy.onrender.com/api/whatsapp/temp-pdf/{pdf_id}"
-        
-        # Send PDF via WhatsApp
-        result = send_whatsapp_message(phone, "", doc_url=pdf_url, doc_filename=f"PI_{order.pi_no}.pdf")
-        result["pdf_url"] = pdf_url
-        result["pdf_size"] = len(pdf_bytes)
+        if media_id:
+            result = send_whatsapp_message(phone, "", doc_media_id=media_id, doc_filename=f"PI_{order.pi_no}.pdf")
+        else:
+            # Fallback: try Cloudinary URL
+            pdf_url = None
+            try:
+                upload_result = cloudinary.uploader.upload(tmp_path if os.path.exists(tmp_path) else tmp_path, resource_type="raw", folder="whatsapp_pi")
+                pdf_url = upload_result.get("secure_url")
+            except Exception:
+                pass
+            if pdf_url:
+                result = send_whatsapp_message(phone, "", doc_url=pdf_url, doc_filename=f"PI_{order.pi_no}.pdf")
+            else:
+                return {"success": False, "error": "Failed to upload PDF to WhatsApp"}
         
         # Update whatsapp_status
         if result["success"]:
@@ -2518,7 +2552,7 @@ def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permissio
         pdf.set_font('Arial', 'B', 12)
         pdf.cell(35, 7, f"Rs.{order.total_amount:,.2f}", 0, 1, 'R')
         
-        # Generate PDF and serve via temp endpoint
+        # Generate PDF
         import tempfile
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
         tmp_path = tmp.name
@@ -2529,13 +2563,13 @@ def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permissio
             pdf_bytes = f.read()
         os.unlink(tmp_path)
         
-        pdf_id = str(uuid.uuid4())[:12]
-        _TEMP_PDFS[pdf_id] = {"bytes": pdf_bytes, "filename": f"PO_{order.po_no or order.pi_no}.pdf"}
+        # Upload to WhatsApp media (no Cloudinary needed)
+        media_id = upload_whatsapp_media(pdf_bytes, f"PO_{order.po_no or order.pi_no}.pdf")
         
-        pdf_url = f"https://raksha-erp-deploy.onrender.com/api/whatsapp/temp-pdf/{pdf_id}"
-        
-        # Send PDF via WhatsApp
-        result = send_whatsapp_message(phone, "", doc_url=pdf_url, doc_filename=f"PO_{order.po_no or order.pi_no}.pdf")
+        if media_id:
+            result = send_whatsapp_message(phone, "", doc_media_id=media_id, doc_filename=f"PO_{order.po_no or order.pi_no}.pdf")
+        else:
+            result = {"success": False, "error": "Failed to upload PO PDF to WhatsApp"}
         
         # Update whatsapp_status
         if result["success"]:
