@@ -78,7 +78,7 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 ## In Progress
 1. **Sales Page Errors** — FIXED and deployed. N+1 query fix, single sale endpoint, customer name on edit (showModal was wiping dropdown), freight-summary endpoint, error handling.
 2. **Fix WhatsApp token** — FIXED. Permanent token configured, tested working.
-3. **Test WhatsApp PDF sending** — NEXT TASK
+3. **Test WhatsApp PDF sending** — DONE ✅. PI and PO PDFs both sent successfully via WhatsApp.
 4. **Add discount structure** — User to share tier details
 5. **WhatsApp message formats** — User to share screenshots
 
