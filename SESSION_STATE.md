@@ -79,7 +79,7 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 1. **Sales Page Errors** — FIXED and deployed. N+1 query fix, single sale endpoint, customer name on edit (showModal was wiping dropdown), freight-summary endpoint, error handling.
 2. **Fix WhatsApp token** — FIXED. Permanent token configured, tested working.
 3. **Test WhatsApp PDF sending** — WORKS locally with permanent token. **BLOCKED: Render env var still has old test token.**
-4. **Add discount structure** — User to share tier details
+4. **Discount structure** — IMPLEMENTED and deployed. 54% base + slab additional (2.5%-9%) with UI toggle, real-time totals, and PDF breakdown.
 5. **WhatsApp message formats** — User to share screenshots
 
 ## IMPORTANT: WhatsApp PDF Fix Needed on Render
@@ -89,37 +89,49 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - **Test phone**: +916366263535
 - **Verified**: Media upload + send works with permanent token (tested locally)
 
+## Discount Scheme (Aug 1 - Oct 31, 2026)
+- **Base discount**: 54%
+- **Slab additional** (on basic value excl. C.D & GST):
+  - ₹50,100 - ₹75,000: +2.5% (total 56.5%)
+  - ₹75,100 - ₹1,00,000: +5% (total 59%)
+  - ₹1,01,000 - ₹2,00,000: +7% (total 61%)
+  - ₹2,00,001 & Above: +9% (total 63%)
+- **Backend**: `DISCOUNT_SCHEME` constants + `calculate_discount_scheme()` function
+- **Endpoints**: `GET /api/discount-scheme`, `GET /api/discount-calculate/{basic_value}`
+- **DB columns**: `discount_scheme_applied`, `discount_percent`, `discount_amount` on ProformaOrder
+- **UI**: Checkbox toggle in PI/PO modal, real-time discount display in totals
+- **PDF**: Discount breakdown shown in both PI and PO PDFs
+- **Commit**: 8e09a53
+
 ## WhatsApp Token
 - **Phone**: +1 555-203-8077 (test number)
 - **Phone ID**: 1299086943278503
 - **Business Account ID**: 4397763287203081
 - **Tested with**: +916366263535 ✅
 
-## Next Steps (After UI is done)
+## Next Steps
 1. **WhatsApp Integration** — Using Meta WhatsApp Cloud API (user to provide credentials)
    - PI auto-send as PDF to Sales Manager/Executive
    - PO auto-send to WhatsApp Group in product table format
    - Transporter broadcast (address only, no party name)
-2. **Discount Structure** — User to share tier details based on order value
-3. **WhatsApp Message Formats** — User to share screenshots of PI/PO/broadcast formats
+2. **WhatsApp Message Formats** — User to share screenshots of PI/PO/broadcast formats
 
 ## What User Has Provided
 1. Meta WhatsApp Cloud API credentials ✅
    - Phone Number ID: 1299086943278503
    - WhatsApp Business Account ID: 4397763287203081
    - Access Token: Configured
-2. Discount structure (tiers by order value) — PENDING
+2. Discount structure (tiers by order value) — ✅ IMPLEMENTED
 
 ## What User Will Provide
 1. WhatsApp message format screenshots (PI, PO, transporter broadcast)
 2. WhatsApp Group details for PO delivery
-3. Discount structure tiers
-4. Any additional business requirements
+3. Any additional business requirements
 
 ## Files Modified
-- `backend/main.py` (~4620+ lines) — auth, bug fixes, endpoints, billing sites, PDF generation, purchase rates, GP calc, WhatsApp integration, order status endpoint, SaleItem model, multi-item sales CRUD
-- `frontend/js/app.js` (~2790+ lines) — auth, escapeHtml, user mgmt, PO/PI form/PDF, billing site dropdown, purchase rates UI, GP display, order status UI, sales multi-item functions
-- `frontend/index.html` (~906+ lines) — full UI with login overlay, user header, modals, purchase rates page, GP section, order status column, sales items table
+- `backend/main.py` (~4900+ lines) — auth, bug fixes, endpoints, billing sites, PDF generation, purchase rates, GP calc, WhatsApp integration, order status endpoint, SaleItem model, multi-item sales CRUD, discount scheme
+- `frontend/js/app.js` (~2860+ lines) — auth, escapeHtml, user mgmt, PO/PI form/PDF, billing site dropdown, purchase rates UI, GP display, order status UI, sales multi-item functions, discount scheme UI
+- `frontend/index.html` (~910+ lines) — full UI with login overlay, user header, modals, purchase rates page, GP section, order status column, sales items table, discount scheme checkbox
 - `requirements.txt` — fastapi, bcrypt, PyJWT, fpdf2, beautifulsoup4, requests
 
 ## How to Test
@@ -137,4 +149,4 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 ```
 
 ## Next Task
-Fix WhatsApp token, test WhatsApp PDF sending.
+Fix WhatsApp token (update WHATSAPP_TOKEN env var on Render), then test WhatsApp PDF sending.
