@@ -63,10 +63,19 @@ Base = declarative_base()
 
 # Temp PDF storage for WhatsApp (no Cloudinary dependency)
 import uuid
+import time
 _TEMP_PDFS = {}
+_TEMP_PDFS_MAX_AGE = 3600  # 1 hour
+_TEMP_PDFS_MAX_SIZE = 100  # max entries
 
 @app.get("/api/whatsapp/temp-pdf/{pdf_id}")
 def serve_temp_pdf(pdf_id: str):
+    # Cleanup old entries on access
+    now = time.time()
+    expired = [k for k, v in _TEMP_PDFS.items() if now - v.get("created_at", 0) > _TEMP_PDFS_MAX_AGE]
+    for k in expired:
+        del _TEMP_PDFS[k]
+    
     data = _TEMP_PDFS.get(pdf_id)
     if not data:
         raise HTTPException(404, "PDF expired or not found")
@@ -1310,14 +1319,24 @@ def list_proforma_orders(order_type: str = None, user: User = Depends(get_curren
         if order_type:
             query = query.filter(ProformaOrder.order_type == order_type)
         rows = query.order_by(ProformaOrder.created_at.desc()).all()
+        # Batch-load customers to avoid N+1
+        cust_ids = list(set(o.customer_id for o in rows if o.customer_id))
+        cust_map = {}
+        if cust_ids:
+            custs = db.query(Customer).filter(Customer.id.in_(cust_ids)).all()
+            cust_map = {c.id: c.contact_name for c in custs}
+        # Batch-load all items to avoid N+1
+        order_ids = [o.id for o in rows]
+        all_items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id.in_(order_ids)).all()
+        items_count_map = {}
+        for item in all_items:
+            items_count_map[item.proforma_order_id] = items_count_map.get(item.proforma_order_id, 0) + 1
         out = []
         for o in rows:
-            cust = db.query(Customer).filter(Customer.id == o.customer_id).first()
-            items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == o.id).all()
             out.append({
                 "id": o.id, "pi_no": o.pi_no,
                 "pi_date": o.pi_date.isoformat() if o.pi_date else None,
-                "customer_name": cust.contact_name if cust else "?",
+                "customer_name": cust_map.get(o.customer_id, "?"),
                 "customer_id": o.customer_id,
                 "billing_site": o.billing_site, "shipping_site": o.shipping_site,
                 "no_of_boxes": o.no_of_boxes, "total_qty": o.total_qty,
@@ -1327,7 +1346,7 @@ def list_proforma_orders(order_type: str = None, user: User = Depends(get_curren
                 "transport_mode": o.transport_mode, "delivery_days": o.delivery_days,
                 "notes": o.notes, "terms": o.terms, "order_type": o.order_type,
                 "status": o.status or "draft",
-                "item_count": len(items),
+                "item_count": items_count_map.get(o.id, 0),
                 "created_at": o.created_at.isoformat() if o.created_at else None
             })
         return out
@@ -2084,29 +2103,21 @@ async def view_file(url: str = Query(...), user: User = Depends(get_current_user
         raise HTTPException(500, f"Failed to load file: {str(e)}")
 
 
-@app.delete("/api/transporters/{tid}")
-def delete_transporter(tid: int, user: User = Depends(require_permission("transporters", "delete"))):
-    db = SessionLocal()
-    try:
-        t = db.query(Transporter).filter(Transporter.id == tid).first()
-        if not t:
-            raise HTTPException(404, "Not found")
-        db.delete(t)
-        db.commit()
-        return {"message": "Deleted"}
-    finally:
-        db.close()
-
-
 # ---- PURCHASE RATES ----
 @app.get("/api/purchase-rates")
 def list_purchase_rates(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rates = db.query(PurchaseRate).all()
+        # Batch-load products to avoid N+1
+        product_ids = list(set(r.product_id for r in rates if r.product_id))
+        product_map = {}
+        if product_ids:
+            products = db.query(Product).filter(Product.id.in_(product_ids)).all()
+            product_map = {p.id: p for p in products}
         result = []
         for r in rates:
-            p = db.query(Product).filter(Product.id == r.product_id).first()
+            p = product_map.get(r.product_id)
             result.append({
                 "id": r.id, "product_id": r.product_id,
                 "product_name": p.name if p else "", "part_no": p.part_no if p else "",
@@ -2448,25 +2459,26 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
         
         with open(tmp_path, "rb") as f:
             pdf_bytes = f.read()
-        os.unlink(tmp_path)
         
-        # Upload to WhatsApp media (no Cloudinary needed)
+        # Method 1: Try WhatsApp media upload (works for permanent tokens)
         media_id = upload_whatsapp_media(pdf_bytes, f"PI_{order.pi_no}.pdf")
-        
         if media_id:
+            os.unlink(tmp_path)
             result = send_whatsapp_message(phone, "", doc_media_id=media_id, doc_filename=f"PI_{order.pi_no}.pdf")
         else:
-            # Fallback: try Cloudinary URL
+            # Method 2: Try Cloudinary URL
             pdf_url = None
             try:
-                upload_result = cloudinary.uploader.upload(tmp_path if os.path.exists(tmp_path) else tmp_path, resource_type="raw", folder="whatsapp_pi")
+                upload_result = cloudinary.uploader.upload(tmp_path, resource_type="raw", folder="whatsapp_pi")
                 pdf_url = upload_result.get("secure_url")
-            except Exception:
+            except Exception as e:
                 pass
+            os.unlink(tmp_path)
+            
             if pdf_url:
                 result = send_whatsapp_message(phone, "", doc_url=pdf_url, doc_filename=f"PI_{order.pi_no}.pdf")
             else:
-                return {"success": False, "error": "Failed to upload PDF to WhatsApp"}
+                return {"success": False, "error": "PDF upload failed. Check CLOUDINARY_URL env var on Render."}
         
         # Update whatsapp_status
         if result["success"]:

@@ -24,7 +24,7 @@ async function downloadExport(url) {
     if (!token) { showLogin(); return; }
     try {
         var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-        if (resp.status === 401) { localStorage.removeItem('token'); showLogin(); return; }
+        if (resp.status === 401) { localStorage.removeItem('access_token'); localStorage.removeItem('refresh_token'); localStorage.removeItem('user'); showLogin(); return; }
         if (!resp.ok) { toast('Export failed'); return; }
         var blob = await resp.blob();
         var disposition = resp.headers.get('content-disposition') || '';
@@ -46,7 +46,7 @@ async function viewFileAuth(url) {
     if (!token) { showLogin(); return; }
     try {
         var resp = await fetch('/api/view-file?url=' + encodeURIComponent(url), { headers: { 'Authorization': 'Bearer ' + token } });
-        if (resp.status === 401) { localStorage.removeItem('token'); showLogin(); return; }
+        if (resp.status === 401) { localStorage.removeItem('access_token'); localStorage.removeItem('refresh_token'); localStorage.removeItem('user'); showLogin(); return; }
         if (!resp.ok) { toast('Failed to load file'); return; }
         var blob = await resp.blob();
         var ct = resp.headers.get('content-type') || 'application/octet-stream';
