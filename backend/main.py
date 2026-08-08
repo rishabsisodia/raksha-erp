@@ -391,6 +391,9 @@ class ProformaOrder(Base):
     transporter_id = Column(Integer, ForeignKey("transporters.id"), nullable=True)
     whatsapp_status = Column(String, default="pending")
     status = Column(String, default="draft")
+    discount_scheme_applied = Column(Integer, default=0)
+    discount_percent = Column(Float, default=0)
+    discount_amount = Column(Float, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     customer = relationship("Customer")
@@ -554,6 +557,9 @@ def startup_event():
         safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS transporter_id INTEGER REFERENCES transporters(id)")
         safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS whatsapp_status VARCHAR DEFAULT 'pending'")
         safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'draft'")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS discount_scheme_applied INTEGER DEFAULT 0")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS discount_percent FLOAT DEFAULT 0")
+        safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS discount_amount FLOAT DEFAULT 0")
         # Sale items table
         safe_ddl("""CREATE TABLE IF NOT EXISTS sale_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1106,6 +1112,7 @@ class ProformaOrderIn(BaseModel):
     notes: str = ""
     terms: str = ""
     order_type: str = "PI"
+    discount_scheme_applied: int = 0
     items: List[ProformaOrderItemIn] = []
 
 
@@ -1130,6 +1137,47 @@ COLOR_ORDER = {"Grey": 0, "White": 1}
 CATEGORY_ORDER = {"Manhole Cover": 0, "Gully Cover": 1}
 
 CSV_ORDER = {pn: i for i, (pn, _) in enumerate(PART_NO_CSV)}
+
+# Discount Scheme (Aug 1 - Oct 31, 2026)
+DISCOUNT_SCHEME = {
+    "base_discount": 54,
+    "slabs": [
+        {"min": 50100, "max": 75000, "additional": 2.50},
+        {"min": 75100, "max": 100000, "additional": 5.00},
+        {"min": 100001, "max": 200000, "additional": 7.00},
+        {"min": 200001, "max": float('inf'), "additional": 9.00},
+    ]
+}
+
+def calculate_discount_scheme(basic_value):
+    """Calculate discount based on the slab scheme. Returns (total_discount_percent, additional_percent, slab_info)"""
+    if basic_value < 50100:
+        return (0, 0, None)
+    
+    base = DISCOUNT_SCHEME["base_discount"]
+    for slab in DISCOUNT_SCHEME["slabs"]:
+        if slab["min"] <= basic_value <= slab["max"]:
+            total = base + slab["additional"]
+            return (total, slab["additional"], f"₹{slab['min']:,} to ₹{slab['max']:,}" if slab["max"] != float('inf') else f"₹{slab['min']:,} & Above")
+    
+    return (0, 0, None)
+
+@app.get("/api/discount-scheme")
+def get_discount_scheme(user: User = Depends(get_current_user)):
+    return DISCOUNT_SCHEME
+
+@app.get("/api/discount-calculate/{basic_value}")
+def get_discount_calculate(basic_value: float, user: User = Depends(get_current_user)):
+    total_pct, additional_pct, slab_info = calculate_discount_scheme(basic_value)
+    discount_amount = basic_value * total_pct / 100 if total_pct > 0 else 0
+    return {
+        "basic_value": basic_value,
+        "total_discount_percent": total_pct,
+        "additional_percent": additional_pct,
+        "slab_info": slab_info,
+        "discount_amount": round(discount_amount, 2),
+        "final_value": round(basic_value - discount_amount, 2)
+    }
 
 @app.get("/api/products")
 def list_products(user: User = Depends(get_current_user)):
@@ -1346,6 +1394,9 @@ def list_proforma_orders(order_type: str = None, user: User = Depends(get_curren
                 "transport_mode": o.transport_mode, "delivery_days": o.delivery_days,
                 "notes": o.notes, "terms": o.terms, "order_type": o.order_type,
                 "status": o.status or "draft",
+                "discount_scheme_applied": o.discount_scheme_applied or 0,
+                "discount_percent": o.discount_percent or 0,
+                "discount_amount": o.discount_amount or 0,
                 "item_count": items_count_map.get(o.id, 0),
                 "created_at": o.created_at.isoformat() if o.created_at else None
             })
@@ -1396,6 +1447,9 @@ def get_proforma_order(oid: int, user: User = Depends(get_current_user)):
             "transport_mode": o.transport_mode, "delivery_days": o.delivery_days,
             "notes": o.notes, "terms": o.terms, "order_type": o.order_type,
             "status": o.status or "draft",
+            "discount_scheme_applied": o.discount_scheme_applied or 0,
+            "discount_percent": o.discount_percent or 0,
+            "discount_amount": o.discount_amount or 0,
             "items": items_out,
             "created_at": o.created_at.isoformat() if o.created_at else None
         }
@@ -1427,7 +1481,18 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
             total_basic += item.basic_amount
 
         gst_amount = total_basic * 0.18
-        total_amount = total_basic + gst_amount + inp.freight_amount
+        
+        # Calculate discount scheme
+        discount_pct = 0
+        discount_amount = 0
+        if inp.discount_scheme_applied:
+            discount_pct, additional_pct, slab_info = calculate_discount_scheme(total_basic)
+            if discount_pct > 0:
+                discount_amount = total_basic * discount_pct / 100
+        
+        final_basic = total_basic - discount_amount
+        gst_amount = final_basic * 0.18
+        total_amount = final_basic + gst_amount + inp.freight_amount
 
         order = ProformaOrder(
             pi_no=pi_no, customer_id=inp.customer_id,
@@ -1437,7 +1502,9 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
             total_amount=total_amount, freight_amount=inp.freight_amount,
             payment_status=inp.payment_status, payment_method=inp.payment_method,
             transport_mode=inp.transport_mode, delivery_days=inp.delivery_days,
-            notes=inp.notes, terms=inp.terms, order_type=inp.order_type
+            notes=inp.notes, terms=inp.terms, order_type=inp.order_type,
+            discount_scheme_applied=inp.discount_scheme_applied,
+            discount_percent=discount_pct, discount_amount=discount_amount
         )
         db.add(order)
         db.flush()
@@ -1485,6 +1552,7 @@ def update_proforma_order(oid: int, inp: ProformaOrderIn, user: User = Depends(r
         order.notes = inp.notes
         order.terms = inp.terms
         order.order_type = inp.order_type
+        order.discount_scheme_applied = inp.discount_scheme_applied
 
         db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).delete()
 
@@ -1511,12 +1579,23 @@ def update_proforma_order(oid: int, inp: ProformaOrderIn, user: User = Depends(r
                 basic_amount=item.basic_amount
             ))
 
-        gst_amount = total_basic * 0.18
+        # Calculate discount scheme
+        discount_pct = 0
+        discount_amount = 0
+        if inp.discount_scheme_applied:
+            discount_pct, additional_pct, slab_info = calculate_discount_scheme(total_basic)
+            if discount_pct > 0:
+                discount_amount = total_basic * discount_pct / 100
+        
+        final_basic = total_basic - discount_amount
+        gst_amount = final_basic * 0.18
         order.total_qty = total_qty
         order.no_of_boxes = sum(i.qty_boxes for i in inp.items)
         order.value_excl_gst = total_basic
+        order.discount_percent = discount_pct
+        order.discount_amount = discount_amount
         order.gst_amount = gst_amount
-        order.total_amount = total_basic + gst_amount + inp.freight_amount
+        order.total_amount = final_basic + gst_amount + inp.freight_amount
         order.updated_at = datetime.utcnow()
 
         db.commit()
@@ -1664,8 +1743,38 @@ def _generate_po_html(order, customer, items, pi_date, billing_site=None):
             <td style="padding:5px 8px;border:1px solid #ccc;text-align:right;font-size:10px;">&#8377;{amt:,.0f}</td>
         </tr>"""
 
-    gst = total_amount * 0.18
-    grand_total = total_amount + gst
+    gst_amount = total_amount * 0.18
+    grand_total = total_amount + gst_amount
+
+    # Calculate discount scheme
+    discount_html = ""
+    discount_amount = 0
+    if order.discount_scheme_applied and total_amount >= 50100:
+        slabs = [
+            (50100, 75000, 2.50),
+            (75100, 100000, 5.00),
+            (100001, 200000, 7.00),
+            (200001, float('inf'), 9.00),
+        ]
+        additional_discount = 0
+        for smin, smax, add in slabs:
+            if smin <= total_amount <= smax:
+                additional_discount = add
+                break
+        total_discount_pct = 54 + additional_discount
+        discount_amount = total_amount * total_discount_pct / 100
+        after_discount = total_amount - discount_amount
+        gst_amount = after_discount * 0.18
+        grand_total = after_discount + gst_amount
+        discount_html = f"""
+        <tr style="font-weight:bold;color:#059669;">
+            <td colspan="6" style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">Discount Scheme ({total_discount_pct}%)</td>
+            <td style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">-&#8377;{discount_amount:,.0f}</td>
+        </tr>
+        <tr style="font-weight:bold;">
+            <td colspan="6" style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">After Discount</td>
+            <td style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">&#8377;{after_discount:,.0f}</td>
+        </tr>"""
 
     html = f"""<!DOCTYPE html><html><head><title>Purchase Order</title>
 <style>
@@ -1736,9 +1845,10 @@ table{{width:100%;border-collapse:collapse;}}
 <td style="padding:6px 8px;border:1px solid #ccc;"></td>
 <td style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">&#8377;{total_amount:,.0f}</td>
 </tr>
+{discount_html}
 <tr style="font-weight:bold;">
 <td colspan="6" style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">GST  18%</td>
-<td style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">&#8377;{gst:,.0f}</td>
+<td style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">&#8377;{gst_amount:,.0f}</td>
 </tr>
 <tr style="font-weight:bold;background:#f0f0f0;">
 <td colspan="6" style="padding:8px;border:1px solid #ccc;text-align:right;font-size:13px;">GRAND TOTAL</td>
@@ -1826,6 +1936,27 @@ def _generate_pi_html(order, customer, items, pi_date, billing_site=None):
 
     packing_charges = 0
     sub_total = total_basic + packing_charges
+    
+    # Calculate discount scheme
+    discount_html_row = ""
+    discount_amount = 0
+    if order.discount_scheme_applied and sub_total >= 50100:
+        slabs = [
+            (50100, 75000, 2.50),
+            (75100, 100000, 5.00),
+            (100001, 200000, 7.00),
+            (200001, float('inf'), 9.00),
+        ]
+        additional_discount = 0
+        for smin, smax, add in slabs:
+            if smin <= sub_total <= smax:
+                additional_discount = add
+                break
+        total_discount_pct = 54 + additional_discount
+        discount_amount = sub_total * total_discount_pct / 100
+        sub_total = sub_total - discount_amount
+        discount_html_row = f'<tr><td style="padding:2px 8px;font-weight:bold;color:#059669;">DISCOUNT SCHEME ({total_discount_pct}%)</td><td style="text-align:right;padding:2px 8px;color:#059669;">-&#8377;{discount_amount:,.2f}</td></tr>'
+    
     gst = sub_total * 0.18
     total_value = sub_total + gst
     tcs_rate = 0.001  # 0.1%
@@ -1921,6 +2052,7 @@ table{{width:100%;border-collapse:collapse;}}
 <table style="float:right;font-size:11px;">
 <tr><td style="padding:2px 8px;font-weight:bold;">BASIC VALUE</td><td style="text-align:right;padding:2px 8px;">&#8377;{total_basic:,.2f}</td></tr>
 <tr><td style="padding:2px 8px;font-weight:bold;">ADD PACKING &amp; FORWARDING CHARGES</td><td style="text-align:right;padding:2px 8px;">&#8377;{packing_charges:,.2f}</td></tr>
+{discount_html_row}
 <tr><td style="padding:2px 8px;font-weight:bold;">SUB TOTAL</td><td style="text-align:right;padding:2px 8px;">&#8377;{sub_total:,.2f}</td></tr>
 <tr><td style="padding:2px 8px;font-weight:bold;">GST @ 18.00%</td><td style="text-align:right;padding:2px 8px;">&#8377;{gst:,.2f}</td></tr>
 <tr><td style="padding:2px 8px;font-weight:bold;">TOTAL VALUE</td><td style="text-align:right;padding:2px 8px;">&#8377;{total_value:,.2f}</td></tr>

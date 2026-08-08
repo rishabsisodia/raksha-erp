@@ -2131,6 +2131,9 @@ async function editProformaOrder(id) {
     $('f-poonotes').value = order.notes || '';
     $('m-po-title').textContent = 'Edit Order - ' + order.pi_no;
 
+    // Restore discount scheme state
+    if ($('f-poodiscount')) $('f-poodiscount').checked = order.discount_scheme_applied === 1;
+
     await refreshDropdowns();
     $('f-poocust').value = order.customer_id;
 
@@ -2175,6 +2178,9 @@ async function viewProformaOrder(id) {
     $('f-poodelivery').value = order.delivery_days || 30;
     $('f-poonotes').value = order.notes || '';
     $('m-po-title').textContent = 'View Order - ' + order.pi_no;
+
+    // Restore discount scheme state
+    if ($('f-poodiscount')) $('f-poodiscount').checked = order.discount_scheme_applied === 1;
 
     await refreshDropdowns();
     $('f-poocust').value = order.customer_id;
@@ -2320,12 +2326,45 @@ function calcProformaTotals() {
         totalAmount += item.basic_amount || 0;
     });
     var freight = parseFloat($('f-poofreight').value) || 0;
-    var gst = totalAmount * 0.18;
-    var grandTotal = totalAmount + gst + freight;
+    
+    // Calculate discount scheme
+    var discountApplied = $('f-poodiscount') && $('f-poodiscount').checked;
+    var discountAmount = 0;
+    var additionalDiscount = 0;
+    var slabInfo = '';
+    
+    if (discountApplied && totalAmount >= 50100) {
+        var slabs = [
+            {min: 50100, max: 75000, additional: 2.50, info: '\u20B950,100 to \u20B975,000'},
+            {min: 75100, max: 100000, additional: 5.00, info: '\u20B975,100 to \u20B91,00,000'},
+            {min: 100001, max: 200000, additional: 7.00, info: '\u20B91,01,000 to \u20B92,00,000'},
+            {min: 200001, max: Infinity, additional: 9.00, info: '\u20B92,00,000 & Above'}
+        ];
+        for (var i = 0; i < slabs.length; i++) {
+            if (totalAmount >= slabs[i].min && totalAmount <= slabs[i].max) {
+                additionalDiscount = slabs[i].additional;
+                slabInfo = slabs[i].info;
+                break;
+            }
+        }
+        var totalDiscount = 54 + additionalDiscount;
+        discountAmount = totalAmount * totalDiscount / 100;
+    }
+    
+    var afterDiscount = totalAmount - discountAmount;
+    var gst = afterDiscount * 0.18;
+    var grandTotal = afterDiscount + gst + freight;
 
     $('po-total-qty').textContent = totalQty;
     $('po-total-amount').textContent = fmt(totalAmount);
     $('pov-subtotal').textContent = fmt(totalAmount);
+    
+    // Update discount display
+    if ($('discount-row')) $('discount-row').style.display = discountAmount > 0 ? 'block' : 'none';
+    if ($('pov-additional-discount')) $('pov-additional-discount').textContent = additionalDiscount;
+    if ($('pov-discount-amount')) $('pov-discount-amount').textContent = '-' + fmt(discountAmount);
+    if ($('pov-slab-info')) $('pov-slab-info').textContent = slabInfo || '-';
+    
     $('pov-gst').textContent = fmt(gst);
     $('pov-freight').textContent = fmt(freight);
     $('pov-total').textContent = fmt(grandTotal);
@@ -2340,8 +2379,8 @@ function calcProformaTotals() {
             }
         }
     });
-    var gp = totalAmount - purchaseTotal - freight;
-    var gpPercent = totalAmount > 0 ? (gp / totalAmount * 100) : 0;
+    var gp = afterDiscount - purchaseTotal - freight;
+    var gpPercent = afterDiscount > 0 ? (gp / afterDiscount * 100) : 0;
     var np = gp - gst;
 
     $('pov-purchase-total').textContent = fmt(purchaseTotal);
@@ -2349,6 +2388,10 @@ function calcProformaTotals() {
     $('pov-gp').textContent = fmt(gp);
     $('pov-gp-percent').textContent = gpPercent.toFixed(1) + '%';
     $('pov-np').textContent = fmt(np);
+}
+
+function onDiscountSchemeChange() {
+    calcProformaTotals();
 }
 
 $('f-proforma-order').addEventListener('submit', async function(e) {
@@ -2363,6 +2406,7 @@ $('f-proforma-order').addEventListener('submit', async function(e) {
         delivery_days: parseInt($('f-poodelivery').value) || 30,
         notes: $('f-poonotes').value,
         order_type: $('f-pootype').value,
+        discount_scheme_applied: $('f-poodiscount') && $('f-poodiscount').checked ? 1 : 0,
         items: _proformaItems.filter(function(item) { return item.product_id > 0; })
     };
     if (data.items.length === 0) {

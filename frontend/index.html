@@ -557,9 +557,24 @@
 
                 <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:10px;padding:16px;border:1px solid #e2e8f0;font-size:14px;">
                     <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#64748b;">Sub Total (excl GST):</span><span id="pov-subtotal" style="font-weight:600;">₹0.00</span></div>
+                    <div id="discount-row" style="display:none;background:#ecfdf5;border-radius:6px;padding:6px 10px;margin:6px 0;border:1px solid #a7f3d0;">
+                        <div style="display:flex;justify-content:space-between;font-size:13px;">
+                            <span style="color:#059669;font-weight:600;">Discount Scheme (54% + <span id="pov-additional-discount">0</span>%):</span>
+                            <span id="pov-discount-amount" style="font-weight:700;color:#059669;">-₹0.00</span>
+                        </div>
+                        <div style="font-size:11px;color:#059669;margin-top:2px;">Slab: <span id="pov-slab-info">-</span></div>
+                    </div>
                     <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#64748b;">GST @18%:</span><span id="pov-gst" style="font-weight:600;">₹0.00</span></div>
                     <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#64748b;">Freight:</span><span id="pov-freight" style="font-weight:600;">₹0.00</span></div>
                     <div style="display:flex;justify-content:space-between;padding:8px 0 0;margin-top:8px;border-top:2px solid #e2e8f0;font-size:18px;"><span style="font-weight:700;">Grand Total:</span><span id="pov-total" style="font-weight:800;color:#10b981;">₹0.00</span></div>
+                </div>
+
+                <div style="background:#fffbeb;border-radius:8px;padding:10px 14px;border:1px solid #fde68a;display:flex;align-items:center;gap:10px;">
+                    <input type="checkbox" id="f-poodiscount" onchange="onDiscountSchemeChange()" style="width:18px;height:18px;cursor:pointer;">
+                    <div>
+                        <label for="f-poodiscount" style="font-weight:600;font-size:13px;cursor:pointer;color:#92400e;">Apply Discount Scheme (54% + Slab)</label>
+                        <p style="font-size:11px;color:#a16207;margin-top:2px;">Valid: 1 Aug - 31 Oct 2026 | Applied on basic value excl. C.D & GST</p>
+                    </div>
                 </div>
 
                 <div id="gp-section" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:10px;padding:16px;border:1px solid #bfdbfe;font-size:14px;">
