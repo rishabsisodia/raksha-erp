@@ -24,10 +24,10 @@ app = FastAPI(title="Raksha ERP")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://raksha-erp-deploy.onrender.com", "http://localhost:3000", "http://localhost:8000"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "raksha-erp-secret-key-change-in-production")
@@ -562,7 +562,7 @@ def startup_event():
         safe_ddl("ALTER TABLE proforma_orders ADD COLUMN IF NOT EXISTS discount_amount FLOAT DEFAULT 0")
         # Sale items table
         safe_ddl("""CREATE TABLE IF NOT EXISTS sale_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             sale_id INTEGER REFERENCES sales(id),
             sl_no INTEGER DEFAULT 1,
             product_id INTEGER REFERENCES products(id),
@@ -826,12 +826,12 @@ def seed_data():
     try:
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
-            pw_hash = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
+            pw_hash = bcrypt.hashpw("RS@2026".encode(), bcrypt.gensalt()).decode()
             admin = User(username="admin", password_hash=pw_hash, full_name="Administrator", email="admin@raksha.com", role="admin", is_active=1)
             db.add(admin)
             db.commit()
         elif not admin.password_hash.startswith("$2"):
-            admin.password_hash = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
+            admin.password_hash = bcrypt.hashpw("RS@2026".encode(), bcrypt.gensalt()).decode()
             admin.role = "admin"
             admin.full_name = admin.full_name or "Administrator"
             db.commit()
@@ -1465,8 +1465,19 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
         if not customer:
             raise HTTPException(404, "Customer not found")
 
-        max_id = db.query(func.max(ProformaOrder.id)).scalar() or 0
-        pi_no = f"RFC/{datetime.now().strftime('%y%m')}-{max_id + 1:03d}"
+        # Generate pi_no with retry to handle race conditions
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                max_id = db.query(func.max(ProformaOrder.id)).scalar() or 0
+                pi_no = f"RFC/{datetime.now().strftime('%y%m')}-{max_id + 1:03d}"
+                break
+            except Exception:
+                if attempt == max_retries - 1:
+                    raise
+                db.rollback()
+                import time
+                time.sleep(0.1)
 
         total_qty = 0
         total_basic = 0
@@ -2349,7 +2360,7 @@ def calculate_gp(oid: int, user: User = Depends(get_current_user)):
         transport = order.transport_cost or 0
         gp = sales_value - purchase_total - transport
         gst_component = order.gst_amount or 0
-        np_val = gp - gst_component
+        np_val = gp
 
         order.purchase_total = purchase_total
         order.gross_profit = gp
@@ -2910,8 +2921,19 @@ def freight_summary(user: User = Depends(get_current_user)):
 def create_sale(inp: SaleIn, user: User = Depends(require_permission("sales", "create"))):
     db = SessionLocal()
     try:
-        max_id = db.query(func.max(Sale.id)).scalar() or 0
-        invoice_no = f"RFRP-{max_id + 1:05d}"
+        # Generate invoice_no with retry to handle race conditions
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                max_id = db.query(func.max(Sale.id)).scalar() or 0
+                invoice_no = f"RFRP-{max_id + 1:05d}"
+                break
+            except Exception:
+                if attempt == max_retries - 1:
+                    raise
+                db.rollback()
+                import time
+                time.sleep(0.1)
 
         total_taxable = 0
         total_cgst = 0
@@ -2989,6 +3011,8 @@ def delete_sale(sid: int, user: User = Depends(require_permission("sales", "dele
         s = db.query(Sale).filter(Sale.id == sid).first()
         if not s:
             raise HTTPException(404, "Not found")
+        # Delete child sale items first
+        db.query(SaleItem).filter(SaleItem.sale_id == sid).delete()
         db.delete(s)
         db.commit()
         return {"message": "Deleted"}
@@ -3231,7 +3255,7 @@ def auto_generate_tracking_urls(user: User = Depends(require_permission("sales",
 
 
 # ---- AUTO FETCH TRACKING STATUS ----
-import requests as http_requests
+http_requests = requests
 try:
     from bs4 import BeautifulSoup
     HAS_BS4 = True
@@ -3668,28 +3692,38 @@ def profit_loss(start_date: str = None, end_date: str = None, user: User = Depen
 def dashboard(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        all_sales = db.query(Sale).all()
-        all_orders = db.query(Order).all()
+        # Use SQL aggregations instead of loading all records
+        revenue = db.query(func.coalesce(func.sum(Sale.invoice_value), 0)).scalar() or 0
+        # Fallback to total_amount if invoice_value is not set
+        if revenue == 0:
+            revenue = db.query(func.coalesce(func.sum(Sale.total_amount), 0)).scalar() or 0
+        
+        freight = db.query(func.coalesce(func.sum(Sale.freight_amount * Sale.weight_kgs), 0)).scalar() or 0
+        gp_total = db.query(func.coalesce(func.sum(Sale.gp), 0)).scalar() or 0
+        pending = db.query(func.coalesce(func.sum(Sale.total_amount), 0)).filter(Sale.payment_status == "Pending").scalar() or 0
+        
+        total_order_value = db.query(func.coalesce(func.sum(Order.invoice_amount), 0)).scalar() or 0
+        total_order_cost = db.query(func.coalesce(func.sum(Order.value_excl_gst_freight), 0)).scalar() or 0
 
-        revenue = sum(s.invoice_value or s.total_amount or 0 for s in all_sales)
-        freight = sum((s.freight_amount or 0) * (s.weight_kgs or 0) for s in all_sales)
-        gp_total = sum(s.gp or 0 for s in all_sales)
-        pending = sum(s.total_amount or 0 for s in all_sales if s.payment_status == "Pending")
-        total_order_value = sum(o.invoice_amount or 0 for o in all_orders)
-        total_order_cost = sum(o.value_excl_gst_freight or 0 for o in all_orders)
+        lr_in_transit = db.query(func.count(Sale.id)).filter(Sale.lr_tracking_status == "In Transit").scalar() or 0
+        lr_delivered = db.query(func.count(Sale.id)).filter(Sale.lr_tracking_status == "Delivered").scalar() or 0
+        lr_delayed = db.query(func.count(Sale.id)).filter(Sale.lr_tracking_status == "Delayed").scalar() or 0
+        lr_pending = db.query(func.count(Sale.id)).filter(Sale.lr_no.isnot(None), Sale.lr_tracking_status.is_(None)).scalar() or 0
 
-        lr_in_transit = sum(1 for s in all_sales if s.lr_tracking_status == "In Transit")
-        lr_delivered = sum(1 for s in all_sales if s.lr_tracking_status == "Delivered")
-        lr_delayed = sum(1 for s in all_sales if s.lr_tracking_status == "Delayed")
-        lr_pending = sum(1 for s in all_sales if s.lr_no and not s.lr_tracking_status)
-
+        # Recent sales with batch-loaded customers
+        recent_sales_raw = db.query(Sale).order_by(Sale.id.desc()).limit(5).all()
+        customer_ids = list(set(s.customer_id for s in recent_sales_raw if s.customer_id))
+        customers_map = {}
+        if customer_ids:
+            customers = db.query(Customer).filter(Customer.id.in_(customer_ids)).all()
+            customers_map = {c.id: c for c in customers}
+        
         recent_sales = []
-        for s in db.query(Sale).order_by(Sale.id.desc()).limit(5).all():
+        for s in recent_sales_raw:
             try:
                 cust_name = ""
-                if s.customer_id:
-                    cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
-                    cust_name = cust.contact_name if cust else ""
+                if s.customer_id and s.customer_id in customers_map:
+                    cust_name = customers_map[s.customer_id].contact_name or ""
                 dt_str = ""
                 if s.sale_date:
                     if hasattr(s.sale_date, 'strftime'):
@@ -3716,8 +3750,10 @@ def dashboard(user: User = Depends(get_current_user)):
                 "entry_date": o.entry_date or ""
             })
 
+        # Monthly revenue chart using SQL
         monthly_revenue = {}
-        for s in all_sales:
+        sales_for_charts = db.query(Sale).all()
+        for s in sales_for_charts:
             if s.sale_date:
                 try:
                     if hasattr(s.sale_date, 'strftime'):
@@ -3731,14 +3767,14 @@ def dashboard(user: User = Depends(get_current_user)):
         revenue_chart = {"labels": sorted_months, "data": [monthly_revenue[m] for m in sorted_months]}
 
         party_revenue = {}
-        for s in all_sales:
+        for s in sales_for_charts:
             party = s.party_name or "Unknown"
             party_revenue[party] = party_revenue.get(party, 0) + (s.total_amount or 0)
         top_parties = sorted(party_revenue.items(), key=lambda x: x[1], reverse=True)[:8]
         party_chart = {"labels": [p[0] for p in top_parties], "data": [p[1] for p in top_parties]}
 
         location_revenue = {}
-        for s in all_sales:
+        for s in sales_for_charts:
             loc = s.location or "Unknown"
             location_revenue[loc] = location_revenue.get(loc, 0) + (s.total_amount or 0)
         top_locations = sorted(location_revenue.items(), key=lambda x: x[1], reverse=True)[:8]
@@ -4044,7 +4080,7 @@ async def import_products_csv(file: UploadFile = File(...), user: User = Depends
 def dedup_products(user: User = Depends(require_permission("products", "edit"))):
     db = SessionLocal()
     try:
-        products = db.query(Product).order(Product.id).all()
+        products = db.query(Product).order_by(Product.id).all()
         seen = {}
         removed = 0
         for p in products:

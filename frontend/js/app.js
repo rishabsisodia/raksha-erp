@@ -202,7 +202,15 @@ async function api(url, opts) {
         showLogin();
         throw new Error('Session expired');
     }
-    if (!r.ok) { var e = await r.text(); throw new Error(e); }
+    if (!r.ok) { 
+        var eText = await r.text(); 
+        try { 
+            var eJson = JSON.parse(eText); 
+            throw new Error(eJson.detail || eText); 
+        } catch(parseErr) { 
+            throw new Error(parseErr.message || eText); 
+        }
+    }
     return r.json();
 }
 
@@ -370,9 +378,11 @@ function editProduct(id) {
 
 async function deleteProduct(id) {
     if (!confirm('Delete this product?')) return;
-    await api('/api/products/' + id, {method: 'DELETE'});
-    toast('Product deleted');
-    loadProducts();
+    try {
+        await api('/api/products/' + id, {method: 'DELETE'});
+        toast('Product deleted');
+        loadProducts();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 async function dedupProducts() {
@@ -424,7 +434,7 @@ async function loadAllOrders() {
                     raw: o
                 });
             });
-        } catch(e) {}
+        } catch(e) { console.error('Failed to load COGS orders:', e); }
     }
 
     if (filter !== 'COGS') {
@@ -447,7 +457,7 @@ async function loadAllOrders() {
                     raw: o
                 });
             });
-        } catch(e) {}
+        } catch(e) { console.error('Failed to load PI/PO orders:', e); }
     }
 
     rows.sort(function(a, b) {
@@ -577,9 +587,11 @@ function editOrder(id) {
 
 async function deleteOrder(id) {
     if (!confirm('Delete this order?')) return;
-    await api('/api/orders/' + id, {method: 'DELETE'});
-    toast('Order deleted');
-    loadOrders();
+    try {
+        await api('/api/orders/' + id, {method: 'DELETE'});
+        toast('Order deleted');
+        loadOrders();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 async function loadCustomers() {
@@ -661,9 +673,11 @@ function editTransporter(id) {
 
 async function deleteTransporter(id) {
     if (!confirm('Delete this transporter?')) return;
-    await api('/api/transporters/' + id, {method: 'DELETE'});
-    toast('Transporter deleted');
-    loadTransporters();
+    try {
+        await api('/api/transporters/' + id, {method: 'DELETE'});
+        toast('Transporter deleted');
+        loadTransporters();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 var _purchaseRates = [];
@@ -707,9 +721,11 @@ async function editPurchaseRate(id) {
 
 async function deletePurchaseRate(id) {
     if (!confirm('Delete this purchase rate?')) return;
-    await api('/api/purchase-rates/' + id, {method: 'DELETE'});
-    toast('Purchase rate deleted');
-    loadPurchaseRates();
+    try {
+        await api('/api/purchase-rates/' + id, {method: 'DELETE'});
+        toast('Purchase rate deleted');
+        loadPurchaseRates();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 async function refreshProductDropdown() {
@@ -774,9 +790,11 @@ function editCustomer(id) {
 
 async function deleteCustomer(id) {
     if (!confirm('Delete this customer?')) return;
-    await api('/api/customers/' + id, {method: 'DELETE'});
-    toast('Customer deleted');
-    loadCustomers();
+    try {
+        await api('/api/customers/' + id, {method: 'DELETE'});
+        toast('Customer deleted');
+        loadCustomers();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 try { $('f-csameaddr').addEventListener('change', function() {
@@ -874,9 +892,11 @@ async function addTransporterFromSales(name) {
 
 async function deleteSale(id) {
     if (!confirm('Delete this sale?')) return;
-    await api('/api/sales/' + id, {method: 'DELETE'});
-    toast('Sale deleted');
-    loadSales();
+    try {
+        await api('/api/sales/' + id, {method: 'DELETE'});
+        toast('Sale deleted');
+        loadSales();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 function showLrTrackingModal(saleId, lrNo, status, url, transporter) {
@@ -1224,9 +1244,11 @@ async function editExpense(id) {
 
 async function deleteExpense(id) {
     if (!confirm('Delete this expense?')) return;
-    await api('/api/expenses/' + id, {method: 'DELETE'});
-    toast('Expense deleted');
-    loadExpenses();
+    try {
+        await api('/api/expenses/' + id, {method: 'DELETE'});
+        toast('Expense deleted');
+        loadExpenses();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 async function loadDashboard() {
@@ -1701,7 +1723,10 @@ $('f-transporter').addEventListener('submit', async function(e) {
         try {
             var fd = new FormData();
             fd.append('file', gstFile);
-            var res = await fetch('/api/upload', {method: 'POST', body: fd});
+            var uploadHeaders = {};
+            var token = localStorage.getItem('access_token');
+            if (token) uploadHeaders['Authorization'] = 'Bearer ' + token;
+            var res = await fetch('/api/upload', {method: 'POST', headers: uploadHeaders, body: fd});
             var data = await res.json();
             gstCert = data.url || '';
         } catch(err) { console.error('GST upload failed:', err); }
@@ -1716,7 +1741,10 @@ $('f-transporter').addEventListener('submit', async function(e) {
         try {
             var fd = new FormData();
             fd.append('file', panFile);
-            var res = await fetch('/api/upload', {method: 'POST', body: fd});
+            var uploadHeaders = {};
+            var token = localStorage.getItem('access_token');
+            if (token) uploadHeaders['Authorization'] = 'Bearer ' + token;
+            var res = await fetch('/api/upload', {method: 'POST', headers: uploadHeaders, body: fd});
             var data = await res.json();
             panCard = data.url || '';
         } catch(err) { console.error('PAN upload failed:', err); }
@@ -2212,9 +2240,11 @@ async function viewProformaOrder(id) {
 
 async function deleteProformaOrder(id) {
     if (!confirm('Delete this order?')) return;
-    await api('/api/proforma-orders/' + id, {method: 'DELETE'});
-    toast('Order deleted');
-    loadAllOrders();
+    try {
+        await api('/api/proforma-orders/' + id, {method: 'DELETE'});
+        toast('Order deleted');
+        loadAllOrders();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 function addProformaItem() {
@@ -2381,7 +2411,7 @@ function calcProformaTotals() {
     });
     var gp = afterDiscount - purchaseTotal - freight;
     var gpPercent = afterDiscount > 0 ? (gp / afterDiscount * 100) : 0;
-    var np = gp - gst;
+    var np = gp;
 
     $('pov-purchase-total').textContent = fmt(purchaseTotal);
     $('pov-transport-cost').textContent = fmt(freight);
@@ -2623,6 +2653,33 @@ function generateProformaPDF() {
 
         var packingCharges = 0;
         var subTotal = totalBasic + packingCharges;
+
+        // Apply discount scheme
+        var discountScheme = $('f-podiscount-scheme') ? $('f-podiscount-scheme').checked : false;
+        var discountPercent = 0;
+        var discountAmount = 0;
+        var additionalPercent = 0;
+        var slabInfo = '';
+        if (discountScheme && totalBasic >= 50100) {
+            var baseDiscount = 54;
+            var slabs = [
+                {min: 50100, max: 75000, additional: 2.50},
+                {min: 75100, max: 100000, additional: 5.00},
+                {min: 100100, max: 200000, additional: 7.00},
+                {min: 200001, max: Infinity, additional: 9.00}
+            ];
+            for (var s = 0; s < slabs.length; s++) {
+                if (totalBasic >= slabs[s].min && totalBasic <= slabs[s].max) {
+                    additionalPercent = slabs[s].additional;
+                    slabInfo = '₹' + slabs[s].min.toLocaleString('en-IN') + ' to ₹' + slabs[s].max.toLocaleString('en-IN');
+                    break;
+                }
+            }
+            discountPercent = baseDiscount + additionalPercent;
+            discountAmount = totalBasic * discountPercent / 100;
+            subTotal = totalBasic - discountAmount;
+        }
+
         var gst = subTotal * 0.18;
         var totalValue = subTotal + gst;
         var tcsAmount = totalValue * 0.001;
@@ -2681,6 +2738,9 @@ function generateProformaPDF() {
         html += '<td style="width:50%;vertical-align:top;text-align:right;">';
         html += '<table style="float:right;font-size:11px;">';
         html += '<tr><td style="padding:2px 8px;font-weight:bold;">BASIC VALUE</td><td style="text-align:right;padding:2px 8px;">&#8377;' + totalBasic.toLocaleString('en-IN') + '</td></tr>';
+        if (discountScheme && discountAmount > 0) {
+            html += '<tr><td style="padding:2px 8px;font-weight:bold;color:#006600;">DISCOUNT SCHEME (' + discountPercent.toFixed(1) + '%)</td><td style="text-align:right;padding:2px 8px;color:#006600;">- &#8377;' + discountAmount.toLocaleString('en-IN') + '</td></tr>';
+        }
         html += '<tr><td style="padding:2px 8px;font-weight:bold;">ADD PACKING &amp; FORWARDING CHARGES</td><td style="text-align:right;padding:2px 8px;">&#8377;0</td></tr>';
         html += '<tr><td style="padding:2px 8px;font-weight:bold;">SUB TOTAL</td><td style="text-align:right;padding:2px 8px;">&#8377;' + subTotal.toLocaleString('en-IN') + '</td></tr>';
         html += '<tr><td style="padding:2px 8px;font-weight:bold;">GST @ 18.00%</td><td style="text-align:right;padding:2px 8px;">&#8377;' + gst.toLocaleString('en-IN') + '</td></tr>';
@@ -2817,9 +2877,11 @@ async function editUser(id) {
 
 async function deleteUser(id) {
     if (!confirm('Delete this user?')) return;
-    await api('/api/users/' + id, {method: 'DELETE'});
-    toast('User deleted');
-    loadUsers();
+    try {
+        await api('/api/users/' + id, {method: 'DELETE'});
+        toast('User deleted');
+        loadUsers();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 async function saveSettings() {
