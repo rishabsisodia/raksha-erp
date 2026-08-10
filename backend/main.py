@@ -14,6 +14,10 @@ import cloudinary.uploader
 import urllib.request
 import csv
 import io
+import re
+import time
+import tempfile
+import uuid
 import bcrypt
 import jwt
 import requests
@@ -24,7 +28,7 @@ app = FastAPI(title="Raksha ERP")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://raksha-erp-deploy.onrender.com", "http://localhost:3000", "http://localhost:8000"],
+    allow_origins=["https://raksha-erp-deploy.onrender.com"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
@@ -61,9 +65,23 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+def get_setting(key, default=""):
+    try:
+        db = SessionLocal()
+        row = db.query(Settings).filter(Settings.key == key).first()
+        db.close()
+        return row.value if row else default
+    except Exception:
+        return default
+
+def get_gst_rate():
+    val = get_setting("default_gst_rate", "18")
+    try:
+        return float(val)
+    except Exception:
+        return 18.0
+
 # Temp PDF storage for WhatsApp (no Cloudinary dependency)
-import uuid
-import time
 _TEMP_PDFS = {}
 _TEMP_PDFS_MAX_AGE = 3600  # 1 hour
 _TEMP_PDFS_MAX_SIZE = 100  # max entries
@@ -693,7 +711,6 @@ PART_NO_CSV = [
 def generate_part_no(product):
     if product.part_no:
         return product.part_no
-    import re
     name_lower = (product.name or "").lower()
     size = (product.size or "").lower().replace(" ", "")
     color = (product.color or "").lower()
@@ -794,7 +811,7 @@ def get_new_product_name(part_no, old_name=""):
             break
 
     if not size:
-        m = __import__("re").search(r"(\d+)\s*[xX]\s*(\d+)", old_name or "")
+        m = re.search(r"(\d+)\s*[xX]\s*(\d+)", old_name or "")
         if m:
             size = f"{m.group(1)}x{m.group(2)}"
 
@@ -1312,6 +1329,28 @@ def list_orders(user: User = Depends(get_current_user)):
         db.close()
 
 
+@app.get("/api/orders/{oid}")
+def get_order(oid: int, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        o = db.query(Order).filter(Order.id == oid).first()
+        if not o:
+            raise HTTPException(404, "Order not found")
+        return {"id": o.id, "sl_no": o.sl_no, "po_no": o.po_no, "po_date": o.po_date,
+                 "customer_name": o.customer_name or "",
+                 "billing_site": o.billing_site, "shipping_site": o.shipping_site,
+                 "no_of_boxes": o.no_of_boxes, "value_excl_gst_freight": o.value_excl_gst_freight,
+                 "invoice_no": o.invoice_no, "invoice_date": o.invoice_date,
+                 "invoice_amount_excl_gst": o.invoice_amount_excl_gst,
+                 "weight_kgs": o.weight_kgs, "freight_rate_per_kg": o.freight_rate_per_kg,
+                 "transport_charges": o.transport_charges, "invoice_amount": o.invoice_amount,
+                 "eway_bill_no": o.eway_bill_no, "lr_no": o.lr_no, "entry_date": o.entry_date,
+                 "credit_note_amount": o.credit_note_amount, "credit_note_no": o.credit_note_no,
+                 "transporter": o.transporter, "transporter_no": o.transporter_no}
+    finally:
+        db.close()
+
+
 @app.post("/api/orders")
 def create_order(inp: OrderIn, user: User = Depends(require_permission("orders", "create"))):
     db = SessionLocal()
@@ -1476,7 +1515,6 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
                 if attempt == max_retries - 1:
                     raise
                 db.rollback()
-                import time
                 time.sleep(0.1)
 
         total_qty = 0
@@ -1491,7 +1529,7 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
             total_qty += item.final_qty
             total_basic += item.basic_amount
 
-        gst_amount = total_basic * 0.18
+        gst_amount = total_basic * get_gst_rate() / 100
         
         # Calculate discount scheme
         discount_pct = 0
@@ -1502,7 +1540,7 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
                 discount_amount = total_basic * discount_pct / 100
         
         final_basic = total_basic - discount_amount
-        gst_amount = final_basic * 0.18
+        gst_amount = final_basic * get_gst_rate() / 100
         total_amount = final_basic + gst_amount + inp.freight_amount
 
         order = ProformaOrder(
@@ -1599,7 +1637,7 @@ def update_proforma_order(oid: int, inp: ProformaOrderIn, user: User = Depends(r
                 discount_amount = total_basic * discount_pct / 100
         
         final_basic = total_basic - discount_amount
-        gst_amount = final_basic * 0.18
+        gst_amount = final_basic * get_gst_rate() / 100
         order.total_qty = total_qty
         order.no_of_boxes = sum(i.qty_boxes for i in inp.items)
         order.value_excl_gst = total_basic
@@ -1754,7 +1792,7 @@ def _generate_po_html(order, customer, items, pi_date, billing_site=None):
             <td style="padding:5px 8px;border:1px solid #ccc;text-align:right;font-size:10px;">&#8377;{amt:,.0f}</td>
         </tr>"""
 
-    gst_amount = total_amount * 0.18
+    gst_amount = total_amount * get_gst_rate() / 100
     grand_total = total_amount + gst_amount
 
     # Calculate discount scheme
@@ -1775,7 +1813,7 @@ def _generate_po_html(order, customer, items, pi_date, billing_site=None):
         total_discount_pct = 54 + additional_discount
         discount_amount = total_amount * total_discount_pct / 100
         after_discount = total_amount - discount_amount
-        gst_amount = after_discount * 0.18
+        gst_amount = after_discount * get_gst_rate() / 100
         grand_total = after_discount + gst_amount
         discount_html = f"""
         <tr style="font-weight:bold;color:#059669;">
@@ -1968,7 +2006,7 @@ def _generate_pi_html(order, customer, items, pi_date, billing_site=None):
         sub_total = sub_total - discount_amount
         discount_html_row = f'<tr><td style="padding:2px 8px;font-weight:bold;color:#059669;">DISCOUNT SCHEME ({total_discount_pct}%)</td><td style="text-align:right;padding:2px 8px;color:#059669;">-&#8377;{discount_amount:,.2f}</td></tr>'
     
-    gst = sub_total * 0.18
+    gst = sub_total * get_gst_rate() / 100
     total_value = sub_total + gst
     tcs_rate = 0.001  # 0.1%
     tcs_amount = total_value * tcs_rate
@@ -2195,7 +2233,21 @@ def update_transporter(tid: int, inp: TransporterIn, user: User = Depends(requir
         db.close()
 
 
-@app.get("/api/fix-urls")
+@app.delete("/api/transporters/{tid}")
+def delete_transporter(tid: int, user: User = Depends(require_permission("transporters", "delete"))):
+    db = SessionLocal()
+    try:
+        t = db.query(Transporter).filter(Transporter.id == tid).first()
+        if not t:
+            raise HTTPException(404, "Not found")
+        db.delete(t)
+        db.commit()
+        return {"message": "Transporter deleted"}
+    finally:
+        db.close()
+
+
+@app.post("/api/fix-urls")
 def fix_urls(user: User = Depends(require_permission("transporters", "edit"))):
     db = SessionLocal()
     try:
@@ -2360,7 +2412,7 @@ def calculate_gp(oid: int, user: User = Depends(get_current_user)):
         transport = order.transport_cost or 0
         gp = sales_value - purchase_total - transport
         gst_component = order.gst_amount or 0
-        np_val = gp
+        np_val = gp - gst_component
 
         order.purchase_total = purchase_total
         order.gross_profit = gp
@@ -2412,7 +2464,6 @@ def update_order_status(oid: int, inp: dict, user: User = Depends(get_current_us
 
 
 # ---- WHATSAPP INTEGRATION ----
-import requests
 
 def upload_whatsapp_media(file_bytes, filename):
     """Upload a file to WhatsApp media endpoint, returns media_id"""
@@ -2594,7 +2645,6 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
         pdf.cell(35, 7, f"Rs.{order.total_amount:,.2f}", 0, 1, 'R')
         
         # Generate PDF
-        import tempfile
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
         tmp_path = tmp.name
         tmp.close()
@@ -2708,7 +2758,6 @@ def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permissio
         pdf.cell(35, 7, f"Rs.{order.total_amount:,.2f}", 0, 1, 'R')
         
         # Generate PDF
-        import tempfile
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
         tmp_path = tmp.name
         tmp.close()
@@ -2932,7 +2981,6 @@ def create_sale(inp: SaleIn, user: User = Depends(require_permission("sales", "c
                 if attempt == max_retries - 1:
                     raise
                 db.rollback()
-                import time
                 time.sleep(0.1)
 
         total_taxable = 0
@@ -3549,6 +3597,20 @@ def list_expenses(user: User = Depends(get_current_user)):
         db.close()
 
 
+@app.get("/api/expenses/{eid}")
+def get_expense(eid: int, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        e = db.query(Expense).filter(Expense.id == eid).first()
+        if not e:
+            raise HTTPException(404, "Expense not found")
+        return {"id": e.id, "category": e.category, "description": e.description,
+                "amount": e.amount, "vendor": e.vendor,
+                "expense_date": e.expense_date.isoformat() if e.expense_date else None}
+    finally:
+        db.close()
+
+
 @app.post("/api/expenses")
 def create_expense(inp: ExpenseIn, user: User = Depends(require_permission("expenses", "create"))):
     db = SessionLocal()
@@ -3664,7 +3726,8 @@ def profit_loss(start_date: str = None, end_date: str = None, user: User = Depen
         gross_margin = (gross_profit / total_revenue * 100) if total_revenue else 0
 
         ebitda = gross_profit - total_opex
-        tax = ebitda * 0.25 if ebitda > 0 else 0
+        tax_rate = float(get_setting("tax_rate", "25"))
+        tax = ebitda * tax_rate / 100 if ebitda > 0 else 0
         pat = ebitda - tax
 
         return {
@@ -3680,7 +3743,7 @@ def profit_loss(start_date: str = None, end_date: str = None, user: User = Depen
             "gp_from_sales": gp_from_sales, "gp_avg": gp_avg,
             "expenses": exp_by_cat, "total_opex": total_opex,
             "ebitda": ebitda, "ebitda_margin": (ebitda / total_revenue * 100) if total_revenue else 0,
-            "tax_rate": 25, "tax": tax, "pat": pat,
+            "tax_rate": float(get_setting("tax_rate", "25")), "tax": tax, "pat": pat,
             "total_orders": len(orders), "total_sales": len(sales),
         }
     finally:
@@ -3752,33 +3815,39 @@ def dashboard(user: User = Depends(get_current_user)):
 
         # Monthly revenue chart using SQL
         monthly_revenue = {}
-        sales_for_charts = db.query(Sale).all()
-        for s in sales_for_charts:
-            if s.sale_date:
-                try:
-                    if hasattr(s.sale_date, 'strftime'):
-                        key = s.sale_date.strftime("%Y-%m")
-                    else:
-                        key = str(s.sale_date)[:7]
-                    monthly_revenue[key] = monthly_revenue.get(key, 0) + (s.total_amount or 0)
-                except Exception:
-                    pass
+        try:
+            monthly_rows = db.execute(text("""
+                SELECT substr(sale_date::text, 1, 7) as month, 
+                       COALESCE(sum(total_amount), 0) as total
+                FROM sales 
+                WHERE sale_date IS NOT NULL 
+                GROUP BY month 
+                ORDER BY month
+            """)).fetchall()
+            for row in monthly_rows:
+                monthly_revenue[row[0]] = row[1]
+        except Exception:
+            pass
         sorted_months = sorted(monthly_revenue.keys())[-12:]
         revenue_chart = {"labels": sorted_months, "data": [monthly_revenue[m] for m in sorted_months]}
 
         party_revenue = {}
-        for s in sales_for_charts:
-            party = s.party_name or "Unknown"
-            party_revenue[party] = party_revenue.get(party, 0) + (s.total_amount or 0)
-        top_parties = sorted(party_revenue.items(), key=lambda x: x[1], reverse=True)[:8]
-        party_chart = {"labels": [p[0] for p in top_parties], "data": [p[1] for p in top_parties]}
+        party_rows = db.query(
+            Sale.party_name,
+            func.coalesce(func.sum(Sale.total_amount), 0).label("total")
+        ).filter(Sale.party_name.isnot(None)).group_by(Sale.party_name).order_by(func.sum(Sale.total_amount).desc()).limit(8).all()
+        for row in party_rows:
+            party_revenue[row.party_name] = row.total
+        party_chart = {"labels": list(party_revenue.keys()), "data": list(party_revenue.values())}
 
         location_revenue = {}
-        for s in sales_for_charts:
-            loc = s.location or "Unknown"
-            location_revenue[loc] = location_revenue.get(loc, 0) + (s.total_amount or 0)
-        top_locations = sorted(location_revenue.items(), key=lambda x: x[1], reverse=True)[:8]
-        location_chart = {"labels": [l[0] for l in top_locations], "data": [l[1] for l in top_locations]}
+        loc_rows = db.query(
+            Sale.location,
+            func.coalesce(func.sum(Sale.total_amount), 0).label("total")
+        ).filter(Sale.location.isnot(None)).group_by(Sale.location).order_by(func.sum(Sale.total_amount).desc()).limit(8).all()
+        for row in loc_rows:
+            location_revenue[row.location] = row.total
+        location_chart = {"labels": list(location_revenue.keys()), "data": list(location_revenue.values())}
 
         return {
             "total_products": db.query(Product).count(),
@@ -3875,7 +3944,6 @@ def parse_csv_date(val):
 async def import_orders_csv(file: UploadFile = File(...), user: User = Depends(require_permission("orders", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
-    import csv, io
     reader = csv.DictReader(io.StringIO(text))
     db = SessionLocal()
     imported = 0
@@ -3937,7 +4005,6 @@ async def import_orders_csv(file: UploadFile = File(...), user: User = Depends(r
 async def import_sales_csv(file: UploadFile = File(...), user: User = Depends(require_permission("sales", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
-    import csv, io
     reader = csv.DictReader(io.StringIO(text))
     db = SessionLocal()
     imported = 0
@@ -4017,7 +4084,6 @@ def map_csv_col(row, keys, default=""):
 async def import_products_csv(file: UploadFile = File(...), user: User = Depends(require_permission("products", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
-    import csv, io
     reader = csv.DictReader(io.StringIO(text))
     db = SessionLocal()
     imported = 0
@@ -4112,7 +4178,6 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
 async def import_customers_csv(file: UploadFile = File(...), user: User = Depends(require_permission("customers", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
-    import csv, io
     reader = csv.DictReader(io.StringIO(text))
     db = SessionLocal()
     imported = 0
@@ -4172,7 +4237,6 @@ async def import_customers_csv(file: UploadFile = File(...), user: User = Depend
 async def import_transporters_csv(file: UploadFile = File(...), user: User = Depends(require_permission("transporters", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
-    import csv, io
     reader = csv.DictReader(io.StringIO(text))
     db = SessionLocal()
     imported = 0
@@ -4221,7 +4285,6 @@ async def import_transporters_csv(file: UploadFile = File(...), user: User = Dep
 async def import_expenses_csv(file: UploadFile = File(...), user: User = Depends(require_permission("expenses", "import"))):
     content = await file.read()
     text = content.decode('utf-8-sig')
-    import csv, io
     reader = csv.DictReader(io.StringIO(text))
     db = SessionLocal()
     imported = 0
@@ -4742,7 +4805,6 @@ def export_xlsx(sheet_name, headers, data):
 
 
 def export_pdf(title, headers, data):
-    from fpdf import FPDF
     pdf = FPDF(orientation="L", unit="mm", format="A4")
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 14)
@@ -4852,6 +4914,21 @@ def list_users(user: User = Depends(require_permission("users", "view"))):
         db.close()
 
 
+@app.get("/api/users/{uid}")
+def get_user(uid: int, user: User = Depends(require_permission("users", "view"))):
+    db = SessionLocal()
+    try:
+        u = db.query(User).filter(User.id == uid).first()
+        if not u:
+            raise HTTPException(404, "User not found")
+        return {"id": u.id, "username": u.username, "full_name": u.full_name,
+                "email": u.email, "role": u.role, "is_active": u.is_active,
+                "last_login": str(u.last_login) if u.last_login else None,
+                "created_at": str(u.created_at) if u.created_at else None}
+    finally:
+        db.close()
+
+
 @app.post("/api/users")
 def create_user(body: dict, user: User = Depends(require_permission("users", "create"))):
     db = SessionLocal()
@@ -4927,6 +5004,11 @@ def change_password(uid: int, body: dict, user: User = Depends(get_current_user)
             raise HTTPException(status_code=404, detail="User not found")
         if user.role != "admin":
             if not bcrypt.checkpw(body.get("current_password", "").encode(), target.password_hash.encode()):
+                raise HTTPException(status_code=400, detail="Current password incorrect")
+        elif user.id == uid:
+            if not body.get("current_password"):
+                raise HTTPException(status_code=400, detail="Current password required")
+            if not bcrypt.checkpw(body["current_password"].encode(), target.password_hash.encode()):
                 raise HTTPException(status_code=400, detail="Current password incorrect")
         pw = body.get("new_password", "")
         if len(pw) < 6:

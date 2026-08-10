@@ -75,12 +75,68 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - Always push to: `git push original master:main`
 - **Commit**: 5447f78 + 1c9234b + 8209112 + 72f7b54 + (N+1 fix + customer name fix + showModal fix)
 
-## In Progress
-1. **Sales Page Errors** — FIXED and deployed. N+1 query fix, single sale endpoint, customer name on edit (showModal was wiping dropdown), freight-summary endpoint, error handling.
-2. **Fix WhatsApp token** — FIXED. Permanent token configured, tested working.
-3. **Test WhatsApp PDF sending** — WORKS locally with permanent token. **BLOCKED: Render env var still has old test token.**
-4. **Discount structure** — IMPLEMENTED and deployed. 54% base + slab additional (2.5%-9%) with UI toggle, real-time totals, and PDF breakdown.
-5. **WhatsApp message formats** — User to share screenshots
+## Completed Work
+- [x] SSRF Fix: `/api/view-file` whitelists only Cloudinary URLs
+- [x] Invoice Collision Fix: `func.max(id)` instead of `count()`
+- [x] Order sl_no Race Fix: uses `func.max(Order.sl_no)`
+- [x] update_pricing Fix: writes all 5 cost fields
+- [x] Dependencies: `bcrypt>=4.1.0`, `PyJWT>=2.8.0`
+- [x] Full Auth System: `get_current_user()`, `require_permission()`, all endpoints protected
+- [x] Seed Data: bcrypt admin password, migrates from SHA-256, seeds 16 billing sites
+- [x] `escapeHtml()` applied to ALL table rendering throughout `app.js`
+- [x] Frontend Auth: Login overlay, user header bar, `api()` with Bearer token, `applyRoleUI()`
+- [x] User Management: Settings page admin-only table, `m-user` modal, `f-user` form
+- [x] Export Links: `downloadExport()` and `viewFileAuth()` send Bearer token
+- [x] PO/PI PDF Templates: Company header, bank details, signature block — all "Raksha Pipes Pvt. Ltd."
+- [x] Backend PDF: `_generate_po_html()` and `_generate_pi_html()` accept `billing_site` parameter
+- [x] Frontend PDF: `generateProformaPDF()` uses `_selectedBillingSite`
+- [x] Billing Site Dropdown: `f-poobilling` changed to `<select>`, `onBillingSiteChange()` updates `_selectedBillingSite`
+- [x] Dedup Products: `POST /api/products/dedup` + "Clean Dups" button
+- [x] Cache Busting: `app.js?v=20260805v1`
+- [x] **Removed Terms & Conditions** from PO/PI PDFs: `COMPANY_TERMS = ""`
+- [x] **PDF Auth Fix**: Removed auth from `/api/proforma-orders/{oid}/pdf` endpoint (read-only)
+- [x] **Token Key Fix**: `downloadExport()` and `viewFileAuth()` now use `access_token` (matching login storage)
+- [x] **New Models Added**: `PurchaseRate`, `TransporterQuote` in backend/main.py
+- [x] **ProformaOrder Extended**: Added `po_no`, `po_date`, `purchase_total`, `transport_cost`, `gross_profit`, `net_profit`, `transporter_id`, `whatsapp_status`, `status` fields
+- [x] **Purchase Rate CRUD**: `GET/POST/PUT/DELETE /api/purchase-rates` + bulk endpoint
+- [x] **GP Calculation Endpoint**: `GET /api/proforma-orders/{oid}/gp`
+- [x] **Transport Update Endpoint**: `PUT /api/proforma-orders/{oid}/transport`
+- [x] **Purchase Rates UI Page**: Full CRUD + CSV import in frontend
+- [x] **GP Display**: Shows Purchase Total, Transport Cost, GP, GP%, NP in order modal
+- [x] **Button Rename**: Changed "+ New PI/PO" to "Create a PI"
+- [x] **Order Status Tracking**: `PUT /api/proforma-orders/{oid}/status` endpoint with draft→confirmed→po_created→transport_pending→transport_finalized→billing→completed workflow
+- [x] **Order Status UI**: Status column with dropdown in orders table, color-coded badges, search support
+- [x] **Sales Edit Fix**: Edit modal now shows stored invoice value as Total (not recalculated)
+- [x] **Orders Table Split**: "Customer Name" and "Billing / Shipping Site" are now separate searchable columns
+- [x] **Sales Multi-Item Support**: SaleItem model, items table in modal, add/remove/render/calc functions
+- [x] **Sales Page N+1 Fix**: Batch-loaded customers + items in GET /api/sales (354 queries → 3)
+- [x] **Single Sale Endpoint**: GET /api/sales/{id} for efficient single-sale fetch
+- [x] **editSale() Optimization**: Fetches single sale instead of all 177
+- [x] **Freight Summary Endpoint**: GET /api/sales/freight-summary (lightweight, no items)
+- [x] **loadExpenses() Optimization**: Uses freight-summary instead of full sales list
+- [x] **Sale Form Error Handling**: try-catch on submit, null checks in calcSaleTotals()
+- [x] **Sales Customer Name Fix**: party_name/location/state now populated from Customer on create/update
+- [x] **showModal Fix**: Only refreshDropdowns for new sales, not edits (was wiping customer selection)
+- [x] **Customer Dropdown Fix**: Shows party_name for unlinked CSV-imported sales
+
+## Bug Fixes (Aug 10, 2026)
+- [x] **Discount Checkbox ID Fix**: `f-podiscount-scheme` → `f-poodiscount` (PDF discount never applied)
+- [x] **Discount Slab Boundary Fix**: `min: 100100` → `min: 100001` (₹100,001-100,100 wrong slab)
+- [x] **DELETE /api/transporters/{tid}**: Added missing endpoint (frontend called it but 404)
+- [x] **CORS Fix**: Removed localhost origins (production-only)
+- [x] **Admin Password Change**: Now requires current password even for admins changing own password
+- [x] **Dashboard N+1 Fix**: Charts now use SQL GROUP BY instead of loading all Sales
+- [x] **GST Rate Dynamic**: Now reads from Settings model instead of hardcoded 18%
+- [x] **P&L Tax Rate Dynamic**: Now reads from Settings model instead of hardcoded 25%
+- [x] **editOrder Optimization**: Fetches single order instead of all orders
+- [x] **editExpense Optimization**: Fetches single expense instead of all expenses
+- [x] **editUser Optimization**: Fetches single user instead of all users
+- [x] **Empty Catch Blocks**: All 7 empty catch(e){} blocks now log errors
+- [x] **Sale Form Validation**: customer_id validated before submission
+- [x] **Net Profit Calculation**: Now subtracts GST from gross profit
+- [x] **fix-urls Method**: Changed from GET to POST (mutates data)
+- [x] **Imports Cleanup**: Moved inline imports to top level (time, re, tempfile, uuid, csv, io)
+- [x] **get_gst_rate() Helper**: Reads GST rate from Settings, used in all PDF/calc functions
 
 ## IMPORTANT: WhatsApp PDF Fix Needed on Render
 - **Root cause**: Test token can send text but NOT PDFs. Permanent token works for both.

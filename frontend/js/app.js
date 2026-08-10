@@ -401,7 +401,7 @@ async function openPricing(id) {
         $('f-praw').value = pr.raw_material_cost || 0;
         $('f-pmrp').value = pr.mrp || 0;
         $('f-pgst').value = pr.gst_rate || 18;
-    } catch(e) {}
+    } catch(e) { console.error('Failed to load pricing:', e); }
     showModal('m-pricing');
 }
 
@@ -551,12 +551,9 @@ function changeOrderStatus(orderId, newStatus) {
     });
 }
 
-function editOrder(id) {
-    var orders = [];
-    api('/api/orders').then(function(data) {
-        orders = data;
-        var o = orders.find(function(x) { return x.id === id; });
-        if (!o) return;
+async function editOrder(id) {
+    try {
+        var o = await api('/api/orders/' + id);
         $('f-oid').value = o.id;
         $('f-oslno').value = o.sl_no || '';
         $('f-opo').value = o.po_no || '';
@@ -582,7 +579,9 @@ function editOrder(id) {
         $('f-otransno').value = o.transporter_no || '';
         $('m-order-title').textContent = 'Edit Order';
         showModal('m-order');
-    });
+    } catch(e) {
+        toast('Failed to load order: ' + e.message, true);
+    }
 }
 
 async function deleteOrder(id) {
@@ -801,7 +800,7 @@ try { $('f-csameaddr').addEventListener('change', function() {
     if (this.checked) {
         $('f-cshipaddr').value = $('f-cbilladdr').value;
     }
-}); } catch(e) {}
+}); } catch(e) { console.error('Failed to add event listener:', e); }
 
 async function loadSales() {
     try {
@@ -998,7 +997,7 @@ async function saveLrTracking() {
                     body: JSON.stringify({lr_tracking_url: result.tracking_url})
                 });
             }
-        } catch(e) {}
+        } catch(e) { console.error('Failed to update LR tracking:', e); }
     }
 
     toast('LR tracking updated!');
@@ -1120,7 +1119,7 @@ async function onSaleProductChange(idx, pid) {
             _saleItems[idx].unit_price = pr.mrp || pr.dealer_price || pr.distributor_price || 0;
             _saleItems[idx].gst_rate = pr.gst_rate || 18;
         }
-    } catch(e) {}
+    } catch(e) { console.error('Failed to load product pricing:', e); }
     calcSaleItemAmount(idx);
     renderSaleItems();
     calcSaleTotals();
@@ -1229,17 +1228,19 @@ async function loadExpenses() {
 }
 
 async function editExpense(id) {
-    var expenses = await api('/api/expenses');
-    var e = expenses.find(function(x) { return x.id === id; });
-    if (!e) return;
-    $('f-eid').value = e.id;
-    $('m-expense-title').textContent = 'Edit Expense';
-    $('f-ecat').value = e.category || '';
-    $('f-edesc').value = e.description || '';
-    $('f-eamt').value = e.amount || '';
-    $('f-evendor').value = e.vendor || '';
-    $('f-edate').value = e.expense_date ? e.expense_date.substring(0, 10) : '';
-    showModal('m-expense');
+    try {
+        var e = await api('/api/expenses/' + id);
+        $('f-eid').value = e.id;
+        $('m-expense-title').textContent = 'Edit Expense';
+        $('f-ecat').value = e.category || '';
+        $('f-edesc').value = e.description || '';
+        $('f-eamt').value = e.amount || '';
+        $('f-evendor').value = e.vendor || '';
+        $('f-edate').value = e.expense_date ? e.expense_date.substring(0, 10) : '';
+        showModal('m-expense');
+    } catch(err) {
+        toast('Failed to load expense: ' + err.message, true);
+    }
 }
 
 async function deleteExpense(id) {
@@ -1939,8 +1940,13 @@ $('f-sale').addEventListener('submit', async function(e) {
             toast('Add at least one product', true);
             return;
         }
+        var customerId = parseInt($('f-slcust').value);
+        if (isNaN(customerId) || customerId <= 0) {
+            toast('Please select a customer', true);
+            return;
+        }
         var data = {
-            customer_id: parseInt($('f-slcust').value),
+            customer_id: customerId,
             product_id: validItems[0] ? validItems[0].product_id : 0,
             quantity: validItems.reduce(function(sum, i) { return sum + (i.quantity || 0); }, 0),
             unit_price: validItems[0] ? validItems[0].unit_price : 0,
@@ -2137,7 +2143,7 @@ async function showProformaOrderModal() {
     _proformaItems = [];
     $('f-pooid').value = '';
     $('m-po-title').textContent = 'New PI/PO Order';
-    try { await refreshDropdowns(); } catch(e) {}
+    try { await refreshDropdowns(); } catch(e) { console.error('Failed to refresh dropdowns:', e); }
     addProformaItem();
     $('m-proforma-order').classList.remove('hidden');
 }
@@ -2655,7 +2661,7 @@ function generateProformaPDF() {
         var subTotal = totalBasic + packingCharges;
 
         // Apply discount scheme
-        var discountScheme = $('f-podiscount-scheme') ? $('f-podiscount-scheme').checked : false;
+        var discountScheme = $('f-poodiscount') ? $('f-poodiscount').checked : false;
         var discountPercent = 0;
         var discountAmount = 0;
         var additionalPercent = 0;
@@ -2665,7 +2671,7 @@ function generateProformaPDF() {
             var slabs = [
                 {min: 50100, max: 75000, additional: 2.50},
                 {min: 75100, max: 100000, additional: 5.00},
-                {min: 100100, max: 200000, additional: 7.00},
+                {min: 100001, max: 200000, additional: 7.00},
                 {min: 200001, max: Infinity, additional: 9.00}
             ];
             for (var s = 0; s < slabs.length; s++) {
@@ -2766,9 +2772,8 @@ function generateProformaPDF() {
 }
 
 // ---- INIT ----
-// ---- INIT ----
-try { $('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'}); } catch(e) {}
-try { $('f-edate').value = new Date().toISOString().split('T')[0]; } catch(e) {}
+try { $('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'}); } catch(e) { console.error('Failed to set today date:', e); }
+try { $('f-edate').value = new Date().toISOString().split('T')[0]; } catch(e) { console.error('Failed to set expense date:', e); }
 var _user = getUser();
 if (!_user || !localStorage.getItem('access_token')) {
     showLogin();
@@ -2859,20 +2864,22 @@ function showAddUserModal() {
 }
 
 async function editUser(id) {
-    var users = await api('/api/users');
-    var u = users.find(function(x) { return x.id === id; });
-    if (!u) return;
-    $('f-uid').value = u.id;
-    $('f-uusername').value = u.username;
-    $('f-ufullname').value = u.full_name || '';
-    $('f-uemail').value = u.email || '';
-    $('f-upassword').value = '';
-    $('f-urole').value = u.role;
-    $('f-uisactive').checked = u.is_active;
-    $('m-user-title').textContent = 'Edit User';
-    $('f-upw-hint').textContent = '(leave blank to keep)';
-    $('f-uusername').disabled = true;
-    showModal('m-user');
+    try {
+        var u = await api('/api/users/' + id);
+        $('f-uid').value = u.id;
+        $('f-uusername').value = u.username;
+        $('f-ufullname').value = u.full_name || '';
+        $('f-uemail').value = u.email || '';
+        $('f-upassword').value = '';
+        $('f-urole').value = u.role;
+        $('f-uisactive').checked = u.is_active;
+        $('m-user-title').textContent = 'Edit User';
+        $('f-upw-hint').textContent = '(leave blank to keep)';
+        $('f-uusername').disabled = true;
+        showModal('m-user');
+    } catch(e) {
+        toast('Failed to load user: ' + e.message, true);
+    }
 }
 
 async function deleteUser(id) {
