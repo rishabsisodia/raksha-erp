@@ -805,7 +805,7 @@ try { $('f-csameaddr').addEventListener('change', function() {
 async function loadSales() {
     try {
     showLoading('t-sales', 11);
-    api('/api/auto-generate-tracking-urls', {method: 'POST'}).catch(function(){});
+    api('/api/auto-generate-tracking-urls', {method: 'POST'}).catch(function(e){ console.warn('Auto-generate tracking URLs failed:', e); });
     var sales = await api('/api/sales');
     var rows = [];
     sales.forEach(function(s) {

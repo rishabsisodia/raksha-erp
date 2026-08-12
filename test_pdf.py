@@ -1,7 +1,8 @@
 import requests
+import os
 
-PERM_TOKEN = "EAIh7PXiG5U4BSC9DVTzhQAqwCA9oB2ZB4lB8OKYggcDqmBCBISoUWFpQtS97JgBFOGwgcgNB005tHuKedF8ORr3ccmEMDYoZCrDQPNYRD3l9yPAy6y4LngHZCZB2SjgneJj2i9oBzc6bonTVOUa45ZANFXXZBNLlFOPpcgr5hv2iS2ZCY88CubYhLK1L0KRGlRNagZDZD"
-PHONE_ID = "1299086943278503"
+PERM_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')
+PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')
 
 url = f"https://graph.facebook.com/v18.0/{PHONE_ID}/messages"
 headers = {"Authorization": f"Bearer {PERM_TOKEN}", "Content-Type": "application/json"}

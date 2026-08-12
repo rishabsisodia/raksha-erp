@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, date, timedelta
 import os
+import logging
 import cloudinary
 import cloudinary.uploader
 import urllib.request
@@ -23,6 +24,9 @@ import jwt
 import requests
 from fpdf import FPDF
 from html import escape as escape_html
+
+logger = logging.getLogger("raksha-erp")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="Raksha ERP")
 
@@ -50,9 +54,9 @@ if CLOUDINARY_URL and "@" in CLOUDINARY_URL:
     )
 
 # WhatsApp Cloud API Config
-WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "EAIh7PXiG5U4BSC9DVTzhQAqwCA9oB2ZB4lB8OKYggcDqmBCBISoUWFpQtS97JgBFOGwgcgNB005tHuKedF8ORr3ccmEMDYoZCrDQPNYRD3l9yPAy6y4LngHZCZB2SjgneJj2i9oBzc6bonTVOUa45ZANFXXZBNLlFOPpcgr5hv2iS2ZCY88CubYhLK1L0KRGlRNagZDZD")
-WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID", "1299086943278503")
-WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get("WHATSAPP_BUSINESS_ACCOUNT_ID", "4397763287203081")
+WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
+WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID", "")
+WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get("WHATSAPP_BUSINESS_ACCOUNT_ID", "")
 WHATSAPP_API_URL = "https://graph.facebook.com/v18.0"
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./raksha_erp.db")
@@ -1133,6 +1137,85 @@ class ProformaOrderIn(BaseModel):
     items: List[ProformaOrderItemIn] = []
 
 
+# ---- VALIDATION MODELS (replacing raw dict endpoints) ----
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+class RefreshIn(BaseModel):
+    refresh_token: str
+
+class UserCreateIn(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=6)
+    full_name: str = ""
+    email: str = ""
+    role: str = "viewer"
+
+class UserUpdateIn(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[int] = None
+    password: Optional[str] = None
+
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=6)
+
+class PurchaseRateIn(BaseModel):
+    product_id: int
+    rate: float = Field(0, ge=0)
+    supplier: str = ""
+    effective_date: Optional[str] = None
+
+class PurchaseRateUpdateIn(BaseModel):
+    rate: float = Field(0, ge=0)
+    supplier: str = ""
+    effective_date: Optional[str] = None
+
+class BulkPurchaseRateIn(BaseModel):
+    rates: List[PurchaseRateIn]
+
+class TransportUpdateIn(BaseModel):
+    transport_cost: float = Field(0, ge=0)
+
+class OrderStatusIn(BaseModel):
+    status: str
+
+class WhatsAppSendIn(BaseModel):
+    phone: str = Field(..., pattern=r"^\d{10,15}$")
+    message: str = ""
+
+class WhatsAppSendPIIn(BaseModel):
+    phone: str = Field(..., pattern=r"^\d{10,15}$")
+
+class WhatsAppSendPOIn(BaseModel):
+    phone: str = Field(..., pattern=r"^\d{10,15}$")
+
+class WhatsAppTestIn(BaseModel):
+    phone: str = Field(..., pattern=r"^\d{10,15}$")
+
+class SaleInvoiceIn(BaseModel):
+    invoice_no: str = ""
+    invoice_value: float = Field(0, ge=0)
+
+class BulkPaymentIn(BaseModel):
+    ids: List[int]
+    status: str
+
+class BulkLRIn(BaseModel):
+    ids: List[int]
+    lr_no: str = ""
+
+class LRTrackingIn(BaseModel):
+    lr_no: str = ""
+    tracking_url: str = ""
+
+class SettingsUpdateIn(BaseModel):
+    settings: dict
+
+
 # ---- PRODUCTS ----
 SIZE_ORDER = {
     "10x10": 1, "250x250": 1,
@@ -1704,7 +1787,7 @@ def generate_proforma_order_pdf(oid: int):
             try:
                 billing_site = db.query(BillingSite).filter(BillingSite.id == int(order.billing_site)).first()
             except (ValueError, TypeError):
-                pass
+                logger.warning("Invalid billing_site ID '%s' for order %s", order.billing_site, order.id)
 
         if order.order_type == "PO":
             html = _generate_po_html(order, customer, items, pi_date, billing_site)
@@ -2326,13 +2409,13 @@ def list_purchase_rates(user: User = Depends(get_current_user)):
 
 
 @app.post("/api/purchase-rates")
-def create_purchase_rate(inp: dict, user: User = Depends(require_permission("products", "edit"))):
+def create_purchase_rate(inp: PurchaseRateIn, user: User = Depends(require_permission("products", "edit"))):
     db = SessionLocal()
     try:
         pr = PurchaseRate(
-            product_id=inp["product_id"], rate=inp.get("rate", 0),
-            supplier=inp.get("supplier", ""),
-            effective_date=date.fromisoformat(inp["effective_date"]) if inp.get("effective_date") else date.today()
+            product_id=inp.product_id, rate=inp.rate,
+            supplier=inp.supplier,
+            effective_date=date.fromisoformat(inp.effective_date) if inp.effective_date else date.today()
         )
         db.add(pr)
         db.commit()
@@ -2342,16 +2425,16 @@ def create_purchase_rate(inp: dict, user: User = Depends(require_permission("pro
 
 
 @app.put("/api/purchase-rates/{prid}")
-def update_purchase_rate(prid: int, inp: dict, user: User = Depends(require_permission("products", "edit"))):
+def update_purchase_rate(prid: int, inp: PurchaseRateUpdateIn, user: User = Depends(require_permission("products", "edit"))):
     db = SessionLocal()
     try:
         pr = db.query(PurchaseRate).filter(PurchaseRate.id == prid).first()
         if not pr:
             raise HTTPException(404, "Not found")
-        pr.rate = inp.get("rate", pr.rate)
-        pr.supplier = inp.get("supplier", pr.supplier)
-        if inp.get("effective_date"):
-            pr.effective_date = date.fromisoformat(inp["effective_date"])
+        pr.rate = inp.rate
+        pr.supplier = inp.supplier
+        if inp.effective_date:
+            pr.effective_date = date.fromisoformat(inp.effective_date)
         db.commit()
         return {"message": "Updated"}
     finally:
@@ -2373,16 +2456,16 @@ def delete_purchase_rate(prid: int, user: User = Depends(require_permission("pro
 
 
 @app.post("/api/purchase-rates/bulk")
-def bulk_create_purchase_rates(inp: dict, user: User = Depends(require_permission("products", "edit"))):
+def bulk_create_purchase_rates(inp: BulkPurchaseRateIn, user: User = Depends(require_permission("products", "edit"))):
     db = SessionLocal()
     try:
-        rates = inp.get("rates", [])
+        rates = inp.rates
         created = 0
         for r in rates:
             pr = PurchaseRate(
-                product_id=r["product_id"], rate=r.get("rate", 0),
-                supplier=r.get("supplier", ""),
-                effective_date=date.fromisoformat(r["effective_date"]) if r.get("effective_date") else date.today()
+                product_id=r.product_id, rate=r.rate,
+                supplier=r.supplier,
+                effective_date=date.fromisoformat(r.effective_date) if r.effective_date else date.today()
             )
             db.add(pr)
             created += 1
@@ -2430,14 +2513,13 @@ def calculate_gp(oid: int, user: User = Depends(get_current_user)):
 
 
 @app.put("/api/proforma-orders/{oid}/transport")
-def update_transport(oid: int, inp: dict, user: User = Depends(get_current_user)):
+def update_transport(oid: int, inp: TransportUpdateIn, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
         if not order:
             raise HTTPException(404, "Order not found")
-        order.transport_cost = inp.get("transport_cost", 0)
-        order.transporter_id = inp.get("transporter_id")
+        order.transport_cost = inp.transport_cost
         db.commit()
         return {"message": "Transport updated"}
     finally:
@@ -2445,13 +2527,13 @@ def update_transport(oid: int, inp: dict, user: User = Depends(get_current_user)
 
 
 @app.put("/api/proforma-orders/{oid}/status")
-def update_order_status(oid: int, inp: dict, user: User = Depends(get_current_user)):
+def update_order_status(oid: int, inp: OrderStatusIn, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
         if not order:
             raise HTTPException(404, "Order not found")
-        new_status = inp.get("status", "draft")
+        new_status = inp.status
         valid_statuses = ["draft", "confirmed", "po_created", "transport_pending", "transport_finalized", "billing", "completed"]
         if new_status not in valid_statuses:
             raise HTTPException(400, f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
@@ -2476,8 +2558,8 @@ def upload_whatsapp_media(file_bytes, filename):
         result = resp.json()
         if resp.status_code == 200:
             return result.get("id")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("WhatsApp media upload failed: %s", e)
     return None
 
 def send_whatsapp_message(phone_number, message, media_url=None, doc_url=None, doc_filename=None, doc_media_id=None):
@@ -2557,11 +2639,11 @@ def send_whatsapp_message(phone_number, message, media_url=None, doc_url=None, d
 
 
 @app.post("/api/whatsapp/send")
-def whatsapp_send(inp: dict, user: User = Depends(require_permission("proforma_orders", "edit"))):
+def whatsapp_send(inp: WhatsAppSendIn, user: User = Depends(require_permission("proforma_orders", "edit"))):
     """Send a WhatsApp message"""
-    phone = inp.get("phone", "")
-    message = inp.get("message", "")
-    media_url = inp.get("media_url")
+    phone = inp.phone
+    message = inp.message
+    media_url = None
     
     if not phone or not message:
         raise HTTPException(400, "Phone and message are required")
@@ -2571,7 +2653,7 @@ def whatsapp_send(inp: dict, user: User = Depends(require_permission("proforma_o
 
 
 @app.post("/api/whatsapp/send-pi/{oid}")
-def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permission("proforma_orders", "edit"))):
+def whatsapp_send_pi(oid: int, inp: WhatsAppSendPIIn, user: User = Depends(require_permission("proforma_orders", "edit"))):
     """Send PI PDF to a phone number via WhatsApp"""
     db = SessionLocal()
     try:
@@ -2581,7 +2663,7 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
         
         customer = db.query(Customer).filter(Customer.id == order.customer_id).first()
         items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).all()
-        phone = inp.get("phone", "")
+        phone = inp.phone
         if not phone and customer:
             phone = customer.contact_number
         
@@ -2594,7 +2676,7 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
             try:
                 billing_site = db.query(BillingSite).filter(BillingSite.id == int(order.billing_site)).first()
             except (ValueError, TypeError):
-                pass
+                logger.warning("Invalid billing_site ID '%s' for order %s", order.billing_site, order.id)
         
         # Generate PI PDF
         pi_date = order.pi_date.strftime("%d-%b-%Y") if order.pi_date else ""
@@ -2665,7 +2747,7 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
                 upload_result = cloudinary.uploader.upload(tmp_path, resource_type="raw", folder="whatsapp_pi")
                 pdf_url = upload_result.get("secure_url")
             except Exception as e:
-                pass
+                logger.error("Cloudinary upload failed for WhatsApp PI: %s", e)
             os.unlink(tmp_path)
             
             if pdf_url:
@@ -2684,7 +2766,7 @@ def whatsapp_send_pi(oid: int, inp: dict, user: User = Depends(require_permissio
 
 
 @app.post("/api/whatsapp/send-po/{oid}")
-def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permission("proforma_orders", "edit"))):
+def whatsapp_send_po(oid: int, inp: WhatsAppSendPOIn, user: User = Depends(require_permission("proforma_orders", "edit"))):
     """Send PO PDF to a phone number via WhatsApp"""
     db = SessionLocal()
     try:
@@ -2694,7 +2776,7 @@ def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permissio
         
         customer = db.query(Customer).filter(Customer.id == order.customer_id).first()
         items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == oid).all()
-        phone = inp.get("phone", "")
+        phone = inp.phone
         if not phone and customer:
             phone = customer.contact_number
         
@@ -2707,7 +2789,7 @@ def whatsapp_send_po(oid: int, inp: dict, user: User = Depends(require_permissio
             try:
                 billing_site = db.query(BillingSite).filter(BillingSite.id == int(order.billing_site)).first()
             except (ValueError, TypeError):
-                pass
+                logger.warning("Invalid billing_site ID '%s' for order %s", order.billing_site, order.id)
         
         # Generate PO PDF
         pi_date = order.pi_date.strftime("%d-%b-%Y") if order.pi_date else ""
@@ -2797,9 +2879,9 @@ def get_whatsapp_config(user: User = Depends(get_current_user)):
 
 
 @app.post("/api/whatsapp/test")
-def whatsapp_test(inp: dict, user: User = Depends(get_current_user)):
+def whatsapp_test(inp: WhatsAppTestIn, user: User = Depends(get_current_user)):
     """Send a simple test text message"""
-    phone = inp.get("phone", "")
+    phone = inp.phone
     if not phone:
         raise HTTPException(400, "Phone number required")
     
@@ -3069,18 +3151,16 @@ def delete_sale(sid: int, user: User = Depends(require_permission("sales", "dele
 
 
 @app.patch("/api/sales/{sid}/invoice")
-def patch_sale_invoice(sid: int, body: dict, user: User = Depends(require_permission("sales", "edit"))):
+def patch_sale_invoice(sid: int, body: SaleInvoiceIn, user: User = Depends(require_permission("sales", "edit"))):
     db = SessionLocal()
     try:
         s = db.query(Sale).filter(Sale.id == sid).first()
         if not s:
             raise HTTPException(404, "Not found")
-        if "invoice_value" in body:
-            s.invoice_value = float(body["invoice_value"])
-        if "total_amount" in body:
-            s.total_amount = float(body["total_amount"])
+        if body.invoice_value:
+            s.invoice_value = body.invoice_value
         db.commit()
-        return {"message": "Patched", "id": sid, "invoice_value": s.invoice_value, "total_amount": s.total_amount}
+        return {"message": "Patched", "id": sid, "invoice_value": s.invoice_value}
     finally:
         db.close()
 
@@ -3161,11 +3241,11 @@ def update_sale(sid: int, inp: SaleIn, user: User = Depends(require_permission("
 
 
 @app.patch("/api/sales/bulk-payment")
-def bulk_update_payment_status(body: dict, user: User = Depends(require_permission("sales", "bulk_edit"))):
-    status = body.get("payment_status", "Paid")
+def bulk_update_payment_status(body: BulkPaymentIn, user: User = Depends(require_permission("sales", "bulk_edit"))):
+    status = body.status
     db = SessionLocal()
     try:
-        updated = db.query(Sale).filter(Sale.payment_status != status).update({"payment_status": status})
+        updated = db.query(Sale).filter(Sale.id.in_(body.ids)).update({"payment_status": status}, synchronize_session=False)
         db.commit()
         return {"updated": updated, "message": f"Updated {updated} sales to {status}"}
     finally:
@@ -3173,14 +3253,13 @@ def bulk_update_payment_status(body: dict, user: User = Depends(require_permissi
 
 
 @app.patch("/api/sales/bulk-lr-status")
-def bulk_update_lr_status(body: dict, user: User = Depends(require_permission("sales", "bulk_edit"))):
-    status = body.get("lr_tracking_status", "Delivered")
-    exclude_ids = body.get("exclude_ids", [])
+def bulk_update_lr_status(body: BulkLRIn, user: User = Depends(require_permission("sales", "bulk_edit"))):
+    status = body.lr_no or "Delivered"
     db = SessionLocal()
     try:
         q = db.query(Sale)
-        if exclude_ids:
-            q = q.filter(Sale.id.notin_(exclude_ids))
+        if body.ids:
+            q = q.filter(Sale.id.in_(body.ids))
         updated = q.filter(Sale.lr_tracking_status != status).update({"lr_tracking_status": status}, synchronize_session=False)
         db.commit()
         return {"updated": updated, "message": f"Updated {updated} sales to {status}"}
@@ -3205,18 +3284,16 @@ def delete_customer_by_customer_id(customer_id: str, user: User = Depends(requir
 
 # ---- LR TRACKING ----
 @app.put("/api/sales/{sid}/lr-tracking")
-def update_lr_tracking(sid: int, body: dict, user: User = Depends(require_permission("sales", "edit"))):
+def update_lr_tracking(sid: int, body: LRTrackingIn, user: User = Depends(require_permission("sales", "edit"))):
     db = SessionLocal()
     try:
         s = db.query(Sale).filter(Sale.id == sid).first()
         if not s:
             raise HTTPException(404, "Sale not found")
-        if "lr_no" in body and body["lr_no"]:
-            s.lr_no = body["lr_no"]
-        if "lr_tracking_status" in body:
-            s.lr_tracking_status = body["lr_tracking_status"]
-        if "lr_tracking_url" in body:
-            s.lr_tracking_url = body["lr_tracking_url"]
+        if body.lr_no:
+            s.lr_no = body.lr_no
+        if body.tracking_url:
+            s.lr_tracking_url = body.tracking_url
         s.lr_last_checked = datetime.utcnow()
         db.commit()
         return {"message": "LR tracking updated"}
@@ -3654,7 +3731,7 @@ def update_expense(eid: int, inp: ExpenseIn, user: User = Depends(require_permis
             try:
                 e.expense_date = datetime.strptime(inp.expense_date, "%Y-%m-%d")
             except Exception:
-                pass
+                logger.warning("Invalid expense_date '%s' for expense %s", inp.expense_date, eid)
         db.commit()
         return {"message": "Expense updated"}
     finally:
@@ -3677,7 +3754,7 @@ def profit_loss(start_date: str = None, end_date: str = None, user: User = Depen
                 expenses_q = expenses_q.filter(Expense.expense_date >= sd)
                 orders_q = orders_q.filter(Order.entry_date >= start_date)
             except Exception:
-                pass
+                logger.warning("Invalid start_date for P&L: %s", start_date)
         if end_date:
             try:
                 ed = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
@@ -3685,7 +3762,7 @@ def profit_loss(start_date: str = None, end_date: str = None, user: User = Depen
                 expenses_q = expenses_q.filter(Expense.expense_date <= ed)
                 orders_q = orders_q.filter(Order.entry_date <= end_date)
             except Exception:
-                pass
+                logger.warning("Invalid end_date for P&L: %s", end_date)
 
         sales = sales_q.all()
         expenses = expenses_q.all()
@@ -3826,8 +3903,8 @@ def dashboard(user: User = Depends(get_current_user)):
             """)).fetchall()
             for row in monthly_rows:
                 monthly_revenue[row[0]] = row[1]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error("Dashboard monthly revenue query failed: %s", e)
         sorted_months = sorted(monthly_revenue.keys())[-12:]
         revenue_chart = {"labels": sorted_months, "data": [monthly_revenue[m] for m in sorted_months]}
 
@@ -3908,10 +3985,10 @@ def get_settings(user: User = Depends(get_current_user)):
 
 
 @app.put("/api/settings")
-def update_settings(body: dict, user: User = Depends(require_permission("settings", "edit"))):
+def update_settings(body: SettingsUpdateIn, user: User = Depends(require_permission("settings", "edit"))):
     db = SessionLocal()
     try:
-        for k, v in body.items():
+        for k, v in body.settings.items():
             row = db.query(Settings).filter(Settings.key == k).first()
             if row:
                 row.value = str(v)
@@ -4030,7 +4107,7 @@ async def import_sales_csv(file: UploadFile = File(...), user: User = Depends(re
                     from datetime import datetime as dt
                     sale_date_dt = dt.strptime(sale_date, '%Y-%m-%d')
                 except Exception:
-                    pass
+                    logger.warning("Invalid sale_date in CSV import: %s", sale_date)
             freight = parse_csv_amount(row.get('Freight', '0'))
             gp = parse_csv_amount(row.get('GP', '0'))
             gp_pct_raw = row.get('GP%', '0').replace('%', '').strip()
@@ -4304,7 +4381,7 @@ async def import_expenses_csv(file: UploadFile = File(...), user: User = Depends
                     from dateutil import parser as dateparser
                     dt = dateparser.parse(date_str, dayfirst=False)
                 except Exception:
-                    pass
+                    logger.warning("Invalid expense date in CSV import: %s", date_str)
             if not dt:
                 dt = datetime.utcnow()
             e = Expense(
@@ -4446,7 +4523,7 @@ async def import_standard_packaging(file: UploadFile = File(...), user: User = D
                             else:
                                 db.add(Pricing(product_id=product.id, mrp=mrp, gst_rate=18))
                     except ValueError:
-                        pass
+                        logger.warning("Invalid MRP value '%s' for product %s", mrp_val, part_no)
                 updated += 1
             else:
                 if not desc:
@@ -4464,7 +4541,7 @@ async def import_standard_packaging(file: UploadFile = File(...), user: User = D
                     try:
                         mrp_val = float(row[mrp_idx].strip().replace(",", "").replace("₹", "").replace("?", ""))
                     except ValueError:
-                        pass
+                        logger.warning("Invalid MRP value for new product: %s", row[mrp_idx])
                 db.add(Pricing(product_id=new_p.id, mrp=mrp_val, gst_rate=18))
                 created += 1
 
@@ -4609,7 +4686,7 @@ async def import_sales_xlsx(file: UploadFile = File(...), user: User = Depends(r
                     try:
                         sale_date_dt = datetime.strptime(sale_date, '%Y-%m-%d')
                     except Exception:
-                        pass
+                        logger.warning("Invalid sale_date in CSV update: %s", sale_date)
                 freight = parse_csv_amount(row.get('Freight', '0'))
                 gp = parse_csv_amount(row.get('GP', '0'))
                 gp_pct_raw = row.get('GP%', '0').replace('%', '').strip()
@@ -4794,7 +4871,7 @@ def export_xlsx(sheet_name, headers, data):
                 if len(str(cell.value)) > max_length:
                     max_length = len(str(cell.value))
             except Exception:
-                pass
+                logger.debug("Column width calc error for cell in %s", col_letter)
         ws.column_dimensions[col_letter].width = min(max_length + 2, 40)
     buf = io.BytesIO()
     wb.save(buf)
@@ -4832,9 +4909,9 @@ def export_pdf(title, headers, data):
 
 # ---- AUTH ----
 @app.post("/api/auth/login")
-def login(body: dict):
-    username = body.get("username", "")
-    password = body.get("password", "")
+def login(body: LoginIn):
+    username = body.username
+    password = body.password
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.username == username).first()
@@ -4865,8 +4942,8 @@ def login(body: dict):
 
 
 @app.post("/api/auth/refresh")
-def refresh_token(body: dict):
-    token = body.get("refresh_token", "")
+def refresh_token(body: RefreshIn):
+    token = body.refresh_token
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "refresh":
@@ -4930,19 +5007,17 @@ def get_user(uid: int, user: User = Depends(require_permission("users", "view"))
 
 
 @app.post("/api/users")
-def create_user(body: dict, user: User = Depends(require_permission("users", "create"))):
+def create_user(body: UserCreateIn, user: User = Depends(require_permission("users", "create"))):
     db = SessionLocal()
     try:
-        if db.query(User).filter(User.username == body.get("username", "")).first():
+        if db.query(User).filter(User.username == body.username).first():
             raise HTTPException(status_code=400, detail="Username already exists")
-        pw = body.get("password", "")
-        if len(pw) < 6:
-            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        pw = body.password
         pw_hash = bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
         new_user = User(
-            username=body["username"], password_hash=pw_hash,
-            full_name=body.get("full_name", ""), email=body.get("email", ""),
-            role=body.get("role", "viewer"), is_active=1,
+            username=body.username, password_hash=pw_hash,
+            full_name=body.full_name, email=body.email,
+            role=body.role, is_active=1,
         )
         db.add(new_user)
         db.commit()
@@ -4952,24 +5027,24 @@ def create_user(body: dict, user: User = Depends(require_permission("users", "cr
 
 
 @app.put("/api/users/{uid}")
-def update_user(uid: int, body: dict, user: User = Depends(require_permission("users", "edit"))):
+def update_user(uid: int, body: UserUpdateIn, user: User = Depends(require_permission("users", "edit"))):
     db = SessionLocal()
     try:
         target = db.query(User).filter(User.id == uid).first()
         if not target:
             raise HTTPException(status_code=404, detail="User not found")
-        if target.username == "admin" and body.get("role") and body["role"] != "admin":
+        if target.username == "admin" and body.role and body.role != "admin":
             raise HTTPException(status_code=400, detail="Cannot change admin role")
-        if "full_name" in body:
-            target.full_name = body["full_name"]
-        if "email" in body:
-            target.email = body["email"]
-        if "role" in body:
-            target.role = body["role"]
-        if "is_active" in body:
-            target.is_active = body["is_active"]
-        if body.get("password"):
-            target.password_hash = bcrypt.hashpw(body["password"].encode(), bcrypt.gensalt()).decode()
+        if body.full_name is not None:
+            target.full_name = body.full_name
+        if body.email is not None:
+            target.email = body.email
+        if body.role is not None:
+            target.role = body.role
+        if body.is_active is not None:
+            target.is_active = body.is_active
+        if body.password:
+            target.password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
         target.updated_at = datetime.utcnow()
         db.commit()
         return {"message": "User updated"}
@@ -4994,7 +5069,7 @@ def delete_user(uid: int, user: User = Depends(require_permission("users", "dele
 
 
 @app.put("/api/users/{uid}/password")
-def change_password(uid: int, body: dict, user: User = Depends(get_current_user)):
+def change_password(uid: int, body: ChangePasswordIn, user: User = Depends(get_current_user)):
     if user.id != uid and user.role != "admin":
         raise HTTPException(status_code=403, detail="Can only change own password")
     db = SessionLocal()
@@ -5003,16 +5078,14 @@ def change_password(uid: int, body: dict, user: User = Depends(get_current_user)
         if not target:
             raise HTTPException(status_code=404, detail="User not found")
         if user.role != "admin":
-            if not bcrypt.checkpw(body.get("current_password", "").encode(), target.password_hash.encode()):
+            if not bcrypt.checkpw(body.current_password.encode(), target.password_hash.encode()):
                 raise HTTPException(status_code=400, detail="Current password incorrect")
         elif user.id == uid:
-            if not body.get("current_password"):
+            if not body.current_password:
                 raise HTTPException(status_code=400, detail="Current password required")
-            if not bcrypt.checkpw(body["current_password"].encode(), target.password_hash.encode()):
+            if not bcrypt.checkpw(body.current_password.encode(), target.password_hash.encode()):
                 raise HTTPException(status_code=400, detail="Current password incorrect")
-        pw = body.get("new_password", "")
-        if len(pw) < 6:
-            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        pw = body.new_password
         target.password_hash = bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
         db.commit()
         return {"message": "Password changed"}

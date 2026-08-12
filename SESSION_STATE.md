@@ -127,6 +127,16 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Admin Password Change**: Now requires current password even for admins changing own password
 - [x] **Dashboard N+1 Fix**: Charts now use SQL GROUP BY instead of loading all Sales
 - [x] **GST Rate Dynamic**: Now reads from Settings model instead of hardcoded 18%
+
+## Code Quality (Aug 12, 2026)
+- [x] **Logging Added**: `import logging` + `logger = logging.getLogger("raksha-erp")` at top of main.py
+- [x] **15 Silent Error Handlers Fixed**: All `except: pass` blocks now log warnings/errors with context
+- [x] **19 Pydantic Validation Models**: Added LoginIn, RefreshIn, UserCreateIn, UserUpdateIn, ChangePasswordIn, PurchaseRateIn, PurchaseRateUpdateIn, BulkPurchaseRateIn, TransportUpdateIn, OrderStatusIn, WhatsAppSendIn, WhatsAppSendPIIn, WhatsAppSendPOIn, WhatsAppTestIn, SaleInvoiceIn, BulkPaymentIn, BulkLRIn, LRTrackingIn, SettingsUpdateIn
+- [x] **19 Endpoints Updated**: All raw `dict` params replaced with typed Pydantic models
+- [x] **Hardcoded Secrets Removed**: WhatsApp token/phone ID/business account ID no longer hardcoded as fallbacks in main.py
+- [x] **Test Files Cleaned**: test_sale.py and test_pdf.py now use env vars instead of hardcoded credentials
+- [x] **Frontend Silent Catch Fixed**: app.js auto-generate-tracking-urls now logs errors instead of swallowing them
+- [x] **SESSION_STATE.md Cleaned**: WhatsApp permanent token removed from plaintext
 - [x] **P&L Tax Rate Dynamic**: Now reads from Settings model instead of hardcoded 25%
 - [x] **editOrder Optimization**: Fetches single order instead of all orders
 - [x] **editExpense Optimization**: Fetches single expense instead of all expenses
@@ -141,7 +151,7 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 ## IMPORTANT: WhatsApp PDF Fix Needed on Render
 - **Root cause**: Test token can send text but NOT PDFs. Permanent token works for both.
 - **What user must do**: Update `WHATSAPP_TOKEN` env var on Render to permanent token, then Manual Deploy.
-- **Permanent token**: `EAIh7PXiG5U4BSC9DVTzhQAqwCA9oB2ZB4lB8OKYggcDqmBCBISoUWFpQtS97JgBFOGwgcgNB005tHuKedF8ORr3ccmEMDYoZCrDQPNYRD3l9yPAy6y4LngHZCZB2SjgneJj2i9oBzc6bonTVOUa45ZANFXXZBNLlFOPpcgr5hv2iS2ZCY88CubYhLK1L0KRGlRNagZDZD`
+- **Permanent token**: Set `WHATSAPP_TOKEN` env var on Render (see Render dashboard)
 - **Test phone**: +916366263535
 - **Verified**: Media upload + send works with permanent token (tested locally)
 
