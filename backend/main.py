@@ -128,27 +128,6 @@ def get_gst_rate():
     except Exception:
         return 18.0
 
-# Temp PDF storage for WhatsApp (no Cloudinary dependency)
-_TEMP_PDFS = {}
-_TEMP_PDFS_MAX_AGE = 3600  # 1 hour
-_TEMP_PDFS_MAX_SIZE = 100  # max entries
-
-@app.get("/api/whatsapp/temp-pdf/{pdf_id}")
-def serve_temp_pdf(pdf_id: str, user: User = Depends(get_current_user)):
-    # Cleanup old entries on access
-    now = time.time()
-    expired = [k for k, v in _TEMP_PDFS.items() if now - v.get("created_at", 0) > _TEMP_PDFS_MAX_AGE]
-    for k in expired:
-        del _TEMP_PDFS[k]
-    
-    data = _TEMP_PDFS.get(pdf_id)
-    if not data:
-        raise HTTPException(404, "PDF expired or not found")
-    del _TEMP_PDFS[pdf_id]
-    safe_filename = re.sub(r'[^\w\-.]', '_', data["filename"])
-    return Response(content=data["bytes"], media_type="application/pdf",
-                    headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'})
-
 ROLE_PERMISSIONS = {
     "admin": {
         "dashboard": ["view"],
@@ -221,6 +200,28 @@ def require_permission(module, action):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return user
     return dependency
+
+
+# Temp PDF storage for WhatsApp (no Cloudinary dependency)
+_TEMP_PDFS = {}
+_TEMP_PDFS_MAX_AGE = 3600  # 1 hour
+_TEMP_PDFS_MAX_SIZE = 100  # max entries
+
+@app.get("/api/whatsapp/temp-pdf/{pdf_id}")
+def serve_temp_pdf(pdf_id: str, user: User = Depends(get_current_user)):
+    # Cleanup old entries on access
+    now = time.time()
+    expired = [k for k, v in _TEMP_PDFS.items() if now - v.get("created_at", 0) > _TEMP_PDFS_MAX_AGE]
+    for k in expired:
+        del _TEMP_PDFS[k]
+    
+    data = _TEMP_PDFS.get(pdf_id)
+    if not data:
+        raise HTTPException(404, "PDF expired or not found")
+    del _TEMP_PDFS[pdf_id]
+    safe_filename = re.sub(r'[^\w\-.]', '_', data["filename"])
+    return Response(content=data["bytes"], media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'})
 
 
 class Product(Base):
