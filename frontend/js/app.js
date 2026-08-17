@@ -102,6 +102,8 @@ async function handleLogin(e) {
         _currentUser = data.user;
         hideLogin();
         applyRoleUI();
+        getSettingsCached();
+        getDiscountSchemeCached();
         go('dashboard');
         toast('Welcome, ' + (data.user.full_name || data.user.username) + '!');
     } catch(err) {
@@ -194,13 +196,39 @@ async function api(url, opts) {
     if (token) h['Authorization'] = 'Bearer ' + token;
     if (opts.headers) Object.assign(h, opts.headers);
     var r = await fetch(url, {method: opts.method || 'GET', headers: h, body: opts.body ? opts.body : undefined});
-    if (r.status === 401) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user');
-        _currentUser = null;
-        showLogin();
-        throw new Error('Session expired');
+    if (r.status === 401 && !url.includes('/api/auth/')) {
+        var refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+            try {
+                var refreshRes = await fetch('/api/auth/refresh', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({refresh_token: refreshToken})
+                });
+                if (refreshRes.ok) {
+                    var refreshData = await refreshRes.json();
+                    localStorage.setItem('access_token', refreshData.access_token);
+                    h['Authorization'] = 'Bearer ' + refreshData.access_token;
+                    r = await fetch(url, {method: opts.method || 'GET', headers: h, body: opts.body ? opts.body : undefined});
+                } else {
+                    throw new Error('Refresh failed');
+                }
+            } catch(e) {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('user');
+                _currentUser = null;
+                showLogin();
+                throw new Error('Session expired');
+            }
+        } else {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            _currentUser = null;
+            showLogin();
+            throw new Error('Session expired');
+        }
     }
     if (!r.ok) { 
         var eText = await r.text(); 
@@ -664,8 +692,8 @@ function editTransporter(id) {
     $('f-tcontactnum').value = t.contact_number || '';
     $('f-ttrackurl').value = t.tracking_url_pattern || '';
     $('f-tblacklisted').checked = t.blacklisted === 1;
-    $('f-tgstfile-name').innerHTML = t.gst_certificate ? '<a onclick="viewFileAuth(\'' + escapeHtml(t.gst_certificate) + '\')" class="text-blue-600 underline" style="cursor:pointer;">View uploaded file</a>' : '';
-    $('f-tpanfile-name').innerHTML = t.pan_card ? '<a onclick="viewFileAuth(\'' + escapeHtml(t.pan_card) + '\')" class="text-blue-600 underline" style="cursor:pointer;">View uploaded file</a>' : '';
+    $('f-tgstfile-name').innerHTML = t.gst_certificate ? '<a onclick="viewFileAuth(\'' + escapeHtml(t.gst_certificate).replace(/'/g, "\\'") + '\')" class="text-blue-600 underline" style="cursor:pointer;">View uploaded file</a>' : '';
+    $('f-tpanfile-name').innerHTML = t.pan_card ? '<a onclick="viewFileAuth(\'' + escapeHtml(t.pan_card).replace(/'/g, "\\'") + '\')" class="text-blue-600 underline" style="cursor:pointer;">View uploaded file</a>' : '';
     $('m-trans-title').textContent = 'Edit Transporter';
     showModal('m-transporter');
 }
@@ -1573,117 +1601,125 @@ function renderReportCharts(d) {
 // ---- FORM HANDLERS ----
 $('f-product').addEventListener('submit', async function(e) {
     e.preventDefault();
-    var id = $('f-pid').value;
-    var data = {
-        part_no: $('f-ppartno').value,
-        name: $('f-pname').value,
-        category: $('f-pcat').value,
-        size: $('f-psize').value,
-        load_rating: $('f-pload').value,
-        hsn_code: $('f-phsn').value
-    };
-    if (id) {
-        await api('/api/products/' + id, {method: 'PUT', body: JSON.stringify(data)});
-        toast('Product updated!');
-    } else {
-        await api('/api/products', {method: 'POST', body: JSON.stringify(data)});
-        toast('Product added!');
-    }
-    hideModal('m-product');
-    $('f-product').reset();
-    $('f-pid').value = '';
-    loadProducts();
+    try {
+        var id = $('f-pid').value;
+        var data = {
+            part_no: $('f-ppartno').value,
+            name: $('f-pname').value,
+            category: $('f-pcat').value,
+            size: $('f-psize').value,
+            load_rating: $('f-pload').value,
+            hsn_code: $('f-phsn').value
+        };
+        if (id) {
+            await api('/api/products/' + id, {method: 'PUT', body: JSON.stringify(data)});
+            toast('Product updated!');
+        } else {
+            await api('/api/products', {method: 'POST', body: JSON.stringify(data)});
+            toast('Product added!');
+        }
+        hideModal('m-product');
+        $('f-product').reset();
+        $('f-pid').value = '';
+        loadProducts();
+    } catch(err) { toast('Error: ' + err.message, true); }
 });
 
 $('f-pricing').addEventListener('submit', async function(e) {
     e.preventDefault();
-    var data = {
-        raw_material_cost: parseFloat($('f-praw').value) || 0,
-        mrp: parseFloat($('f-pmrp').value) || 0,
-        labor_cost: 0,
-        overhead_cost: 0,
-        packing_cost: 0,
-        profit_margin: 0,
-        gst_rate: parseFloat($('f-pgst').value) || 18
-    };
-    await api('/api/products/' + $('f-prpid').value + '/pricing', {method: 'PUT', body: JSON.stringify(data)});
-    hideModal('m-pricing');
-    toast('Pricing updated!');
-    loadProducts();
+    try {
+        var data = {
+            raw_material_cost: parseFloat($('f-praw').value) || 0,
+            mrp: parseFloat($('f-pmrp').value) || 0,
+            labor_cost: 0,
+            overhead_cost: 0,
+            packing_cost: 0,
+            profit_margin: 0,
+            gst_rate: parseFloat($('f-pgst').value) || 18
+        };
+        await api('/api/products/' + $('f-prpid').value + '/pricing', {method: 'PUT', body: JSON.stringify(data)});
+        hideModal('m-pricing');
+        toast('Pricing updated!');
+        loadProducts();
+    } catch(err) { toast('Error: ' + err.message, true); }
 });
 
 $('f-order').addEventListener('submit', async function(e) {
     e.preventDefault();
-    var id = $('f-oid').value;
-    var data = {
-        sl_no: parseInt($('f-oslno').value) || 0,
-        po_no: $('f-opo').value,
-        po_date: $('f-opodate').value,
-        customer_name: $('f-ocustname').value,
-        billing_site: $('f-obilling').value,
-        shipping_site: $('f-oshipping').value,
-        no_of_boxes: parseInt($('f-oboxes').value) || 0,
-        value_excl_gst_freight: parseFloat($('f-ovalue').value) || 0,
-        invoice_no: $('f-oinvno').value,
-        invoice_date: $('f-oinvdate').value,
-        invoice_amount_excl_gst: parseFloat($('f-oinvamt').value) || 0,
-        weight_kgs: parseFloat($('f-oweight').value) || 0,
-        freight_rate_per_kg: parseFloat($('f-ofrate').value) || 0,
-        transport_charges: parseFloat($('f-otcharges').value) || 0,
-        invoice_amount: parseFloat($('f-oiamt').value) || 0,
-        eway_bill_no: $('f-oeway').value,
-        lr_no: $('f-olr').value,
-        entry_date: $('f-oentrydate').value,
-        credit_note_amount: parseFloat($('f-ocnamt').value) || 0,
-        credit_note_no: $('f-ocnno').value,
-        transporter: $('f-otransporter').value,
-        transporter_no: $('f-otransno').value
-    };
-    if (id) {
-        await api('/api/orders/' + id, {method: 'PUT', body: JSON.stringify(data)});
-        toast('Order updated!');
-    } else {
-        await api('/api/orders', {method: 'POST', body: JSON.stringify(data)});
-        toast('Order created!');
-    }
-    hideModal('m-order');
-    $('f-order').reset();
-    $('f-oid').value = '';
-    loadOrders();
+    try {
+        var id = $('f-oid').value;
+        var data = {
+            sl_no: parseInt($('f-oslno').value) || 0,
+            po_no: $('f-opo').value,
+            po_date: $('f-opodate').value,
+            customer_name: $('f-ocustname').value,
+            billing_site: $('f-obilling').value,
+            shipping_site: $('f-oshipping').value,
+            no_of_boxes: parseInt($('f-oboxes').value) || 0,
+            value_excl_gst_freight: parseFloat($('f-ovalue').value) || 0,
+            invoice_no: $('f-oinvno').value,
+            invoice_date: $('f-oinvdate').value,
+            invoice_amount_excl_gst: parseFloat($('f-oinvamt').value) || 0,
+            weight_kgs: parseFloat($('f-oweight').value) || 0,
+            freight_rate_per_kg: parseFloat($('f-ofrate').value) || 0,
+            transport_charges: parseFloat($('f-otcharges').value) || 0,
+            invoice_amount: parseFloat($('f-oiamt').value) || 0,
+            eway_bill_no: $('f-oeway').value,
+            lr_no: $('f-olr').value,
+            entry_date: $('f-oentrydate').value,
+            credit_note_amount: parseFloat($('f-ocnamt').value) || 0,
+            credit_note_no: $('f-ocnno').value,
+            transporter: $('f-otransporter').value,
+            transporter_no: $('f-otransno').value
+        };
+        if (id) {
+            await api('/api/orders/' + id, {method: 'PUT', body: JSON.stringify(data)});
+            toast('Order updated!');
+        } else {
+            await api('/api/orders', {method: 'POST', body: JSON.stringify(data)});
+            toast('Order created!');
+        }
+        hideModal('m-order');
+        $('f-order').reset();
+        $('f-oid').value = '';
+        loadOrders();
+    } catch(err) { toast('Error: ' + err.message, true); }
 });
 
 $('f-customer').addEventListener('submit', async function(e) {
     e.preventDefault();
-    var id = $('f-cid').value;
-    var data = {
-        customer_id: $('f-ccustid').value,
-        gstin: $('f-cgstin').value,
-        billing_address: $('f-cbilladdr').value,
-        shipping_address: $('f-cshipaddr').value,
-        state: $('f-cstate').value,
-        district: $('f-cdistrict').value,
-        city: $('f-ccity').value,
-        pincode: $('f-cpincode').value,
-        contact_name: $('f-ccontactname').value,
-        contact_number: $('f-ccontactnum').value,
-        contact_email: $('f-ccontactemail').value,
-        exec_code: $('f-cexeccode').value,
-        exec_name: $('f-cexecname').value,
-        exec_number: $('f-cexecnum').value,
-        exec_email: $('f-cexecemail').value,
-        blacklisted: $('f-cblacklisted').checked ? 1 : 0
-    };
-    if (id) {
-        await api('/api/customers/' + id, {method: 'PUT', body: JSON.stringify(data)});
-        toast('Customer updated!');
-    } else {
-        await api('/api/customers', {method: 'POST', body: JSON.stringify(data)});
-        toast('Customer added!');
-    }
-    hideModal('m-customer');
-    $('f-customer').reset();
-    $('f-cid').value = '';
-    loadCustomers();
+    try {
+        var id = $('f-cid').value;
+        var data = {
+            customer_id: $('f-ccustid').value,
+            gstin: $('f-cgstin').value,
+            billing_address: $('f-cbilladdr').value,
+            shipping_address: $('f-cshipaddr').value,
+            state: $('f-cstate').value,
+            district: $('f-cdistrict').value,
+            city: $('f-ccity').value,
+            pincode: $('f-cpincode').value,
+            contact_name: $('f-ccontactname').value,
+            contact_number: $('f-ccontactnum').value,
+            contact_email: $('f-ccontactemail').value,
+            exec_code: $('f-cexeccode').value,
+            exec_name: $('f-cexecname').value,
+            exec_number: $('f-cexecnum').value,
+            exec_email: $('f-cexecemail').value,
+            blacklisted: $('f-cblacklisted').checked ? 1 : 0
+        };
+        if (id) {
+            await api('/api/customers/' + id, {method: 'PUT', body: JSON.stringify(data)});
+            toast('Customer updated!');
+        } else {
+            await api('/api/customers', {method: 'POST', body: JSON.stringify(data)});
+            toast('Customer added!');
+        }
+        hideModal('m-customer');
+        $('f-customer').reset();
+        $('f-cid').value = '';
+        loadCustomers();
+    } catch(err) { toast('Error: ' + err.message, true); }
 });
 
 $('f-transporter').addEventListener('submit', async function(e) {
@@ -1981,27 +2017,29 @@ $('f-sale').addEventListener('submit', async function(e) {
 
 $('f-expense').addEventListener('submit', async function(e) {
     e.preventDefault();
-    var id = $('f-eid') ? $('f-eid').value : '';
-    var data = {
-        category: $('f-ecat').value,
-        description: $('f-edesc').value,
-        amount: parseFloat($('f-eamt').value),
-        vendor: $('f-evendor').value,
-        expense_date: $('f-edate').value || null
-    };
-    if (id) {
-        await api('/api/expenses/' + id, {method: 'PUT', body: JSON.stringify(data)});
-        hideModal('m-expense');
-        $('f-expense').reset();
-        $('f-eid').value = '';
-        toast('Expense updated!');
-    } else {
-        await api('/api/expenses', {method: 'POST', body: JSON.stringify(data)});
-        hideModal('m-expense');
-        $('f-expense').reset();
-        toast('Expense added!');
-    }
-    loadExpenses();
+    try {
+        var id = $('f-eid') ? $('f-eid').value : '';
+        var data = {
+            category: $('f-ecat').value,
+            description: $('f-edesc').value,
+            amount: parseFloat($('f-eamt').value),
+            vendor: $('f-evendor').value,
+            expense_date: $('f-edate').value || null
+        };
+        if (id) {
+            await api('/api/expenses/' + id, {method: 'PUT', body: JSON.stringify(data)});
+            hideModal('m-expense');
+            $('f-expense').reset();
+            $('f-eid').value = '';
+            toast('Expense updated!');
+        } else {
+            await api('/api/expenses', {method: 'POST', body: JSON.stringify(data)});
+            hideModal('m-expense');
+            $('f-expense').reset();
+            toast('Expense added!');
+        }
+        loadExpenses();
+    } catch(err) { toast('Error: ' + err.message, true); }
 });
 
 // ---- CSV IMPORT ----
@@ -2370,21 +2408,11 @@ function calcProformaTotals() {
     var slabInfo = '';
     
     if (discountApplied && totalAmount >= 50100) {
-        var slabs = [
-            {min: 50100, max: 75000, additional: 2.50, info: '\u20B950,100 to \u20B975,000'},
-            {min: 75100, max: 100000, additional: 5.00, info: '\u20B975,100 to \u20B91,00,000'},
-            {min: 100001, max: 200000, additional: 7.00, info: '\u20B91,01,000 to \u20B92,00,000'},
-            {min: 200001, max: Infinity, additional: 9.00, info: '\u20B92,00,000 & Above'}
-        ];
-        for (var i = 0; i < slabs.length; i++) {
-            if (totalAmount >= slabs[i].min && totalAmount <= slabs[i].max) {
-                additionalDiscount = slabs[i].additional;
-                slabInfo = slabs[i].info;
-                break;
-            }
-        }
-        var totalDiscount = 54 + additionalDiscount;
-        discountAmount = totalAmount * totalDiscount / 100;
+        var discScheme = _discountSchemeCache || {base_discount: 54, slabs: []};
+        var discResult = calculateDiscountFromScheme(totalAmount, discScheme);
+        additionalDiscount = discResult.additional;
+        slabInfo = discResult.info;
+        discountAmount = totalAmount * discResult.total / 100;
     }
     
     var afterDiscount = totalAmount - discountAmount;
@@ -2468,6 +2496,43 @@ $('f-proforma-order').addEventListener('submit', async function(e) {
     }
 });
 
+var _settingsCache = null;
+var _settingsCacheTime = 0;
+async function getSettingsCached() {
+    var now = Date.now();
+    if (_settingsCache && (now - _settingsCacheTime) < 60000) return _settingsCache;
+    try {
+        _settingsCache = await api('/api/settings');
+        _settingsCacheTime = now;
+    } catch(e) { _settingsCache = {}; }
+    return _settingsCache;
+}
+
+var _discountSchemeCache = null;
+var _discountSchemeCacheTime = 0;
+async function getDiscountSchemeCached() {
+    var now = Date.now();
+    if (_discountSchemeCache && (now - _discountSchemeCacheTime) < 60000) return _discountSchemeCache;
+    try {
+        _discountSchemeCache = await api('/api/discount-scheme');
+        _discountSchemeCacheTime = now;
+    } catch(e) { _discountSchemeCache = {base_discount: 54, slabs: []}; }
+    return _discountSchemeCache;
+}
+
+function calculateDiscountFromScheme(basicValue, scheme) {
+    if (!scheme || basicValue < 50100) return {total: 0, additional: 0, info: ''};
+    var slabs = scheme.slabs || [];
+    for (var i = 0; i < slabs.length; i++) {
+        if (basicValue >= slabs[i].min && basicValue <= slabs[i].max) {
+            var total = scheme.base_discount + slabs[i].additional;
+            var info = slabs[i].max === Infinity ? '\u20B9' + slabs[i].min.toLocaleString('en-IN') + ' & Above' : '\u20B9' + slabs[i].min.toLocaleString('en-IN') + ' to \u20B9' + slabs[i].max.toLocaleString('en-IN');
+            return {total: total, additional: slabs[i].additional, info: info};
+        }
+    }
+    return {total: 0, additional: 0, info: ''};
+}
+
 function generateProformaPDF() {
     var orderType = $('f-pootype').value;
     var customerName = $('f-poocust').options[$('f-poocust').selectedIndex].text;
@@ -2500,14 +2565,15 @@ function generateProformaPDF() {
     COMPANY_HEADER += '<td style="text-align:right;">PAN No: ' + escapeHtml(bsPan) + '</td>';
     COMPANY_HEADER += '</tr></table></div>';
 
+    var _bk = _settingsCache || {};
     var BANK_DETAILS = '<div style="margin-top:15px;font-size:11px;">';
     BANK_DETAILS += '<h4 style="margin:0 0 6px 0;font-size:13px;">Bank Details</h4>';
     BANK_DETAILS += '<table style="font-size:11px;">';
-    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">Name:</td><td>Raksha Pipes Pvt. Ltd.</td></tr>';
-    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">Account Number:</td><td>004705011678</td></tr>';
-    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">Bank Name:</td><td>ICICI Bank Ltd.</td></tr>';
-    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">Branch Name:</td><td>Koramangala, Bengaluru</td></tr>';
-    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">IFSC Code:</td><td>ICIC0000047</td></tr>';
+    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">Name:</td><td>' + escapeHtml(_bk.bank_account_name || 'Raksha Pipes Pvt. Ltd.') + '</td></tr>';
+    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">Account Number:</td><td>' + escapeHtml(_bk.bank_account_number || '004705011678') + '</td></tr>';
+    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">Bank Name:</td><td>' + escapeHtml(_bk.bank_name || 'ICICI Bank Ltd.') + '</td></tr>';
+    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">Branch Name:</td><td>' + escapeHtml(_bk.bank_branch || 'Koramangala, Bengaluru') + '</td></tr>';
+    BANK_DETAILS += '<tr><td style="font-weight:bold;padding-right:10px;">IFSC Code:</td><td>' + escapeHtml(_bk.bank_ifsc || 'ICIC0000047') + '</td></tr>';
     BANK_DETAILS += '</table></div>';
 
     var itemsHtml = '';
@@ -2667,21 +2733,11 @@ function generateProformaPDF() {
         var additionalPercent = 0;
         var slabInfo = '';
         if (discountScheme && totalBasic >= 50100) {
-            var baseDiscount = 54;
-            var slabs = [
-                {min: 50100, max: 75000, additional: 2.50},
-                {min: 75100, max: 100000, additional: 5.00},
-                {min: 100001, max: 200000, additional: 7.00},
-                {min: 200001, max: Infinity, additional: 9.00}
-            ];
-            for (var s = 0; s < slabs.length; s++) {
-                if (totalBasic >= slabs[s].min && totalBasic <= slabs[s].max) {
-                    additionalPercent = slabs[s].additional;
-                    slabInfo = '₹' + slabs[s].min.toLocaleString('en-IN') + ' to ₹' + slabs[s].max.toLocaleString('en-IN');
-                    break;
-                }
-            }
-            discountPercent = baseDiscount + additionalPercent;
+            var discScheme = _discountSchemeCache || {base_discount: 54, slabs: []};
+            var discResult = calculateDiscountFromScheme(totalBasic, discScheme);
+            additionalPercent = discResult.additional;
+            discountPercent = discResult.total;
+            slabInfo = discResult.info;
             discountAmount = totalBasic * discountPercent / 100;
             subTotal = totalBasic - discountAmount;
         }
@@ -2810,6 +2866,14 @@ async function loadSettings() {
         h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Default GST Rate %</label><input type="number" min="0" max="100" step="0.01" id="s-gst" value="' + (s.default_gst_rate || '18') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
         h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Invoice Prefix</label><input type="text" id="s-invprefix" value="' + escapeHtml(s.invoice_prefix || 'RFRP-') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
         h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Tax Rate for P&L %</label><input type="number" min="0" max="100" step="0.01" id="s-taxrate" value="' + (s.tax_rate || '25') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div style="border-top:2px solid #f1f5f9;padding-top:16px;margin-top:8px;"><h4 style="font-weight:700;font-size:15px;margin-bottom:12px;">Bank Details (for PDF)</h4>';
+        h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Account Holder Name</label><input type="text" id="s-bankname" value="' + escapeHtml(s.bank_account_name || 'Raksha Pipes Pvt. Ltd.') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Account Number</label><input type="text" id="s-bankacc" value="' + escapeHtml(s.bank_account_number || '004705011678') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Bank Name</label><input type="text" id="s-bankbank" value="' + escapeHtml(s.bank_name || 'ICICI Bank Ltd.') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Branch</label><input type="text" id="s-bankbranch" value="' + escapeHtml(s.bank_branch || 'Koramangala, Bengaluru') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '<div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">IFSC Code</label><input type="text" id="s-bankifsc" value="' + escapeHtml(s.bank_ifsc || 'ICIC0000047') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:\'Inter\',sans-serif;"></div>';
+        h += '</div></div>';
         h += '<button onclick="saveSettings()" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:10px 28px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.3);transition:all 0.15s;border:none;margin-top:12px;" onmouseover="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 4px 16px rgba(16,185,129,0.4)\'" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'0 2px 8px rgba(16,185,129,0.3)\'">Save Settings</button>';
         h += '</div>';
         if (hasPermission('users', 'view')) {
@@ -2896,7 +2960,12 @@ async function saveSettings() {
         company_name: $('s-company').value,
         default_gst_rate: $('s-gst').value,
         invoice_prefix: $('s-invprefix').value,
-        tax_rate: $('s-taxrate').value
+        tax_rate: $('s-taxrate').value,
+        bank_account_name: $('s-bankname').value,
+        bank_account_number: $('s-bankacc').value,
+        bank_name: $('s-bankbank').value,
+        bank_branch: $('s-bankbranch').value,
+        bank_ifsc: $('s-bankifsc').value
     };
     await api('/api/settings', {method: 'PUT', body: JSON.stringify(data)});
     toast('Settings saved!');

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raksha ERP</title>
+    <meta name="description" content="Raksha ERP - Enterprise Resource Planning system for Raksha Pipes Private Limited">
+    <noscript><style>.hidden{display:block!important;}</style><div style="padding:40px;text-align:center;font-family:sans-serif;"><h1>JavaScript Required</h1><p>Raksha ERP requires JavaScript to run. Please enable JavaScript in your browser.</p></div></noscript>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -34,7 +36,7 @@
                 </div>
             </div>
         </div>
-        <nav class="p-4">
+        <nav class="p-4" role="navigation" aria-label="Main navigation">
             <a href="#" onclick="go('dashboard',this)" class="nav-btn active block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-home" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Dashboard</a>
             <a href="#" onclick="go('products',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-box" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Products</a>
             <a href="#" onclick="go('orders',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-clipboard-list" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Orders</a>
@@ -115,7 +117,7 @@
                     <div class="flex gap-2 items-center">
                         <div style="position:relative;">
                             <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-products" placeholder="Search products..." oninput="filterTable('t-products', this.value, [0,1,2,3,4,5])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+                            <input type="text" id="search-products" placeholder="Search products..." oninput="filterTable('t-products', this.value, [0,1,2,3,4,5])" aria-label="Search products" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
                         </div>
                         <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importProductsCSV(this)"></label>
                         <button onclick="dedupProducts()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(245,158,11,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-clone" style="margin-right:4px;"></i>Clean Dups</button>
@@ -142,7 +144,7 @@
                     <div class="flex gap-2 items-center">
                         <div style="position:relative;">
                             <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-orders" placeholder="Search orders..." oninput="filterTable('t-all-orders', this.value, [0,1,2,3,4,7,10])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:200px;">
+                            <input type="text" id="search-orders" placeholder="Search orders..." oninput="filterTable('t-all-orders', this.value, [0,1,2,3,4,7,10])" aria-label="Search orders" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:200px;">
                         </div>
                         <select id="f-orderfilter" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;font-family:'Inter',sans-serif;" onchange="loadAllOrders()">
                             <option value="">All Orders</option>
@@ -194,7 +196,7 @@
                     <div class="flex gap-2 items-center">
                         <div style="position:relative;">
                             <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-customers" placeholder="Search customers..." oninput="filterTable('t-customers', this.value, [0,1,2,3,4,5,6,7])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+                            <input type="text" id="search-customers" placeholder="Search customers..." oninput="filterTable('t-customers', this.value, [0,1,2,3,4,5,6,7])" aria-label="Search customers" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
                         </div>
                         <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importCustomersCSV(this)"></label>
                         <button onclick="showModal('m-customer')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Customer</button>
@@ -224,7 +226,7 @@
                     <div class="flex gap-2 items-center">
                         <div style="position:relative;">
                             <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-transporters" placeholder="Search transporters..." oninput="filterTable('t-transporters', this.value, [0,1,2,3,4,5,6])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+                            <input type="text" id="search-transporters" placeholder="Search transporters..." oninput="filterTable('t-transporters', this.value, [0,1,2,3,4,5,6])" aria-label="Search transporters" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
                         </div>
                         <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importTransportersCSV(this)"></label>
                         <button onclick="showModal('m-transporter')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Transporter</button>
@@ -253,7 +255,7 @@
                     <div class="flex gap-2 items-center">
                         <div style="position:relative;">
                             <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-purchase-rates" placeholder="Search rates..." oninput="filterTable('t-purchase-rates', this.value, [1,2,3,4,5])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+                            <input type="text" id="search-purchase-rates" placeholder="Search rates..." oninput="filterTable('t-purchase-rates', this.value, [1,2,3,4,5])" aria-label="Search purchase rates" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
                         </div>
                         <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importPurchaseRatesCSV(this)"></label>
                         <button onclick="showModal('m-purchase-rate')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Rate</button>
@@ -282,7 +284,7 @@
                     <div class="flex gap-2 items-center">
                         <div style="position:relative;">
                             <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-sales" placeholder="Search sales..." oninput="filterTable('t-sales', this.value, [0,1,2,3,4,9])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:200px;">
+                            <input type="text" id="search-sales" placeholder="Search sales..." oninput="filterTable('t-sales', this.value, [0,1,2,3,4,9])" aria-label="Search sales" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:200px;">
                         </div>
                         <div class="relative group">
                             <button style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-import" style="margin-right:4px;"></i>Import</button>
@@ -326,7 +328,7 @@
                     <div class="flex gap-2 items-center">
                         <div style="position:relative;">
                             <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-expenses" placeholder="Search expenses..." oninput="filterTable('t-expenses', this.value, [0,1,2,3])" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+                            <input type="text" id="search-expenses" placeholder="Search expenses..." oninput="filterTable('t-expenses', this.value, [0,1,2,3])" aria-label="Search expenses" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
                         </div>
                         <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importExpensesCSV(this)"></label>
                         <button onclick="showModal('m-expense')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Expense</button>
@@ -376,7 +378,7 @@
         </div>
     </main>
 
-    <div id="m-product" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-product" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-product-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-product-title">Add Product</h3>
@@ -402,7 +404,7 @@
         </div>
     </div>
 
-    <div id="m-pricing" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-pricing" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-pricing-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Set Pricing</h3>
@@ -421,7 +423,7 @@
         </div>
     </div>
 
-    <div id="m-order" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-order" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-order-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:800px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:10;border-radius:16px 16px 0 0;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-order-title">Add Order</h3>
@@ -487,7 +489,7 @@
         </div>
     </div>
 
-    <div id="m-proforma-order" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-proforma-order" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-proforma-order-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:95vw;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:10;border-radius:16px 16px 0 0;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-po-title">New PI/PO Order</h3>
@@ -596,7 +598,7 @@
         </div>
     </div>
 
-    <div id="m-customer" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-customer" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-customer-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:650px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-cust-title">Add Customer</h3>
@@ -647,7 +649,7 @@
         </div>
     </div>
 
-    <div id="m-transporter" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-transporter" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-transporter-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:650px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-trans-title">Add Transporter</h3>
@@ -706,7 +708,7 @@
         </div>
     </div>
 
-    <div id="m-purchase-rate" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-purchase-rate" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-purchase-rate-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-pr-title">Add Purchase Rate</h3>
@@ -728,7 +730,7 @@
         </div>
     </div>
 
-    <div id="m-whatsapp" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-whatsapp" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-whatsapp-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:450px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;display:flex;align-items:center;gap:8px;">
@@ -749,7 +751,7 @@
                     <button onclick="sendWhatsAppPI()" style="flex:1;background:#25d366;color:white;padding:10px;border-radius:8px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
                         <i class="fas fa-file-pdf"></i> Send PI
                     </button>
-                    <button onclick="sendWhatsAppPO()" style="flex:1;background:#075e54;color:white;padding:10px;border-radius:8px;font-weight:600;border:none;cursor-pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <button onclick="sendWhatsAppPO()" style="flex:1;background:#075e54;color:white;padding:10px;border-radius:8px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
                         <i class="fas fa-shopping-cart"></i> Send PO
                     </button>
                 </div>
@@ -758,7 +760,7 @@
         </div>
     </div>
 
-    <div id="m-sale" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-sale" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-sale-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:550px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-sale-title">New Sale</h3>
@@ -814,7 +816,7 @@
         </div>
     </div>
 
-    <div id="m-expense" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-expense" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-expense-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-expense-title">Add Expense</h3>
@@ -835,7 +837,7 @@
         </div>
     </div>
 
-    <div id="m-lr-tracking" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-lr-tracking" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-lr-tracking-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">LR Tracking</h3>
@@ -896,7 +898,7 @@
         </div>
     </div>
 
-    <div id="m-user" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div id="m-user" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-user-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-user-title">Add User</h3>
@@ -929,6 +931,6 @@
 
     <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl hidden" style="font-weight:600;font-size:14px;background:#10b981;"></div>
 
-    <script src="/static/js/app.js?v=20260806v2"></script>
+    <script src="/static/js/app.js?v=20260813v1"></script>
 </body>
 </html>

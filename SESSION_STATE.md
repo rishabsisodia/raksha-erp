@@ -148,6 +148,19 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Imports Cleanup**: Moved inline imports to top level (time, re, tempfile, uuid, csv, io)
 - [x] **get_gst_rate() Helper**: Reads GST rate from Settings, used in all PDF/calc functions
 
+## Code Quality - Round 2 (Aug 13, 2026)
+- [x] **5 Form Submit Handlers**: Added try-catch to product, pricing, order, customer, expense forms
+- [x] **XSS Fix**: onclick attributes now escape single quotes properly
+- [x] **Bank Details Dynamic**: PDF generation reads bank account info from Settings API (not hardcoded)
+- [x] **Discount Scheme Dynamic**: Frontend fetches discount scheme from API (not hardcoded)
+- [x] **Token Refresh**: api() function now attempts token refresh before logout on 401
+- [x] **CSS Fix**: `cursor-pointer` corrected to `cursor:pointer` on Send PO button
+- [x] **Responsive Design**: Added mobile breakpoints (1024px, 768px, 480px) for sidebar, tables, modals
+- [x] **Accessibility**: Added ARIA attributes to nav, search inputs, and all 12 modals
+- [x] **Meta Tags**: Added description, noscript fallback
+- [x] **Settings UI**: Added bank detail fields (account name, number, bank, branch, IFSC)
+- [x] **Cache Busting**: Updated to `?v=20260813v1`
+
 ## IMPORTANT: WhatsApp PDF Fix Needed on Render
 - **Root cause**: Test token can send text but NOT PDFs. Permanent token works for both.
 - **What user must do**: Update `WHATSAPP_TOKEN` env var on Render to permanent token, then Manual Deploy.
