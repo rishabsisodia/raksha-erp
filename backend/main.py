@@ -1749,25 +1749,29 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
 
         total_qty = 0
         total_basic = 0
+        total_basic_excl_cd = 0
 
         for item in inp.items:
             net = item.mrp
-            for d in [item.d1, item.d2, item.d3, item.d4, item.d5, item.cd]:
+            for d in [item.d1, item.d2, item.d3, item.d4, item.d5]:
                 net = net * (1 - d / 100)
-            item.net_rate = round(net, 2)
-            item.basic_amount = item.final_qty * item.net_rate
+            net_excl_cd = round(net, 2)
+            net_incl_cd = round(net * (1 - (item.cd or 0) / 100), 2)
+            item.net_rate = net_incl_cd
+            item.basic_amount = item.final_qty * net_incl_cd
             total_qty += item.final_qty
             total_basic += item.basic_amount
+            total_basic_excl_cd += item.final_qty * net_excl_cd
 
         gst_amount = total_basic * get_gst_rate() / 100
         
-        # Calculate discount scheme
+        # Calculate discount scheme on basic value EXCLUDING CD
         discount_pct = 0
         discount_amount = 0
         if inp.discount_scheme_applied:
-            discount_pct, additional_pct, slab_info = calculate_discount_scheme(total_basic)
+            discount_pct, additional_pct, slab_info = calculate_discount_scheme(total_basic_excl_cd)
             if discount_pct > 0:
-                discount_amount = total_basic * discount_pct / 100
+                discount_amount = total_basic_excl_cd * discount_pct / 100
         
         final_basic = total_basic - discount_amount
         gst_amount = final_basic * get_gst_rate() / 100
@@ -1837,14 +1841,18 @@ def update_proforma_order(oid: int, inp: ProformaOrderIn, user: User = Depends(r
 
         total_qty = 0
         total_basic = 0
+        total_basic_excl_cd = 0
         for idx, item in enumerate(inp.items):
             net = item.mrp
-            for d in [item.d1, item.d2, item.d3, item.d4, item.d5, item.cd]:
+            for d in [item.d1, item.d2, item.d3, item.d4, item.d5]:
                 net = net * (1 - d / 100)
-            item.net_rate = round(net, 2)
-            item.basic_amount = item.final_qty * item.net_rate
+            net_excl_cd = round(net, 2)
+            net_incl_cd = round(net * (1 - (item.cd or 0) / 100), 2)
+            item.net_rate = net_incl_cd
+            item.basic_amount = item.final_qty * net_incl_cd
             total_qty += item.final_qty
             total_basic += item.basic_amount
+            total_basic_excl_cd += item.final_qty * net_excl_cd
             db.add(ProformaOrderItem(
                 proforma_order_id=oid, sl_no=idx + 1,
                 product_id=item.product_id, part_no=item.part_no,
@@ -1858,13 +1866,13 @@ def update_proforma_order(oid: int, inp: ProformaOrderIn, user: User = Depends(r
                 basic_amount=item.basic_amount
             ))
 
-        # Calculate discount scheme
+        # Calculate discount scheme on basic value EXCLUDING CD
         discount_pct = 0
         discount_amount = 0
         if inp.discount_scheme_applied:
-            discount_pct, additional_pct, slab_info = calculate_discount_scheme(total_basic)
+            discount_pct, additional_pct, slab_info = calculate_discount_scheme(total_basic_excl_cd)
             if discount_pct > 0:
-                discount_amount = total_basic * discount_pct / 100
+                discount_amount = total_basic_excl_cd * discount_pct / 100
         
         final_basic = total_basic - discount_amount
         gst_amount = final_basic * get_gst_rate() / 100

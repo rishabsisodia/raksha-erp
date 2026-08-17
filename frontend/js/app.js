@@ -2322,7 +2322,7 @@ function addProformaItem() {
         product_id: 0, part_no: '', description: '', size: '', category: '',
         qty_boxes: 1, std_packaging: 1, pieces_per_box: 1, final_qty: 0,
         mrp: 0, d1: 0, d2: 0, d3: 0, d4: 0, d5: 0, cd: 0,
-        discount_percent: 0, net_rate: 0, lock_hinge: 0, basic_amount: 0
+        discount_percent: 0, net_rate: 0, net_rate_excl_cd: 0, lock_hinge: 0, basic_amount: 0
     });
     renderProformaItems();
 }
@@ -2407,8 +2407,9 @@ function calcProformaItemNetRate(idx) {
     net = net * (1 - (item.d3 || 0) / 100);
     net = net * (1 - (item.d4 || 0) / 100);
     net = net * (1 - (item.d5 || 0) / 100);
-    net = net * (1 - (item.cd || 0) / 100);
-    item.net_rate = Math.round(net * 100) / 100;
+    item.net_rate_excl_cd = Math.round(net * 100) / 100;
+    var netInclCd = net * (1 - (item.cd || 0) / 100);
+    item.net_rate = Math.round(netInclCd * 100) / 100;
     item.discount_percent = item.mrp > 0 ? Math.round((1 - item.net_rate / item.mrp) * 10000) / 100 : 0;
     calcProformaItemAmount(idx);
 }
@@ -2421,24 +2422,26 @@ function calcProformaItemAmount(idx) {
 function calcProformaTotals() {
     var totalQty = 0;
     var totalAmount = 0;
+    var totalAmountExclCd = 0;
     _proformaItems.forEach(function(item) {
         totalQty += item.final_qty || 0;
         totalAmount += item.basic_amount || 0;
+        totalAmountExclCd += (item.final_qty || 0) * (item.net_rate_excl_cd || item.mrp || 0);
     });
     var freight = parseFloat($('f-poofreight').value) || 0;
     
-    // Calculate discount scheme
+    // Calculate discount scheme on basic value EXCLUDING CD
     var discountApplied = $('f-poodiscount') && $('f-poodiscount').checked;
     var discountAmount = 0;
     var additionalDiscount = 0;
     var slabInfo = '';
     
-    if (discountApplied && totalAmount >= 50100) {
+    if (discountApplied && totalAmountExclCd >= 50100) {
         var discScheme = _discountSchemeCache || {base_discount: 54, slabs: []};
-        var discResult = calculateDiscountFromScheme(totalAmount, discScheme);
+        var discResult = calculateDiscountFromScheme(totalAmountExclCd, discScheme);
         additionalDiscount = discResult.additional;
         slabInfo = discResult.info;
-        discountAmount = totalAmount * discResult.total / 100;
+        discountAmount = totalAmountExclCd * discResult.total / 100;
     }
     
     var afterDiscount = totalAmount - discountAmount;
