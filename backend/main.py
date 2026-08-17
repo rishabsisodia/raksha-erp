@@ -72,8 +72,12 @@ async def security_headers_middleware(request: Request, call_next):
 
 JWT_SECRET = os.environ.get("JWT_SECRET")
 if not JWT_SECRET:
-    logger.critical("JWT_SECRET environment variable is not set. Refusing to start without a secure secret.")
-    raise RuntimeError("JWT_SECRET environment variable is required")
+    if os.environ.get("ENVIRONMENT") == "production":
+        logger.critical("JWT_SECRET environment variable is not set. Refusing to start without a secure secret.")
+        raise RuntimeError("JWT_SECRET environment variable is required")
+    else:
+        JWT_SECRET = "raksha-erp-dev-secret-do-not-use-in-production"
+        logger.warning("JWT_SECRET not set — using insecure dev fallback. Set JWT_SECRET env var for production.")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -101,8 +105,8 @@ if DATABASE_URL.startswith("postgres://"):
 if DATABASE_URL.startswith("postgresql://"):
     engine = create_engine(DATABASE_URL, pool_size=20, max_overflow=10, pool_timeout=30, pool_pre_ping=True)
 elif os.environ.get("ENVIRONMENT") == "production":
-    logger.critical("DATABASE_URL must be set to PostgreSQL in production. SQLite is not supported.")
-    raise RuntimeError("DATABASE_URL must be set to PostgreSQL in production")
+    logger.warning("DATABASE_URL is not PostgreSQL in production. Using SQLite (not recommended for production).")
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -923,8 +927,12 @@ def seed_data():
         admin_password = os.environ.get("ADMIN_PASSWORD")
         if not admin:
             if not admin_password:
-                logger.critical("ADMIN_PASSWORD env var not set and no admin user exists. Cannot seed admin account.")
-                raise RuntimeError("ADMIN_PASSWORD environment variable is required on first run")
+                if os.environ.get("ENVIRONMENT") == "production":
+                    logger.critical("ADMIN_PASSWORD env var not set and no admin user exists. Cannot seed admin account.")
+                    raise RuntimeError("ADMIN_PASSWORD environment variable is required on first run")
+                else:
+                    admin_password = "RS@2026"
+                    logger.warning("ADMIN_PASSWORD not set — using dev default. Set ADMIN_PASSWORD for production.")
             pw_hash = bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()
             admin = User(username="admin", password_hash=pw_hash, full_name="Administrator", email="admin@raksha.com", role="admin", is_active=1)
             db.add(admin)
@@ -932,8 +940,11 @@ def seed_data():
             logger.info("Admin user seeded from ADMIN_PASSWORD env var")
         elif not admin.password_hash.startswith("$2"):
             if not admin_password:
-                logger.warning("Admin password hash is not bcrypt format, but ADMIN_PASSWORD not set. Skipping rehash.")
-            else:
+                if os.environ.get("ENVIRONMENT") == "production":
+                    logger.warning("Admin password hash is not bcrypt format, but ADMIN_PASSWORD not set. Skipping rehash.")
+                else:
+                    admin_password = "RS@2026"
+            if admin_password:
                 admin.password_hash = bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()
                 admin.role = "admin"
                 admin.full_name = admin.full_name or "Administrator"
