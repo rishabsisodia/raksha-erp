@@ -5266,21 +5266,16 @@ def health_check():
         return JSONResponse(status_code=503, content={"status": "unhealthy", "database": "disconnected"})
 
 
-# ---- REQUEST SIZE LIMITS ----
+# ---- REQUEST SIZE LIMITS (via middleware) ----
 MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE", 10 * 1024 * 1024))  # 10MB default
 
-
-@app.post("/api/products/import")
-@app.post("/api/customers/import")
-@app.post("/api/transporters/import")
-@app.post("/api/purchase-rates/import")
-@app.post("/api/sales/import")
-@app.post("/api/expenses/import")
-async def check_upload_size(request: Request):
+@app.middleware("http")
+async def upload_size_limit_middleware(request: Request, call_next):
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB")
-    return await request.body()
+        if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH"):
+            return JSONResponse(status_code=413, content={"detail": f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB"})
+    return await call_next(request)
 
 
 # ---- FRONTEND ----
