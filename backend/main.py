@@ -1377,7 +1377,7 @@ DISCOUNT_SCHEME = {
         {"min": 50100, "max": 75000, "additional": 2.50},
         {"min": 75100, "max": 100000, "additional": 5.00},
         {"min": 100001, "max": 200000, "additional": 7.00},
-        {"min": 200001, "max": float('inf'), "additional": 9.00},
+        {"min": 200001, "max": 999999999, "additional": 9.00},
     ]
 }
 
@@ -1390,7 +1390,7 @@ def calculate_discount_scheme(basic_value):
     for slab in DISCOUNT_SCHEME["slabs"]:
         if slab["min"] <= basic_value <= slab["max"]:
             total = base + slab["additional"]
-            return (total, slab["additional"], f"₹{slab['min']:,} to ₹{slab['max']:,}" if slab["max"] != float('inf') else f"₹{slab['min']:,} & Above")
+            return (total, slab["additional"], f"₹{slab['min']:,} to ₹{slab['max']:,}" if slab["max"] < 999999999 else f"₹{slab['min']:,} & Above")
     
     return (0, 0, None)
 

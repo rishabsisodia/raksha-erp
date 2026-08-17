@@ -2553,7 +2553,7 @@ function calculateDiscountFromScheme(basicValue, scheme) {
     for (var i = 0; i < slabs.length; i++) {
         if (basicValue >= slabs[i].min && basicValue <= slabs[i].max) {
             var total = scheme.base_discount + slabs[i].additional;
-            var info = slabs[i].max === Infinity ? '\u20B9' + slabs[i].min.toLocaleString('en-IN') + ' & Above' : '\u20B9' + slabs[i].min.toLocaleString('en-IN') + ' to \u20B9' + slabs[i].max.toLocaleString('en-IN');
+            var info = slabs[i].max >= 999999999 ? '\u20B9' + slabs[i].min.toLocaleString('en-IN') + ' & Above' : '\u20B9' + slabs[i].min.toLocaleString('en-IN') + ' to \u20B9' + slabs[i].max.toLocaleString('en-IN');
             return {total: total, additional: slabs[i].additional, info: info};
         }
     }
