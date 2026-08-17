@@ -2206,6 +2206,7 @@ async function showProformaOrderModal() {
     $('f-pooid').value = '';
     $('m-po-title').textContent = 'New PI/PO Order';
     try { await refreshDropdowns(); } catch(e) { console.error('Failed to refresh dropdowns:', e); }
+    try { await getDiscountSchemeCached(); } catch(e) { console.error('Failed to load discount scheme:', e); }
     addProformaItem();
     $('m-proforma-order').classList.remove('hidden');
 }
@@ -2215,6 +2216,7 @@ async function editProformaOrder(id) {
     _editingProformaId = id;
     // Load purchase rates for GP calculation
     try { _purchaseRates = await api('/api/purchase-rates'); } catch(e) { _purchaseRates = []; }
+    try { await getDiscountSchemeCached(); } catch(e) { console.error('Failed to load discount scheme:', e); }
     $('f-pooid').value = id;
     $('f-pootype').value = order.order_type;
     $('f-poobilling').value = order.billing_site || '';
@@ -2478,7 +2480,8 @@ function calcProformaTotals() {
     $('pov-np').textContent = fmt(np);
 }
 
-function onDiscountSchemeChange() {
+async function onDiscountSchemeChange() {
+    try { await getDiscountSchemeCached(); } catch(e) {}
     calcProformaTotals();
 }
 
