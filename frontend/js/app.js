@@ -20,11 +20,11 @@ function escapeHtml(str) {
 }
 
 async function downloadExport(url) {
-    var token = localStorage.getItem('access_token');
+    var token = sessionStorage.getItem('access_token');
     if (!token) { showLogin(); return; }
     try {
         var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-        if (resp.status === 401) { localStorage.removeItem('access_token'); localStorage.removeItem('refresh_token'); localStorage.removeItem('user'); showLogin(); return; }
+        if (resp.status === 401) { sessionStorage.removeItem('access_token'); sessionStorage.removeItem('refresh_token'); sessionStorage.removeItem('user'); showLogin(); return; }
         if (!resp.ok) { toast('Export failed'); return; }
         var blob = await resp.blob();
         var disposition = resp.headers.get('content-disposition') || '';
@@ -42,11 +42,11 @@ async function downloadExport(url) {
 }
 
 async function viewFileAuth(url) {
-    var token = localStorage.getItem('access_token');
+    var token = sessionStorage.getItem('access_token');
     if (!token) { showLogin(); return; }
     try {
         var resp = await fetch('/api/view-file?url=' + encodeURIComponent(url), { headers: { 'Authorization': 'Bearer ' + token } });
-        if (resp.status === 401) { localStorage.removeItem('access_token'); localStorage.removeItem('refresh_token'); localStorage.removeItem('user'); showLogin(); return; }
+        if (resp.status === 401) { sessionStorage.removeItem('access_token'); sessionStorage.removeItem('refresh_token'); sessionStorage.removeItem('user'); showLogin(); return; }
         if (!resp.ok) { toast('Failed to load file'); return; }
         var blob = await resp.blob();
         var ct = resp.headers.get('content-type') || 'application/octet-stream';
@@ -96,9 +96,9 @@ async function handleLogin(e) {
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Invalid credentials');
-        localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('refresh_token', data.refresh_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        sessionStorage.setItem('access_token', data.access_token);
+        sessionStorage.setItem('refresh_token', data.refresh_token);
+        sessionStorage.setItem('user', JSON.stringify(data.user));
         _currentUser = data.user;
         hideLogin();
         applyRoleUI();
@@ -115,16 +115,16 @@ async function handleLogin(e) {
 }
 
 function handleLogout() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('user');
     _currentUser = null;
     showLogin();
 }
 
 function getUser() {
     if (!_currentUser) {
-        var stored = localStorage.getItem('user');
+        var stored = sessionStorage.getItem('user');
         if (stored) _currentUser = JSON.parse(stored);
     }
     return _currentUser;
@@ -192,12 +192,12 @@ function go(page, el) {
 async function api(url, opts) {
     opts = opts || {};
     var h = {'Content-Type': 'application/json'};
-    var token = localStorage.getItem('access_token');
+    var token = sessionStorage.getItem('access_token');
     if (token) h['Authorization'] = 'Bearer ' + token;
     if (opts.headers) Object.assign(h, opts.headers);
     var r = await fetch(url, {method: opts.method || 'GET', headers: h, body: opts.body ? opts.body : undefined});
     if (r.status === 401 && !url.includes('/api/auth/')) {
-        var refreshToken = localStorage.getItem('refresh_token');
+        var refreshToken = sessionStorage.getItem('refresh_token');
         if (refreshToken) {
             try {
                 var refreshRes = await fetch('/api/auth/refresh', {
@@ -207,24 +207,24 @@ async function api(url, opts) {
                 });
                 if (refreshRes.ok) {
                     var refreshData = await refreshRes.json();
-                    localStorage.setItem('access_token', refreshData.access_token);
+                    sessionStorage.setItem('access_token', refreshData.access_token);
                     h['Authorization'] = 'Bearer ' + refreshData.access_token;
                     r = await fetch(url, {method: opts.method || 'GET', headers: h, body: opts.body ? opts.body : undefined});
                 } else {
                     throw new Error('Refresh failed');
                 }
             } catch(e) {
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.removeItem('user');
+                sessionStorage.removeItem('access_token');
+                sessionStorage.removeItem('refresh_token');
+                sessionStorage.removeItem('user');
                 _currentUser = null;
                 showLogin();
                 throw new Error('Session expired');
             }
         } else {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('user');
+            sessionStorage.removeItem('access_token');
+            sessionStorage.removeItem('refresh_token');
+            sessionStorage.removeItem('user');
             _currentUser = null;
             showLogin();
             throw new Error('Session expired');
@@ -1761,7 +1761,7 @@ $('f-transporter').addEventListener('submit', async function(e) {
             var fd = new FormData();
             fd.append('file', gstFile);
             var uploadHeaders = {};
-            var token = localStorage.getItem('access_token');
+            var token = sessionStorage.getItem('access_token');
             if (token) uploadHeaders['Authorization'] = 'Bearer ' + token;
             var res = await fetch('/api/upload', {method: 'POST', headers: uploadHeaders, body: fd});
             var data = await res.json();
@@ -1779,7 +1779,7 @@ $('f-transporter').addEventListener('submit', async function(e) {
             var fd = new FormData();
             fd.append('file', panFile);
             var uploadHeaders = {};
-            var token = localStorage.getItem('access_token');
+            var token = sessionStorage.getItem('access_token');
             if (token) uploadHeaders['Authorization'] = 'Bearer ' + token;
             var res = await fetch('/api/upload', {method: 'POST', headers: uploadHeaders, body: fd});
             var data = await res.json();
@@ -2831,7 +2831,7 @@ function generateProformaPDF() {
 try { $('today-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'}); } catch(e) { console.error('Failed to set today date:', e); }
 try { $('f-edate').value = new Date().toISOString().split('T')[0]; } catch(e) { console.error('Failed to set expense date:', e); }
 var _user = getUser();
-if (!_user || !localStorage.getItem('access_token')) {
+if (!_user || !sessionStorage.getItem('access_token')) {
     showLogin();
 } else {
     applyRoleUI();

@@ -161,6 +161,33 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Settings UI**: Added bank detail fields (account name, number, bank, branch, IFSC)
 - [x] **Cache Busting**: Updated to `?v=20260813v1`
 
+## Security Hardening (Aug 17, 2026)
+- [x] **CRITICAL: JWT Secret Fail-Fast**: Removed hardcoded fallback, crashes if JWT_SECRET env var missing
+- [x] **CRITICAL: Admin Password from Env**: seed_data() uses ADMIN_PASSWORD env var, not hardcoded "RS@2026"
+- [x] **CRITICAL: Rate Limiting**: slowapi added, 5 req/min on login, 10 req/min on refresh
+- [x] **CRITICAL: Temp PDF Auth**: /api/whatsapp/temp-pdf/{pdf_id} now requires authentication
+- [x] **CORS from Env**: allow_origins reads from CORS_ORIGINS env var (comma-separated)
+- [x] **Password Validation**: 8+ chars, uppercase, lowercase, digit, special char required
+- [x] **db-info Restricted**: Admin-only, removed db_url_preview (leaked credentials)
+- [x] **Dependencies Pinned**: All versions pinned in requirements.txt, added slowapi
+- [x] **Token Storage**: Switched from localStorage to sessionStorage (XSS mitigation)
+- [x] **Security Headers**: X-Content-Type-Options, X-Frame-Options, CSP, HSTS, Referrer-Policy, Permissions-Policy
+- [x] **HTTPS Enforcement**: Middleware redirects HTTP to HTTPS in production
+- [x] **Token Expiry Reduced**: Access 8hr→30min, Refresh 30d→7d
+- [x] **Audit Logging**: AuditLog table + audit_log() function for user CRUD, login
+- [x] **datetime.utcnow Fixed**: All 22 occurrences replaced with datetime.now(timezone.utc)
+- [x] **Content-Disposition Sanitized**: Filename sanitized with regex to prevent header injection
+- [x] **DATABASE_URL Fail-Fast**: Production crashes if DATABASE_URL not PostgreSQL
+- [x] **CORS Preflight Cache**: max_age=600 reduces preflight OPTIONS requests
+- [x] **DB Connection Pooling**: pool_size=20, max_overflow=10, pool_pre_ping=True for PostgreSQL
+- [x] **Token Revocation**: TokenBlacklist model, old refresh tokens blacklisted on rotation
+- [x] **Health Endpoint**: GET /health checks DB connectivity
+- [x] **Request Size Limits**: MAX_UPLOAD_SIZE env var (default 10MB)
+- [x] **CDN SRI Hashes**: Font Awesome and Chart.js have integrity hashes
+- [x] **Meta Robots**: noindex, nofollow added
+- [x] **Last Admin Protection**: Role-based check prevents deleting last active admin
+- [x] **Refresh Token Rotation**: Old refresh token blacklisted on each refresh
+
 ## IMPORTANT: WhatsApp PDF Fix Needed on Render
 - **Root cause**: Test token can send text but NOT PDFs. Permanent token works for both.
 - **What user must do**: Update `WHATSAPP_TOKEN` env var on Render to permanent token, then Manual Deploy.

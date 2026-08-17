@@ -1,13 +1,17 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Query, Depends, status
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query, Depends, status, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response, HTMLResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Date, ForeignKey, Text, text, func
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from pydantic import BaseModel, Field
-from typing import Optional, List
-from datetime import datetime, date, timedelta
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Literal
+from datetime import datetime, date, timedelta, timezone
 import os
 import logging
 import cloudinary
@@ -30,17 +34,49 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 app = FastAPI(title="Raksha ERP")
 
+# Rate limiter (fix #3)
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, lambda request, exc: JSONResponse(
+    status_code=429, content={"detail": "Too many requests. Please try again later."}
+))
+app.add_middleware(SlowAPIMiddleware)
+
+# CORS from env var (fix #5) with preflight cache (fix #19)
+_cors_origins = os.environ.get("CORS_ORIGINS", "https://raksha-erp-deploy.onrender.com").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://raksha-erp-deploy.onrender.com"],
+    allow_origins=[o.strip() for o in _cors_origins if o.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
+    max_age=600,
 )
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "raksha-erp-secret-key-change-in-production")
+# Security headers middleware (fix #12) + HTTPS enforcement (fix #13)
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "0"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self';"
+        if not request.url.scheme == "https" and request.headers.get("x-forwarded-proto", "https") != "https":
+            if os.environ.get("ENVIRONMENT") == "production":
+                return JSONResponse(status_code=301, content={"detail": "HTTPS required"}, headers={"Strict-Transport-Security": "max-age=31536000; includeSubDomains"})
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+JWT_SECRET = os.environ.get("JWT_SECRET")
+if not JWT_SECRET:
+    logger.critical("JWT_SECRET environment variable is not set. Refusing to start without a secure secret.")
+    raise RuntimeError("JWT_SECRET environment variable is required")
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 480
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
 if CLOUDINARY_URL and "@" in CLOUDINARY_URL:
@@ -63,7 +99,10 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./raksha_erp.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 if DATABASE_URL.startswith("postgresql://"):
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(DATABASE_URL, pool_size=20, max_overflow=10, pool_timeout=30, pool_pre_ping=True)
+elif os.environ.get("ENVIRONMENT") == "production":
+    logger.critical("DATABASE_URL must be set to PostgreSQL in production. SQLite is not supported.")
+    raise RuntimeError("DATABASE_URL must be set to PostgreSQL in production")
 else:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -91,7 +130,7 @@ _TEMP_PDFS_MAX_AGE = 3600  # 1 hour
 _TEMP_PDFS_MAX_SIZE = 100  # max entries
 
 @app.get("/api/whatsapp/temp-pdf/{pdf_id}")
-def serve_temp_pdf(pdf_id: str):
+def serve_temp_pdf(pdf_id: str, user: User = Depends(get_current_user)):
     # Cleanup old entries on access
     now = time.time()
     expired = [k for k, v in _TEMP_PDFS.items() if now - v.get("created_at", 0) > _TEMP_PDFS_MAX_AGE]
@@ -102,8 +141,9 @@ def serve_temp_pdf(pdf_id: str):
     if not data:
         raise HTTPException(404, "PDF expired or not found")
     del _TEMP_PDFS[pdf_id]
+    safe_filename = re.sub(r'[^\w\-.]', '_', data["filename"])
     return Response(content=data["bytes"], media_type="application/pdf",
-                    headers={"Content-Disposition": f'attachment; filename="{data["filename"]}"'})
+                    headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'})
 
 ROLE_PERMISSIONS = {
     "admin": {
@@ -193,7 +233,7 @@ class Product(Base):
     hsn_code = Column(String, default="")
     pieces_per_box = Column(Integer, default=1)
     std_packaging = Column(Integer, default=1)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     pricing = relationship("Pricing", back_populates="product", uselist=False, cascade="all,delete-orphan")
 
 
@@ -234,7 +274,7 @@ class Customer(Base):
     exec_number = Column(String, default="")
     exec_email = Column(String, default="")
     blacklisted = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Transporter(Base):
@@ -257,7 +297,7 @@ class Transporter(Base):
     contact_number = Column(String, default="")
     tracking_url_pattern = Column(String, default="")
     blacklisted = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Sale(Base):
@@ -332,7 +372,7 @@ class Expense(Base):
     description = Column(String, default="")
     amount = Column(Float)
     vendor = Column(String, default="")
-    expense_date = Column(DateTime, default=datetime.utcnow)
+    expense_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Settings(Base):
@@ -352,8 +392,8 @@ class User(Base):
     role = Column(String, default="viewer")
     is_active = Column(Integer, default=1)
     last_login = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class Order(Base):
@@ -387,7 +427,7 @@ class ProformaOrder(Base):
     __tablename__ = "proforma_orders"
     id = Column(Integer, primary_key=True, index=True)
     pi_no = Column(String, unique=True)
-    pi_date = Column(DateTime, default=datetime.utcnow)
+    pi_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     customer_id = Column(Integer, ForeignKey("customers.id"))
     billing_site = Column(String, default="")
     shipping_site = Column(String, default="")
@@ -416,8 +456,8 @@ class ProformaOrder(Base):
     discount_scheme_applied = Column(Integer, default=0)
     discount_percent = Column(Float, default=0)
     discount_amount = Column(Float, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     customer = relationship("Customer")
     items = relationship("ProformaOrderItem", back_populates="proforma_order", cascade="all,delete-orphan")
 
@@ -447,7 +487,7 @@ class ProformaOrderItem(Base):
     net_rate = Column(Float, default=0)
     lock_hinge = Column(Integer, default=0)
     basic_amount = Column(Float, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     proforma_order = relationship("ProformaOrder", back_populates="items")
     product = relationship("Product")
 
@@ -472,7 +512,7 @@ class PurchaseRate(Base):
     rate = Column(Float, default=0)
     supplier = Column(String, default="")
     effective_date = Column(Date, default=date.today)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     product = relationship("Product")
 
 
@@ -484,22 +524,56 @@ class TransporterQuote(Base):
     rate_per_kg = Column(Float, default=0)
     total_cost = Column(Float, default=0)
     status = Column(String, default="pending")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     proforma_order = relationship("ProformaOrder")
     transporter = relationship("Transporter")
 
 
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=True)
+    username = Column(String, default="")
+    action = Column(String, nullable=False)
+    resource = Column(String, default="")
+    resource_id = Column(String, default="")
+    details = Column(Text, default="")
+    ip_address = Column(String, default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class TokenBlacklist(Base):
+    __tablename__ = "token_blacklist"
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(Text, nullable=False)
+    user_id = Column(Integer, nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+def audit_log(user, action, resource="", resource_id="", details="", request=None):
+    try:
+        db = SessionLocal()
+        ip = ""
+        if request:
+            ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
+        log = AuditLog(
+            user_id=user.id if user else None,
+            username=user.username if user else "system",
+            action=action, resource=resource, resource_id=str(resource_id),
+            details=details, ip_address=ip
+        )
+        db.add(log)
+        db.commit()
+        db.close()
+    except Exception as e:
+        logger.warning(f"Audit log failed: {e}")
+
+
 @app.get("/api/db-info")
-def db_info(user: User = Depends(get_current_user)):
-    db_url = os.environ.get("DATABASE_URL")
-    has_key = "DATABASE_URL" in os.environ
-    if db_url:
-        masked = db_url[:20] + "...(masked)"
-    else:
-        masked = None
+def db_info(user: User = Depends(require_permission("settings", "view"))):
     return {
-        "has_database_url_key": has_key,
-        "db_url_preview": masked,
+        "has_database_url_key": "DATABASE_URL" in os.environ,
         "env_key_count": len(os.environ)
     }
 
@@ -846,16 +920,25 @@ def seed_data():
     db = SessionLocal()
     try:
         admin = db.query(User).filter(User.username == "admin").first()
+        admin_password = os.environ.get("ADMIN_PASSWORD")
         if not admin:
-            pw_hash = bcrypt.hashpw("RS@2026".encode(), bcrypt.gensalt()).decode()
+            if not admin_password:
+                logger.critical("ADMIN_PASSWORD env var not set and no admin user exists. Cannot seed admin account.")
+                raise RuntimeError("ADMIN_PASSWORD environment variable is required on first run")
+            pw_hash = bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()
             admin = User(username="admin", password_hash=pw_hash, full_name="Administrator", email="admin@raksha.com", role="admin", is_active=1)
             db.add(admin)
             db.commit()
+            logger.info("Admin user seeded from ADMIN_PASSWORD env var")
         elif not admin.password_hash.startswith("$2"):
-            admin.password_hash = bcrypt.hashpw("RS@2026".encode(), bcrypt.gensalt()).decode()
-            admin.role = "admin"
-            admin.full_name = admin.full_name or "Administrator"
-            db.commit()
+            if not admin_password:
+                logger.warning("Admin password hash is not bcrypt format, but ADMIN_PASSWORD not set. Skipping rehash.")
+            else:
+                admin.password_hash = bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()
+                admin.role = "admin"
+                admin.full_name = admin.full_name or "Administrator"
+                db.commit()
+                logger.info("Admin password rehashed from ADMIN_PASSWORD env var")
 
         if db.query(Product).count() > 0:
             return
@@ -1147,10 +1230,30 @@ class RefreshIn(BaseModel):
 
 class UserCreateIn(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=8)
     full_name: str = ""
     email: str = ""
-    role: str = "viewer"
+    role: Literal["admin", "manager", "viewer"] = "viewer"
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v):
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("Password must contain at least one special character")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v):
+        if v and not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", v):
+            raise ValueError("Invalid email format")
+        return v
 
 class UserUpdateIn(BaseModel):
     full_name: Optional[str] = None
@@ -1161,7 +1264,20 @@ class UserUpdateIn(BaseModel):
 
 class ChangePasswordIn(BaseModel):
     current_password: str
-    new_password: str = Field(..., min_length=6)
+    new_password: str = Field(..., min_length=8)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v):
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("Password must contain at least one special character")
+        return v
 
 class PurchaseRateIn(BaseModel):
     product_id: int
@@ -1728,7 +1844,7 @@ def update_proforma_order(oid: int, inp: ProformaOrderIn, user: User = Depends(r
         order.discount_amount = discount_amount
         order.gst_amount = gst_amount
         order.total_amount = final_basic + gst_amount + inp.freight_amount
-        order.updated_at = datetime.utcnow()
+        order.updated_at = datetime.now(timezone.utc)
 
         db.commit()
         return {"message": "Order updated"}
@@ -2538,7 +2654,7 @@ def update_order_status(oid: int, inp: OrderStatusIn, user: User = Depends(get_c
         if new_status not in valid_statuses:
             raise HTTPException(400, f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
         order.status = new_status
-        order.updated_at = datetime.utcnow()
+        order.updated_at = datetime.now(timezone.utc)
         db.commit()
         return {"message": f"Order status updated to {new_status}"}
     finally:
@@ -3075,7 +3191,7 @@ def create_sale(inp: SaleIn, user: User = Depends(require_permission("sales", "c
             freight_amount=inp.freight_amount,
             payment_status=inp.payment_status, payment_method=inp.payment_method,
             notes=inp.notes, transporter_name=inp.transporter_name, lr_no=inp.lr_no,
-            invoice_value=inp.invoice_value, sale_date=datetime.utcnow()
+            invoice_value=inp.invoice_value, sale_date=datetime.now(timezone.utc)
         )
         if inp.customer_id:
             cust = db.query(Customer).filter(Customer.id == inp.customer_id).first()
@@ -3294,7 +3410,7 @@ def update_lr_tracking(sid: int, body: LRTrackingIn, user: User = Depends(requir
             s.lr_no = body.lr_no
         if body.tracking_url:
             s.lr_tracking_url = body.tracking_url
-        s.lr_last_checked = datetime.utcnow()
+        s.lr_last_checked = datetime.now(timezone.utc)
         db.commit()
         return {"message": "LR tracking updated"}
     finally:
@@ -3314,7 +3430,7 @@ def generate_tracking_url(sid: int, user: User = Depends(require_permission("sal
         if t and t.tracking_url_pattern:
             tracking_url = t.tracking_url_pattern.replace("{lr_no}", s.lr_no).replace("{LR_NO}", s.lr_no)
             s.lr_tracking_url = tracking_url
-            s.lr_last_checked = datetime.utcnow()
+            s.lr_last_checked = datetime.now(timezone.utc)
             db.commit()
             return {"tracking_url": tracking_url}
         name_lower = s.transporter_name.lower()
@@ -3332,7 +3448,7 @@ def generate_tracking_url(sid: int, user: User = Depends(require_permission("sal
             if key in name_lower:
                 tracking_url = pattern.replace("{lr_no}", s.lr_no)
                 s.lr_tracking_url = tracking_url
-                s.lr_last_checked = datetime.utcnow()
+                s.lr_last_checked = datetime.now(timezone.utc)
                 db.commit()
                 return {"tracking_url": tracking_url}
         return {"tracking_url": "", "message": "No tracking URL pattern configured for this transporter. Add one in Transporter settings."}
@@ -3607,7 +3723,7 @@ def fetch_tracking_status(sid: int, user: User = Depends(require_permission("sal
                 s.lr_tracking_status = "Delayed"
             else:
                 s.lr_tracking_status = status
-            s.lr_last_checked = datetime.utcnow()
+            s.lr_last_checked = datetime.now(timezone.utc)
             db.commit()
         if result.get("url") and not s.lr_tracking_url:
             s.lr_tracking_url = result["url"]
@@ -3647,7 +3763,7 @@ def fetch_tracking_bulk(user: User = Depends(require_permission("sales", "bulk_e
                         s.lr_tracking_status = "Delayed"
                     else:
                         s.lr_tracking_status = status
-                    s.lr_last_checked = datetime.utcnow()
+                    s.lr_last_checked = datetime.now(timezone.utc)
                     if result.get("url") and not s.lr_tracking_url:
                         s.lr_tracking_url = result["url"]
                     updated += 1
@@ -3692,7 +3808,7 @@ def get_expense(eid: int, user: User = Depends(get_current_user)):
 def create_expense(inp: ExpenseIn, user: User = Depends(require_permission("expenses", "create"))):
     db = SessionLocal()
     try:
-        dt = datetime.strptime(inp.expense_date, "%Y-%m-%d") if inp.expense_date else datetime.utcnow()
+        dt = datetime.strptime(inp.expense_date, "%Y-%m-%d") if inp.expense_date else datetime.now(timezone.utc)
         e = Expense(category=inp.category, description=inp.description,
                     amount=inp.amount, vendor=inp.vendor, expense_date=dt)
         db.add(e)
@@ -4383,7 +4499,7 @@ async def import_expenses_csv(file: UploadFile = File(...), user: User = Depends
                 except Exception:
                     logger.warning("Invalid expense date in CSV import: %s", date_str)
             if not dt:
-                dt = datetime.utcnow()
+                dt = datetime.now(timezone.utc)
             e = Expense(
                 category=category,
                 description=map_csv_col(row, ['Description', 'description']),
@@ -4909,7 +5025,8 @@ def export_pdf(title, headers, data):
 
 # ---- AUTH ----
 @app.post("/api/auth/login")
-def login(body: LoginIn):
+@limiter.limit("5/minute")
+def login(request: Request, body: LoginIn):
     username = body.username
     password = body.password
     db = SessionLocal()
@@ -4919,18 +5036,19 @@ def login(body: LoginIn):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         if not user.is_active:
             raise HTTPException(status_code=403, detail="Account disabled")
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now(timezone.utc)
         db.commit()
         access_token = jwt.encode(
             {"user_id": user.id, "role": user.role, "type": "access",
-             "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)},
+             "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)},
             JWT_SECRET, algorithm=JWT_ALGORITHM
         )
         refresh_token = jwt.encode(
             {"user_id": user.id, "type": "refresh",
-             "exp": datetime.utcnow() + timedelta(days=30)},
+             "exp": datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)},
             JWT_SECRET, algorithm=JWT_ALGORITHM
         )
+        audit_log(user, "login", details=f"User {username} logged in", request=request)
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -4942,28 +5060,49 @@ def login(body: LoginIn):
 
 
 @app.post("/api/auth/refresh")
-def refresh_token(body: RefreshIn):
+@limiter.limit("10/minute")
+def refresh_token(request: Request, body: RefreshIn):
     token = body.refresh_token
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
         user_id = payload.get("user_id")
+        jti = payload.get("jti")
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
     db = SessionLocal()
     try:
+        # Check if token is blacklisted (fix #21 - token revocation)
+        if jti:
+            bl = db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
+            if bl:
+                raise HTTPException(status_code=401, detail="Token has been revoked")
         user = db.query(User).filter(User.id == user_id, User.is_active == 1).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+        # Blacklist old refresh token (rotation)
+        if jti:
+            try:
+                old_exp = datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
+                db.add(TokenBlacklist(token=token, user_id=user_id, expires_at=old_exp))
+                db.commit()
+            except Exception as e:
+                logger.warning(f"Failed to blacklist old refresh token: {e}")
+        new_jti = str(uuid.uuid4())
         access_token = jwt.encode(
             {"user_id": user.id, "role": user.role, "type": "access",
-             "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)},
+             "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)},
             JWT_SECRET, algorithm=JWT_ALGORITHM
         )
-        return {"access_token": access_token, "token_type": "bearer"}
+        new_refresh_token = jwt.encode(
+            {"user_id": user.id, "type": "refresh", "jti": new_jti,
+             "exp": datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)},
+            JWT_SECRET, algorithm=JWT_ALGORITHM
+        )
+        return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
     finally:
         db.close()
 
@@ -5007,7 +5146,7 @@ def get_user(uid: int, user: User = Depends(require_permission("users", "view"))
 
 
 @app.post("/api/users")
-def create_user(body: UserCreateIn, user: User = Depends(require_permission("users", "create"))):
+def create_user(body: UserCreateIn, user: User = Depends(require_permission("users", "create")), request: Request = None):
     db = SessionLocal()
     try:
         if db.query(User).filter(User.username == body.username).first():
@@ -5021,13 +5160,15 @@ def create_user(body: UserCreateIn, user: User = Depends(require_permission("use
         )
         db.add(new_user)
         db.commit()
+        audit_log(user, "create_user", resource="users", resource_id=new_user.id,
+                  details=f"Created user {body.username} with role {body.role}", request=request)
         return {"message": "User created", "id": new_user.id}
     finally:
         db.close()
 
 
 @app.put("/api/users/{uid}")
-def update_user(uid: int, body: UserUpdateIn, user: User = Depends(require_permission("users", "edit"))):
+def update_user(uid: int, body: UserUpdateIn, user: User = Depends(require_permission("users", "edit")), request: Request = None):
     db = SessionLocal()
     try:
         target = db.query(User).filter(User.id == uid).first()
@@ -5045,24 +5186,32 @@ def update_user(uid: int, body: UserUpdateIn, user: User = Depends(require_permi
             target.is_active = body.is_active
         if body.password:
             target.password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
-        target.updated_at = datetime.utcnow()
+        target.updated_at = datetime.now(timezone.utc)
         db.commit()
+        audit_log(user, "update_user", resource="users", resource_id=uid,
+                  details=f"Updated user {target.username}", request=request)
         return {"message": "User updated"}
     finally:
         db.close()
 
 
 @app.delete("/api/users/{uid}")
-def delete_user(uid: int, user: User = Depends(require_permission("users", "delete"))):
+def delete_user(uid: int, user: User = Depends(require_permission("users", "delete")), request: Request = None):
     db = SessionLocal()
     try:
         target = db.query(User).filter(User.id == uid).first()
         if not target:
             raise HTTPException(status_code=404, detail="User not found")
-        if target.username == "admin":
-            raise HTTPException(status_code=400, detail="Cannot delete admin user")
+        # Prevent deleting the last admin (role-based, not username-based)
+        if target.role == "admin":
+            admin_count = db.query(User).filter(User.role == "admin", User.is_active == 1).count()
+            if admin_count <= 1:
+                raise HTTPException(status_code=400, detail="Cannot delete the last active admin user")
+        deleted_username = target.username
         db.delete(target)
         db.commit()
+        audit_log(user, "delete_user", resource="users", resource_id=uid,
+                  details=f"Deleted user {deleted_username}", request=request)
         return {"message": "User deleted"}
     finally:
         db.close()
@@ -5091,6 +5240,36 @@ def change_password(uid: int, body: ChangePasswordIn, user: User = Depends(get_c
         return {"message": "Password changed"}
     finally:
         db.close()
+
+
+# ---- HEALTH CHECK ----
+@app.get("/health")
+def health_check():
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "database": "disconnected"})
+
+
+# ---- REQUEST SIZE LIMITS ----
+MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE", 10 * 1024 * 1024))  # 10MB default
+
+
+@app.post("/api/products/import")
+@app.post("/api/customers/import")
+@app.post("/api/transporters/import")
+@app.post("/api/purchase-rates/import")
+@app.post("/api/sales/import")
+@app.post("/api/expenses/import")
+async def check_upload_size(request: Request):
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB")
+    return await request.body()
 
 
 # ---- FRONTEND ----
