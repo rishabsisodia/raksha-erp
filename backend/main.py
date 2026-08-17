@@ -26,6 +26,7 @@ import uuid
 import bcrypt
 import jwt
 import requests
+import threading
 from fpdf import FPDF
 from html import escape as escape_html
 
@@ -189,6 +190,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         user = db.query(User).filter(User.id == user_id).first()
         if not user or not user.is_active:
             raise HTTPException(status_code=401, detail="User not found or inactive")
+        db.expunge(user)
         return user
     finally:
         db.close()
@@ -206,19 +208,21 @@ def require_permission(module, action):
 _TEMP_PDFS = {}
 _TEMP_PDFS_MAX_AGE = 3600  # 1 hour
 _TEMP_PDFS_MAX_SIZE = 100  # max entries
+_TEMP_PDFS_LOCK = threading.Lock()
 
 @app.get("/api/whatsapp/temp-pdf/{pdf_id}")
 def serve_temp_pdf(pdf_id: str, user: User = Depends(get_current_user)):
     # Cleanup old entries on access
     now = time.time()
-    expired = [k for k, v in _TEMP_PDFS.items() if now - v.get("created_at", 0) > _TEMP_PDFS_MAX_AGE]
-    for k in expired:
-        del _TEMP_PDFS[k]
-    
-    data = _TEMP_PDFS.get(pdf_id)
-    if not data:
-        raise HTTPException(404, "PDF expired or not found")
-    del _TEMP_PDFS[pdf_id]
+    with _TEMP_PDFS_LOCK:
+        expired = [k for k, v in _TEMP_PDFS.items() if now - v.get("created_at", 0) > _TEMP_PDFS_MAX_AGE]
+        for k in expired:
+            del _TEMP_PDFS[k]
+        
+        data = _TEMP_PDFS.get(pdf_id)
+        if not data:
+            raise HTTPException(404, "PDF expired or not found")
+        del _TEMP_PDFS[pdf_id]
     safe_filename = re.sub(r'[^\w\-.]', '_', data["filename"])
     return Response(content=data["bytes"], media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'})
@@ -1664,9 +1668,15 @@ def get_proforma_order(oid: int, user: User = Depends(get_current_user)):
             raise HTTPException(404, "Order not found")
         cust = db.query(Customer).filter(Customer.id == o.customer_id).first()
         items = db.query(ProformaOrderItem).filter(ProformaOrderItem.proforma_order_id == o.id).order_by(ProformaOrderItem.sl_no).all()
+        # Batch load products to avoid N+1
+        product_ids = list(set(item.product_id for item in items if item.product_id))
+        products_map = {}
+        if product_ids:
+            products = db.query(Product).filter(Product.id.in_(product_ids)).all()
+            products_map = {p.id: p for p in products}
         items_out = []
         for item in items:
-            prod = db.query(Product).filter(Product.id == item.product_id).first()
+            prod = products_map.get(item.product_id)
             items_out.append({
                 "id": item.id, "sl_no": item.sl_no,
                 "product_id": item.product_id,
@@ -1717,16 +1727,25 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
 
         # Generate pi_no with retry to handle race conditions
         max_retries = 5
+        pi_no = None
         for attempt in range(max_retries):
             try:
                 max_id = db.query(func.max(ProformaOrder.id)).scalar() or 0
                 pi_no = f"RFC/{datetime.now().strftime('%y%m')}-{max_id + 1:03d}"
-                break
+                # Verify uniqueness before proceeding
+                existing = db.query(ProformaOrder).filter(ProformaOrder.pi_no == pi_no).first()
+                if not existing:
+                    break
+                # If duplicate, rollback and retry with fresh max_id
+                db.rollback()
+                time.sleep(0.1)
             except Exception:
                 if attempt == max_retries - 1:
                     raise
                 db.rollback()
                 time.sleep(0.1)
+        if not pi_no:
+            raise HTTPException(500, "Failed to generate unique PI number")
 
         total_qty = 0
         total_basic = 0
@@ -1899,7 +1918,7 @@ def get_product_details(pid: int, user: User = Depends(get_current_user)):
 
 
 @app.get("/api/proforma-orders/{oid}/pdf")
-def generate_proforma_order_pdf(oid: int):
+def generate_proforma_order_pdf(oid: int, user: User = Depends(require_permission("proforma_orders", "view"))):
     db = SessionLocal()
     try:
         order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
@@ -3528,7 +3547,7 @@ TRACKING_HEADERS = {
 def fetch_vrl_tracking(lr_no):
     try:
         url = f"https://vrlgroup.in/Track/LRNumber/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         rows = soup.select('table tr')
         statuses = []
@@ -3551,7 +3570,7 @@ def fetch_vrl_tracking(lr_no):
 def fetch_dtdc_tracking(lr_no):
     try:
         url = f"https://www.dtdc.in/tracking/dtdc-tracking-results.asp?Lrnos={lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         rows = soup.select('table tr')
         statuses = []
@@ -3574,7 +3593,7 @@ def fetch_dtdc_tracking(lr_no):
 def fetch_safexpress_tracking(lr_no):
     try:
         url = f"https://www.safexpress.com/track-trace/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         text = soup.get_text()
         statuses = []
@@ -3591,7 +3610,7 @@ def fetch_safexpress_tracking(lr_no):
 def fetch_gati_tracking(lr_no):
     try:
         url = f"https://www.gati.com/shipmentTracking/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         text = soup.get_text()
         statuses = []
@@ -3608,7 +3627,7 @@ def fetch_gati_tracking(lr_no):
 def fetch_professional_tracking(lr_no):
     try:
         url = f"https://www.professional.couriers.in/tracking/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         text = soup.get_text()
         statuses = []
@@ -3625,7 +3644,7 @@ def fetch_professional_tracking(lr_no):
 def fetch_ecom_express_tracking(lr_no):
     try:
         url = f"https://www.ecomexpress.in/tracking/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         text = soup.get_text()
         statuses = []
@@ -3642,7 +3661,7 @@ def fetch_ecom_express_tracking(lr_no):
 def fetch_delhivery_tracking(lr_no):
     try:
         url = f"https://www.delhivery.com/tracking/package/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False)
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         text = soup.get_text()
         statuses = []
@@ -3691,7 +3710,7 @@ def fetch_generic_tracking(lr_no, tracking_url_pattern):
         if not tracking_url_pattern:
             return {"status": "", "message": "No tracking URL pattern configured"}
         url = tracking_url_pattern.replace("{lr_no}", lr_no).replace("{LR_NO}", lr_no)
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=False, allow_redirects=True)
+        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True, allow_redirects=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         text = soup.get_text().lower()
         statuses = []
@@ -3820,7 +3839,10 @@ def get_expense(eid: int, user: User = Depends(get_current_user)):
 def create_expense(inp: ExpenseIn, user: User = Depends(require_permission("expenses", "create"))):
     db = SessionLocal()
     try:
-        dt = datetime.strptime(inp.expense_date, "%Y-%m-%d") if inp.expense_date else datetime.now(timezone.utc)
+        try:
+            dt = datetime.strptime(inp.expense_date, "%Y-%m-%d") if inp.expense_date else datetime.now(timezone.utc)
+        except ValueError:
+            raise HTTPException(400, f"Invalid date format: {inp.expense_date}. Use YYYY-MM-DD")
         e = Expense(category=inp.category, description=inp.description,
                     amount=inp.amount, vendor=inp.vendor, expense_date=dt)
         db.add(e)
@@ -4174,7 +4196,7 @@ async def import_orders_csv(file: UploadFile = File(...), user: User = Depends(r
                 "shipping_site": row.get('Shipping Site', '').strip(),
                 "no_of_boxes": int(parse_csv_amount(row.get('No. Of Boxes', '0'))),
                 "value_excl_gst_freight": parse_csv_amount(row.get('Value (excl. GST & Freight)', '0')),
-                "invoice_no": row.get('Invoice No.', '').strip().replace('-', '') if row.get('Invoice No.', '').strip() not in ('-', '–', '') else '',
+                "invoice_no": row.get('Invoice No.', '').strip().strip('-– ') if row.get('Invoice No.', '').strip() not in ('-', '–', '') else '',
                 "invoice_date": parse_csv_date(row.get('Invoice Date', '')),
                 "invoice_amount_excl_gst": parse_csv_amount(row.get('Invoice Amount (ex. GST)', '0')),
                 "weight_kgs": parse_csv_amount(row.get('Weight (Kg)', '0')),
@@ -5127,6 +5149,34 @@ def get_me(user: User = Depends(get_current_user)):
         "last_login": str(user.last_login) if user.last_login else None,
         "permissions": ROLE_PERMISSIONS.get(user.role, {}),
     }
+
+
+@app.post("/api/auth/logout")
+def logout(request: Request, user: User = Depends(get_current_user)):
+    body = None
+    try:
+        import asyncio
+        body = asyncio.get_event_loop().run_until_complete(request.body())
+    except Exception:
+        pass
+    if body:
+        try:
+            import json
+            data = json.loads(body)
+            refresh_token_str = data.get("refresh_token")
+            if refresh_token_str:
+                payload = jwt.decode(refresh_token_str, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_exp": False})
+                db = SessionLocal()
+                try:
+                    expires_at = datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
+                    db.add(TokenBlacklist(token=refresh_token_str, user_id=user.id, expires_at=expires_at))
+                    db.commit()
+                finally:
+                    db.close()
+        except Exception as e:
+            logger.warning(f"Logout blacklist failed: {e}")
+    audit_log(user, "logout", details=f"User {user.username} logged out", request=request)
+    return {"message": "Logged out"}
 
 
 @app.get("/api/users")

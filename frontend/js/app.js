@@ -115,6 +115,17 @@ async function handleLogin(e) {
 }
 
 function handleLogout() {
+    var refreshToken = sessionStorage.getItem('refresh_token');
+    if (refreshToken) {
+        try {
+            var token = sessionStorage.getItem('access_token');
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
+                body: JSON.stringify({refresh_token: refreshToken})
+            }).catch(function() {});
+        } catch(e) {}
+    }
     sessionStorage.removeItem('access_token');
     sessionStorage.removeItem('refresh_token');
     sessionStorage.removeItem('user');
@@ -247,6 +258,19 @@ function toast(msg, err) {
     $('toast').className = 'fixed bottom-4 right-4 text-white px-6 py-3 rounded-lg shadow-lg ' + (err ? 'bg-red-600' : 'bg-green-600');
     $('toast').classList.remove('hidden');
     setTimeout(function() { $('toast').classList.add('hidden'); }, 3000);
+}
+
+function showLoading(btn) {
+    if (!btn) return;
+    btn._originalText = btn.textContent;
+    btn.textContent = 'Loading...';
+    btn.disabled = true;
+}
+
+function hideLoading(btn) {
+    if (!btn) return;
+    btn.textContent = btn._originalText || 'Save';
+    btn.disabled = false;
 }
 
 function showLoading(tableId, colspan) {
