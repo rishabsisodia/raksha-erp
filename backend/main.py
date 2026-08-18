@@ -4385,18 +4385,21 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
         seen = {}
         removed = 0
         for p in products:
-            # Match by part_no if present, else by name
             key = (p.part_no.strip(), ) if p.part_no and p.part_no.strip() else (p.name.strip().lower(), )
             if key in seen:
-                if p.pricing and not seen[key].pricing:
-                    seen[key].pricing = p.pricing
+                keep = seen[key]
+                if p.pricing and not keep.pricing:
+                    keep.pricing = p.pricing
                     p.pricing = None
-                elif p.pricing and seen[key].pricing:
+                elif p.pricing and keep.pricing:
                     db.delete(p.pricing)
-                for sale in db.query(Sale).filter(Sale.product_id == p.id).all():
-                    sale.product_id = seen[key].id
-                for item in db.query(ProformaOrderItem).filter(ProformaOrderItem.product_id == p.id).all():
-                    item.product_id = seen[key].id
+                for model in [Sale, ProformaOrderItem]:
+                    for obj in db.query(model).filter(model.product_id == p.id).all():
+                        obj.product_id = keep.id
+                try:
+                    db.execute(text("UPDATE stock SET product_id = :keep_id WHERE product_id = :remove_id"), {"keep_id": keep.id, "remove_id": p.id})
+                except Exception:
+                    pass
                 db.delete(p)
                 removed += 1
             else:
