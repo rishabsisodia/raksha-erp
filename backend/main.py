@@ -560,6 +560,15 @@ class TokenBlacklist(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, nullable=False, index=True)
+    ip_address = Column(String, default="")
+    success = Column(Integer, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 def audit_log(user, action, resource="", resource_id="", details="", request=None):
     try:
         db = SessionLocal()
@@ -681,6 +690,13 @@ def startup_event():
             sgst_amount FLOAT DEFAULT 0,
             total_amount FLOAT DEFAULT 0,
             basic_amount FLOAT DEFAULT 0
+        )""")
+        safe_ddl("""CREATE TABLE IF NOT EXISTS login_attempts (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR NOT NULL,
+            ip_address VARCHAR DEFAULT '',
+            success INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""")
     backfill_part_numbers()
     backfill_pieces_per_box()
@@ -1244,6 +1260,20 @@ class LoginIn(BaseModel):
 class RefreshIn(BaseModel):
     refresh_token: str
 
+class LogoutIn(BaseModel):
+    refresh_token: Optional[str] = None
+
+def _validate_password(v):
+    if not re.search(r"[A-Z]", v):
+        raise ValueError("Password must contain at least one uppercase letter")
+    if not re.search(r"[a-z]", v):
+        raise ValueError("Password must contain at least one lowercase letter")
+    if not re.search(r"\d", v):
+        raise ValueError("Password must contain at least one digit")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+        raise ValueError("Password must contain at least one special character")
+    return v
+
 class UserCreateIn(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8)
@@ -1254,15 +1284,7 @@ class UserCreateIn(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v):
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain at least one digit")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
-            raise ValueError("Password must contain at least one special character")
-        return v
+        return _validate_password(v)
 
     @field_validator("email")
     @classmethod
@@ -1285,15 +1307,7 @@ class ChangePasswordIn(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_password_strength(cls, v):
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain at least one digit")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
-            raise ValueError("Password must contain at least one special character")
-        return v
+        return _validate_password(v)
 
 class PurchaseRateIn(BaseModel):
     product_id: int
@@ -2036,23 +2050,13 @@ def _generate_po_html(order, customer, items, pi_date, billing_site=None):
     # Calculate discount scheme
     discount_html = ""
     discount_amount = 0
-    if order.discount_scheme_applied and total_amount >= 50100:
-        slabs = [
-            (50100, 75000, 2.50),
-            (75100, 100000, 5.00),
-            (100001, 200000, 7.00),
-            (200001, float('inf'), 9.00),
-        ]
-        additional_discount = 0
-        for smin, smax, add in slabs:
-            if smin <= total_amount <= smax:
-                additional_discount = add
-                break
-        total_discount_pct = 54 + additional_discount
-        discount_amount = total_amount * total_discount_pct / 100
-        after_discount = total_amount - discount_amount
-        gst_amount = after_discount * get_gst_rate() / 100
-        grand_total = after_discount + gst_amount
+    if order.discount_scheme_applied:
+        total_discount_pct, _, _ = calculate_discount_scheme(total_amount)
+        if total_discount_pct > 0:
+            discount_amount = total_amount * total_discount_pct / 100
+            after_discount = total_amount - discount_amount
+            gst_amount = after_discount * get_gst_rate() / 100
+            grand_total = after_discount + gst_amount
         discount_html = f"""
         <tr style="font-weight:bold;color:#059669;">
             <td colspan="6" style="padding:6px 8px;border:1px solid #ccc;text-align:right;font-size:11px;">Discount Scheme ({total_discount_pct}%)</td>
@@ -2227,22 +2231,12 @@ def _generate_pi_html(order, customer, items, pi_date, billing_site=None):
     # Calculate discount scheme
     discount_html_row = ""
     discount_amount = 0
-    if order.discount_scheme_applied and sub_total >= 50100:
-        slabs = [
-            (50100, 75000, 2.50),
-            (75100, 100000, 5.00),
-            (100001, 200000, 7.00),
-            (200001, float('inf'), 9.00),
-        ]
-        additional_discount = 0
-        for smin, smax, add in slabs:
-            if smin <= sub_total <= smax:
-                additional_discount = add
-                break
-        total_discount_pct = 54 + additional_discount
-        discount_amount = sub_total * total_discount_pct / 100
-        sub_total = sub_total - discount_amount
-        discount_html_row = f'<tr><td style="padding:2px 8px;font-weight:bold;color:#059669;">DISCOUNT SCHEME ({total_discount_pct}%)</td><td style="text-align:right;padding:2px 8px;color:#059669;">-&#8377;{discount_amount:,.2f}</td></tr>'
+    if order.discount_scheme_applied:
+        total_discount_pct, _, _ = calculate_discount_scheme(sub_total)
+        if total_discount_pct > 0:
+            discount_amount = sub_total * total_discount_pct / 100
+            sub_total = sub_total - discount_amount
+            discount_html_row = f'<tr><td style="padding:2px 8px;font-weight:bold;color:#059669;">DISCOUNT SCHEME ({total_discount_pct}%)</td><td style="text-align:right;padding:2px 8px;color:#059669;">-&#8377;{discount_amount:,.2f}</td></tr>'
     
     gst = sub_total * get_gst_rate() / 100
     total_value = sub_total + gst
@@ -2681,8 +2675,18 @@ def update_transport(oid: int, inp: TransportUpdateIn, user: User = Depends(get_
         db.close()
 
 
+ORDER_STATUS_TRANSITIONS = {
+    "draft": ["confirmed"],
+    "confirmed": ["po_created", "draft"],
+    "po_created": ["transport_pending", "confirmed"],
+    "transport_pending": ["transport_finalized", "po_created"],
+    "transport_finalized": ["billing", "transport_pending"],
+    "billing": ["completed", "transport_finalized"],
+    "completed": [],
+}
+
 @app.put("/api/proforma-orders/{oid}/status")
-def update_order_status(oid: int, inp: OrderStatusIn, user: User = Depends(get_current_user)):
+def update_order_status(oid: int, inp: OrderStatusIn, user: User = Depends(require_permission("proforma_orders", "edit"))):
     db = SessionLocal()
     try:
         order = db.query(ProformaOrder).filter(ProformaOrder.id == oid).first()
@@ -2692,8 +2696,14 @@ def update_order_status(oid: int, inp: OrderStatusIn, user: User = Depends(get_c
         valid_statuses = ["draft", "confirmed", "po_created", "transport_pending", "transport_finalized", "billing", "completed"]
         if new_status not in valid_statuses:
             raise HTTPException(400, f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+        current_status = order.status or "draft"
+        allowed_next = ORDER_STATUS_TRANSITIONS.get(current_status, [])
+        if new_status not in allowed_next:
+            raise HTTPException(400, f"Cannot transition from '{current_status}' to '{new_status}'. Allowed: {', '.join(allowed_next) or 'none (terminal)'}")
         order.status = new_status
         order.updated_at = datetime.now(timezone.utc)
+        audit_log(user, "order_status_change", resource="proforma_order", resource_id=oid,
+                  details=f"Status: {current_status} → {new_status}")
         db.commit()
         return {"message": f"Order status updated to {new_status}"}
     finally:
@@ -3207,18 +3217,8 @@ def freight_summary(user: User = Depends(get_current_user)):
 def create_sale(inp: SaleIn, user: User = Depends(require_permission("sales", "create"))):
     db = SessionLocal()
     try:
-        # Generate invoice_no with retry to handle race conditions
-        max_retries = 5
-        for attempt in range(max_retries):
-            try:
-                max_id = db.query(func.max(Sale.id)).scalar() or 0
-                invoice_no = f"RFRP-{max_id + 1:05d}"
-                break
-            except Exception:
-                if attempt == max_retries - 1:
-                    raise
-                db.rollback()
-                time.sleep(0.1)
+        # Generate unique invoice_no using UUID to avoid race conditions
+        invoice_no = f"RFRP-{uuid.uuid4().hex[:8].upper()}"
 
         total_taxable = 0
         total_cgst = 0
@@ -4385,23 +4385,72 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
         seen = {}
         removed = 0
         for p in products:
-            key = (p.part_no or '', p.name or '')
+            # Match by part_no if present, else by name
+            key = (p.part_no.strip(), ) if p.part_no and p.part_no.strip() else (p.name.strip().lower(), )
             if key in seen:
-                # Merge pricing if needed
                 if p.pricing and not seen[key].pricing:
                     seen[key].pricing = p.pricing
                     p.pricing = None
                 elif p.pricing and seen[key].pricing:
                     db.delete(p.pricing)
-                # Re-point foreign keys referencing this product
                 for sale in db.query(Sale).filter(Sale.product_id == p.id).all():
                     sale.product_id = seen[key].id
+                for item in db.query(ProformaOrderItem).filter(ProformaOrderItem.product_id == p.id).all():
+                    item.product_id = seen[key].id
                 db.delete(p)
                 removed += 1
             else:
                 seen[key] = p
         db.commit()
         return {"removed": removed, "remaining": len(seen), "message": f"Removed {removed} duplicate products"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Dedup failed: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/api/customers/dedup")
+def dedup_customers(user: User = Depends(require_permission("customers", "edit"))):
+    db = SessionLocal()
+    try:
+        customers = db.query(Customer).order_by(Customer.id).all()
+        seen = {}
+        removed = 0
+        for c in customers:
+            key = (c.name.strip().lower(),) if c.name and c.name.strip() else (c.customer_id.strip(),)
+            if key in seen:
+                for sale in db.query(Sale).filter(Sale.customer_id == seen[key].id).all():
+                    pass
+                db.delete(c)
+                removed += 1
+            else:
+                seen[key] = c
+        db.commit()
+        return {"removed": removed, "remaining": len(seen), "message": f"Removed {removed} duplicate customers"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Dedup failed: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/api/transporters/dedup")
+def dedup_transporters(user: User = Depends(require_permission("transporters", "edit"))):
+    db = SessionLocal()
+    try:
+        transporters = db.query(Transporter).order_by(Transporter.id).all()
+        seen = {}
+        removed = 0
+        for t in transporters:
+            key = (t.name.strip().lower(),) if t.name and t.name.strip() else (t.transporter_id.strip(),)
+            if key in seen:
+                db.delete(t)
+                removed += 1
+            else:
+                seen[key] = t
+        db.commit()
+        return {"removed": removed, "remaining": len(seen), "message": f"Removed {removed} duplicate transporters"}
     except Exception as e:
         db.rollback()
         raise HTTPException(500, f"Dedup failed: {str(e)}")
@@ -5066,18 +5115,38 @@ def export_pdf(title, headers, data):
 
 
 # ---- AUTH ----
+LOGIN_LOCKOUT_THRESHOLD = 5
+LOGIN_LOCKOUT_MINUTES = 15
+
 @app.post("/api/auth/login")
 @limiter.limit("5/minute")
 def login(request: Request, body: LoginIn):
     username = body.username
     password = body.password
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
     db = SessionLocal()
     try:
+        # Check lockout
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+        recent_failures = db.query(LoginAttempt).filter(
+            LoginAttempt.username == username,
+            LoginAttempt.success == 0,
+            LoginAttempt.created_at > cutoff
+        ).count()
+        if recent_failures >= LOGIN_LOCKOUT_THRESHOLD:
+            logger.warning(f"Login locked out for {username} from {ip} ({recent_failures} failures)")
+            raise HTTPException(status_code=429, detail=f"Account locked. Try again in {LOGIN_LOCKOUT_MINUTES} minutes.")
+
         user = db.query(User).filter(User.username == username).first()
         if not user or not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
+            db.add(LoginAttempt(username=username, ip_address=ip, success=0))
+            db.commit()
             raise HTTPException(status_code=401, detail="Invalid credentials")
         if not user.is_active:
             raise HTTPException(status_code=403, detail="Account disabled")
+        # Clear failed attempts on success
+        db.query(LoginAttempt).filter(LoginAttempt.username == username, LoginAttempt.success == 0).delete()
+        db.add(LoginAttempt(username=username, ip_address=ip, success=1))
         user.last_login = datetime.now(timezone.utc)
         db.commit()
         access_token = jwt.encode(
@@ -5160,27 +5229,17 @@ def get_me(user: User = Depends(get_current_user)):
 
 
 @app.post("/api/auth/logout")
-def logout(request: Request, user: User = Depends(get_current_user)):
-    body = None
-    try:
-        import asyncio
-        body = asyncio.get_event_loop().run_until_complete(request.body())
-    except Exception:
-        pass
-    if body:
+def logout(inp: LogoutIn, user: User = Depends(get_current_user), request: Request = None):
+    if inp.refresh_token:
         try:
-            import json
-            data = json.loads(body)
-            refresh_token_str = data.get("refresh_token")
-            if refresh_token_str:
-                payload = jwt.decode(refresh_token_str, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_exp": False})
-                db = SessionLocal()
-                try:
-                    expires_at = datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
-                    db.add(TokenBlacklist(token=refresh_token_str, user_id=user.id, expires_at=expires_at))
-                    db.commit()
-                finally:
-                    db.close()
+            payload = jwt.decode(inp.refresh_token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_exp": False})
+            db = SessionLocal()
+            try:
+                expires_at = datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
+                db.add(TokenBlacklist(token=inp.refresh_token, user_id=user.id, expires_at=expires_at))
+                db.commit()
+            finally:
+                db.close()
         except Exception as e:
             logger.warning(f"Logout blacklist failed: {e}")
     audit_log(user, "logout", details=f"User {user.username} logged out", request=request)

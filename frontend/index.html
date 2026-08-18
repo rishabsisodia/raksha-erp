@@ -200,6 +200,7 @@
                             <input type="text" id="search-customers" placeholder="Search customers..." oninput="filterTable('t-customers', this.value, [0,1,2,3,4,5,6,7])" aria-label="Search customers" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
                         </div>
                         <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importCustomersCSV(this)"></label>
+                        <button onclick="dedupCustomers()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(245,158,11,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-clone" style="margin-right:4px;"></i>Clean Dups</button>
                         <button onclick="showModal('m-customer')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Customer</button>
                     </div>
                 </div>
@@ -230,6 +231,7 @@
                             <input type="text" id="search-transporters" placeholder="Search transporters..." oninput="filterTable('t-transporters', this.value, [0,1,2,3,4,5,6])" aria-label="Search transporters" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
                         </div>
                         <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importTransportersCSV(this)"></label>
+                        <button onclick="dedupTransporters()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(245,158,11,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-clone" style="margin-right:4px;"></i>Clean Dups</button>
                         <button onclick="showModal('m-transporter')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Transporter</button>
                     </div>
                 </div>
@@ -932,6 +934,6 @@
 
     <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl hidden" style="font-weight:600;font-size:14px;background:#10b981;"></div>
 
-    <script src="/static/js/app.js?v=20260813v1"></script>
+    <script src="/static/js/app.js?v=20260817v2"></script>
 </body>
 </html>

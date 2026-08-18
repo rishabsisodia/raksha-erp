@@ -260,19 +260,6 @@ function toast(msg, err) {
     setTimeout(function() { $('toast').classList.add('hidden'); }, 3000);
 }
 
-function showLoading(btn) {
-    if (!btn) return;
-    btn._originalText = btn.textContent;
-    btn.textContent = 'Loading...';
-    btn.disabled = true;
-}
-
-function hideLoading(btn) {
-    if (!btn) return;
-    btn.textContent = btn._originalText || 'Save';
-    btn.disabled = false;
-}
-
 function showLoading(tableId, colspan) {
     var tbody = document.getElementById(tableId);
     if (tbody) {
@@ -443,6 +430,24 @@ async function dedupProducts() {
         var r = await api('/api/products/dedup', {method: 'POST'});
         toast(r.message);
         loadProducts();
+    } catch(e) { toast('Dedup failed: ' + e.message, true); }
+}
+
+async function dedupCustomers() {
+    if (!confirm('Remove duplicate customers? Customers with the same Name will be merged.')) return;
+    try {
+        var r = await api('/api/customers/dedup', {method: 'POST'});
+        toast(r.message);
+        loadCustomers();
+    } catch(e) { toast('Dedup failed: ' + e.message, true); }
+}
+
+async function dedupTransporters() {
+    if (!confirm('Remove duplicate transporters? Transporters with the same Name will be merged.')) return;
+    try {
+        var r = await api('/api/transporters/dedup', {method: 'POST'});
+        toast(r.message);
+        loadTransporters();
     } catch(e) { toast('Dedup failed: ' + e.message, true); }
 }
 
@@ -1775,44 +1780,31 @@ $('f-transporter').addEventListener('submit', async function(e) {
     }
     
     var id = $('f-tid').value;
-    var gstCert = '';
-    var panCard = '';
-    
-    // Upload GST Certificate if selected
-    var gstFile = $('f-tgstfile').files[0];
-    if (gstFile) {
-        try {
-            var fd = new FormData();
-            fd.append('file', gstFile);
-            var uploadHeaders = {};
-            var token = sessionStorage.getItem('access_token');
-            if (token) uploadHeaders['Authorization'] = 'Bearer ' + token;
-            var res = await fetch('/api/upload', {method: 'POST', headers: uploadHeaders, body: fd});
-            var data = await res.json();
-            gstCert = data.url || '';
-        } catch(err) { console.error('GST upload failed:', err); }
-    } else if (id) {
-        var t = _transporters.find(function(x) { return x.id == id; });
-        if (t) gstCert = t.gst_certificate || '';
+
+    async function _uploadFile(fileInput, fallbackFn) {
+        var file = fileInput.files[0];
+        if (file) {
+            try {
+                var fd = new FormData();
+                fd.append('file', file);
+                var headers = {};
+                var token = sessionStorage.getItem('access_token');
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+                var res = await fetch('/api/upload', {method: 'POST', headers: headers, body: fd});
+                var data = await res.json();
+                return data.url || '';
+            } catch(err) { console.error('Upload failed:', err); return ''; }
+        }
+        return fallbackFn ? fallbackFn() : '';
     }
-    
-    // Upload PAN Card if selected
-    var panFile = $('f-tpanfile').files[0];
-    if (panFile) {
-        try {
-            var fd = new FormData();
-            fd.append('file', panFile);
-            var uploadHeaders = {};
-            var token = sessionStorage.getItem('access_token');
-            if (token) uploadHeaders['Authorization'] = 'Bearer ' + token;
-            var res = await fetch('/api/upload', {method: 'POST', headers: uploadHeaders, body: fd});
-            var data = await res.json();
-            panCard = data.url || '';
-        } catch(err) { console.error('PAN upload failed:', err); }
-    } else if (id) {
+    var gstCert = await _uploadFile($('f-tgstfile'), function() {
         var t = _transporters.find(function(x) { return x.id == id; });
-        if (t) panCard = t.pan_card || '';
-    }
+        return t ? t.gst_certificate || '' : '';
+    });
+    var panCard = await _uploadFile($('f-tpanfile'), function() {
+        var t = _transporters.find(function(x) { return x.id == id; });
+        return t ? t.pan_card || '' : '';
+    });
     
     var payload = {
         transporter_id: $('f-ttransid').value,
@@ -1921,7 +1913,7 @@ async function testWhatsApp() {
     }
 }
 
-async function sendWhatsAppPI() {
+async function _sendWhatsAppDoc(type) {
     var oid = $('f-waoid').value;
     var phone = $('f-waphone').value.trim();
     if (!phone || phone.length < 10) {
@@ -1932,18 +1924,17 @@ async function sendWhatsAppPI() {
     statusEl.style.display = 'block';
     statusEl.style.background = '#dbeafe';
     statusEl.style.color = '#1e40af';
-    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending PI...';
-    
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending ' + type.toUpperCase() + '...';
     try {
-        var result = await api('/api/whatsapp/send-pi/' + oid, {
+        var result = await api('/api/whatsapp/send-' + type + '/' + oid, {
             method: 'POST',
             body: JSON.stringify({phone: phone})
         });
         if (result.success) {
             statusEl.style.background = '#dcfce7';
             statusEl.style.color = '#166534';
-            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> PI sent successfully!';
-            toast('WhatsApp PI sent!');
+            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> ' + type.toUpperCase() + ' sent successfully!';
+            toast('WhatsApp ' + type.toUpperCase() + ' sent!');
         } else {
             statusEl.style.background = '#fef2f2';
             statusEl.style.color = '#991b1b';
@@ -1955,41 +1946,8 @@ async function sendWhatsAppPI() {
         statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Error: ' + e.message;
     }
 }
-
-async function sendWhatsAppPO() {
-    var oid = $('f-waoid').value;
-    var phone = $('f-waphone').value.trim();
-    if (!phone || phone.length < 10) {
-        toast('Enter a valid 10-digit phone number', true);
-        return;
-    }
-    var statusEl = $('wa-status');
-    statusEl.style.display = 'block';
-    statusEl.style.background = '#dbeafe';
-    statusEl.style.color = '#1e40af';
-    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending PO...';
-    
-    try {
-        var result = await api('/api/whatsapp/send-po/' + oid, {
-            method: 'POST',
-            body: JSON.stringify({phone: phone})
-        });
-        if (result.success) {
-            statusEl.style.background = '#dcfce7';
-            statusEl.style.color = '#166534';
-            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> PO sent successfully!';
-            toast('WhatsApp PO sent!');
-        } else {
-            statusEl.style.background = '#fef2f2';
-            statusEl.style.color = '#991b1b';
-            statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Failed: ' + (result.error || 'Unknown error');
-        }
-    } catch(e) {
-        statusEl.style.background = '#fef2f2';
-        statusEl.style.color = '#991b1b';
-        statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Error: ' + e.message;
-    }
-}
+function sendWhatsAppPI() { return _sendWhatsAppDoc('pi'); }
+function sendWhatsAppPO() { return _sendWhatsAppDoc('po'); }
 
 $('f-sale').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -2211,12 +2169,11 @@ async function showProformaOrderModal() {
     $('m-proforma-order').classList.remove('hidden');
 }
 
-async function editProformaOrder(id) {
+async function _loadProformaOrder(id, readonly) {
     var order = await api('/api/proforma-orders/' + id);
     _editingProformaId = id;
-    // Load purchase rates for GP calculation
     try { _purchaseRates = await api('/api/purchase-rates'); } catch(e) { _purchaseRates = []; }
-    try { await getDiscountSchemeCached(); } catch(e) { console.error('Failed to load discount scheme:', e); }
+    if (!readonly) { try { await getDiscountSchemeCached(); } catch(e) { console.error('Failed to load discount scheme:', e); } }
     $('f-pooid').value = id;
     $('f-pootype').value = order.order_type;
     $('f-poobilling').value = order.billing_site || '';
@@ -2227,86 +2184,26 @@ async function editProformaOrder(id) {
     $('f-poopaymethod').value = order.payment_method;
     $('f-poodelivery').value = order.delivery_days || 30;
     $('f-poonotes').value = order.notes || '';
-    $('m-po-title').textContent = 'Edit Order - ' + order.pi_no;
-
-    // Restore discount scheme state
+    $('m-po-title').textContent = (readonly ? 'View Order - ' : 'Edit Order - ') + order.pi_no;
     if ($('f-poodiscount')) $('f-poodiscount').checked = order.discount_scheme_applied === 1;
-
     await refreshDropdowns();
     $('f-poocust').value = order.customer_id;
-
     _proformaItems = order.items.map(function(item) {
         return {
-            product_id: item.product_id,
-            part_no: item.part_no,
-            description: item.description,
-            size: item.size,
-            category: item.category,
-            qty_boxes: item.qty_boxes,
-            std_packaging: item.std_packaging,
-            pieces_per_box: item.pieces_per_box,
-            final_qty: item.final_qty,
-            mrp: item.mrp,
-            d1: item.d1, d2: item.d2, d3: item.d3, d4: item.d4, d5: item.d5,
-            cd: item.cd,
-            discount_percent: item.discount_percent,
-            net_rate: item.net_rate,
-            lock_hinge: item.lock_hinge,
-            basic_amount: item.basic_amount
+            product_id: item.product_id, part_no: item.part_no, description: item.description,
+            size: item.size, category: item.category, qty_boxes: item.qty_boxes,
+            std_packaging: item.std_packaging, pieces_per_box: item.pieces_per_box, final_qty: item.final_qty,
+            mrp: item.mrp, d1: item.d1, d2: item.d2, d3: item.d3, d4: item.d4, d5: item.d5,
+            cd: item.cd, discount_percent: item.discount_percent, net_rate: item.net_rate,
+            lock_hinge: item.lock_hinge, basic_amount: item.basic_amount
         };
     });
     renderProformaItems();
     calcProformaTotals();
     $('m-proforma-order').classList.remove('hidden');
 }
-
-async function viewProformaOrder(id) {
-    var order = await api('/api/proforma-orders/' + id);
-    _editingProformaId = id;
-    // Load purchase rates for GP calculation
-    try { _purchaseRates = await api('/api/purchase-rates'); } catch(e) { _purchaseRates = []; }
-    $('f-pooid').value = id;
-    $('f-pootype').value = order.order_type;
-    $('f-poobilling').value = order.billing_site || '';
-    onBillingSiteChange();
-    $('f-pooshipping').value = order.shipping_site || '';
-    $('f-poofreight').value = order.freight_amount || 0;
-    $('f-poopaystatus').value = order.payment_status;
-    $('f-poopaymethod').value = order.payment_method;
-    $('f-poodelivery').value = order.delivery_days || 30;
-    $('f-poonotes').value = order.notes || '';
-    $('m-po-title').textContent = 'View Order - ' + order.pi_no;
-
-    // Restore discount scheme state
-    if ($('f-poodiscount')) $('f-poodiscount').checked = order.discount_scheme_applied === 1;
-
-    await refreshDropdowns();
-    $('f-poocust').value = order.customer_id;
-
-    _proformaItems = order.items.map(function(item) {
-        return {
-            product_id: item.product_id,
-            part_no: item.part_no,
-            description: item.description,
-            size: item.size,
-            category: item.category,
-            qty_boxes: item.qty_boxes,
-            std_packaging: item.std_packaging,
-            pieces_per_box: item.pieces_per_box,
-            final_qty: item.final_qty,
-            mrp: item.mrp,
-            d1: item.d1, d2: item.d2, d3: item.d3, d4: item.d4, d5: item.d5,
-            cd: item.cd,
-            discount_percent: item.discount_percent,
-            net_rate: item.net_rate,
-            lock_hinge: item.lock_hinge,
-            basic_amount: item.basic_amount
-        };
-    });
-    renderProformaItems();
-    calcProformaTotals();
-    $('m-proforma-order').classList.remove('hidden');
-}
+function editProformaOrder(id) { return _loadProformaOrder(id, false); }
+function viewProformaOrder(id) { return _loadProformaOrder(id, true); }
 
 async function deleteProformaOrder(id) {
     if (!confirm('Delete this order?')) return;
