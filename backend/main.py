@@ -4250,7 +4250,7 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
                     p.pricing = None
                 elif p.pricing and keep.pricing:
                     db.delete(p.pricing)
-                for model in [Sale, ProformaOrderItem]:
+                for model in [Sale, ProformaOrderItem, SaleItem, PurchaseRate]:
                     for obj in db.query(model).filter(model.product_id == p.id).all():
                         obj.product_id = keep.id
                 for tbl in ["stock"]:
