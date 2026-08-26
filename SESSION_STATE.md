@@ -70,9 +70,10 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Customer Dropdown Fix**: Shows party_name for unlinked CSV-imported sales
 
 ## Important: Two Git Remotes
-- `origin` = raksha-erp-deploy.git
-- `original` = raksha-erp.git ← **Render connects here, deploy from `main` branch**
-- Always push to: `git push original master:main`
+- `origin` = raksha-erp-deploy.git ← **Render connects HERE, watches `master` branch**
+- `original` = raksha-erp.git ← secondary mirror
+- **Always push to BOTH**: `git push origin master` + `git push original master:main`
+- **Render auto-deploys from `origin/master`**
 - **Commit**: 5447f78 + 1c9234b + 8209112 + 72f7b54 + (N+1 fix + customer name fix + showModal fix)
 
 ## Completed Work
@@ -266,8 +267,8 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 # Login: admin / RS@2026
 
 # IMPORTANT: Do NOT try localhost — nothing runs locally
-# IMPORTANT: Render deploys from 'original' remote, 'main' branch
-# Push with: git push original master:main
+# IMPORTANT: Render deploys from 'origin' remote, 'master' branch
+# Push with: git push origin master (+ git push original master:main for mirror)
 
 # Test via API:
 # python -c "import requests; r=requests.post('https://raksha-erp-deploy.onrender.com/api/auth/login', json={'username':'admin','password':'RS@2026'}); print(r.json())"
