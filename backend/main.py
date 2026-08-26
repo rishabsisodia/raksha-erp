@@ -4255,10 +4255,15 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
                         obj.product_id = keep.id
                 try:
                     db.execute(text("UPDATE stock SET product_id = :keep_id WHERE product_id = :remove_id"), {"keep_id": keep.id, "remove_id": p.id})
-                except Exception:
-                    pass
-                db.delete(p)
-                removed += 1
+                    db.flush()
+                except Exception as e:
+                    logger.warning(f"Could not reassign stock for product {p.id}: {e}")
+                    continue
+                try:
+                    db.delete(p)
+                    removed += 1
+                except Exception as e:
+                    logger.warning(f"Could not delete duplicate product {p.id}: {e}")
             else:
                 seen[key] = p
         db.commit()
