@@ -101,7 +101,7 @@ header h2 {
     padding: 20px 24px;
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border-light);
-    transition: all var(--transition);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
 }
@@ -116,8 +116,8 @@ header h2 {
 }
 
 .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px rgba(0,0,0,0.12);
 }
 
 .stat-card.card-indigo::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
@@ -488,23 +488,12 @@ textarea {
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
 }
 
 /* ---- Date Filter Row ---- */
 input[type="date"].border {
     border-radius: var(--radius-sm);
-}
-
-/* ---- Status Badges ---- */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
 }
 
 /* ---- Scrollbar ---- */
@@ -625,12 +614,12 @@ button.bg-indigo-600 {
 }
 
 /* ---- Search Input Styling ---- */
-input[oninput*="filterTable"] {
+.search-input {
     background: var(--surface);
     transition: all var(--transition);
 }
 
-input[oninput*="filterTable"]:focus {
+.search-input:focus {
     border-color: var(--primary) !important;
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
     width: 260px !important;
@@ -659,7 +648,7 @@ tbody tr:nth-child(9) { animation-delay: 0.18s; }
 tbody tr:nth-child(10) { animation-delay: 0.20s; }
 
 /* ---- Inline Status Dropdown ---- */
-select[onchange*="quickUpdateLrStatus"] {
+.lr-status-inline {
     appearance: none;
     -webkit-appearance: none;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
@@ -671,44 +660,21 @@ select[onchange*="quickUpdateLrStatus"] {
     transition: all 0.15s;
 }
 
-select[onchange*="quickUpdateLrStatus"]:hover {
+.lr-status-inline:hover {
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     transform: translateY(-1px);
 }
 
 /* ---- Card Hover Lift ---- */
-.stat-card {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px -8px rgba(0,0,0,0.12);
-}
 
 /* ---- Smooth Page Transitions ---- */
 [id^="p-"] {
     animation: fadeInUp 0.3s ease-out;
 }
 
-/* ---- Better Focus Ring ---- */
-input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
-}
-
 /* ---- Button Press Effect ---- */
 button:active {
     transform: scale(0.97);
-}
-
-/* ---- Gradient Text for Key Values ---- */
-.gradient-text {
-    background: linear-gradient(135deg, #4f46e5, #06b6d4);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
 
 /* ---- Responsive Design ---- */

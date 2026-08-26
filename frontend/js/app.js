@@ -12,6 +12,47 @@ var _currentUser = null;
 
 function $(id) { return document.getElementById(id); }
 
+var ORDER_STATUS_LABELS = {
+    'draft': 'Draft', 'confirmed': 'Confirmed', 'po_created': 'PO Created',
+    'transport_pending': 'Transport Pending', 'transport_finalized': 'Transport Finalized',
+    'billing': 'Billing', 'completed': 'Completed'
+};
+var ORDER_STATUSES = ['draft','confirmed','po_created','transport_pending','transport_finalized','billing','completed'];
+
+async function deleteEntity(endpoint, entityName, reloadFn) {
+    if (!confirm('Delete this ' + entityName + '?')) return;
+    try {
+        await api(endpoint, {method: 'DELETE'});
+        toast(entityName.charAt(0).toUpperCase() + entityName.slice(1) + ' deleted');
+        reloadFn();
+    } catch(e) { toast('Delete failed: ' + e.message, true); }
+}
+
+async function dedupEntity(endpoint, entityName, reloadFn) {
+    if (!confirm('Remove duplicate ' + entityName + 's? Duplicates will be merged.')) return;
+    try {
+        var r = await api(endpoint, {method: 'POST'});
+        toast(r.message);
+        reloadFn();
+    } catch(e) { toast('Dedup failed: ' + e.message, true); }
+}
+
+async function importFile(endpoint, input, label, reloadFn) {
+    var file = input.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    toast('Importing ' + label + '...');
+    try {
+        var r = await fetch(endpoint, {method: 'POST', body: fd});
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Import failed');
+        toast(d.message);
+        reloadFn();
+    } catch(e) { toast('Error: ' + e.message, true); }
+    input.value = '';
+}
+
 function escapeHtml(str) {
     if (!str) return '';
     var div = document.createElement('div');
@@ -415,41 +456,13 @@ function editProduct(id) {
     showModal('m-product');
 }
 
-async function deleteProduct(id) {
-    if (!confirm('Delete this product?')) return;
-    try {
-        await api('/api/products/' + id, {method: 'DELETE'});
-        toast('Product deleted');
-        loadProducts();
-    } catch(e) { toast('Delete failed: ' + e.message, true); }
-}
+async function deleteProduct(id) { deleteEntity('/api/products/' + id, 'product', loadProducts); }
 
-async function dedupProducts() {
-    if (!confirm('Remove duplicate products? Products with the same Part No or Name will be merged.')) return;
-    try {
-        var r = await api('/api/products/dedup', {method: 'POST'});
-        toast(r.message);
-        loadProducts();
-    } catch(e) { toast('Dedup failed: ' + e.message, true); }
-}
+async function dedupProducts() { dedupEntity('/api/products/dedup', 'product', loadProducts); }
 
-async function dedupCustomers() {
-    if (!confirm('Remove duplicate customers? Customers with the same Name will be merged.')) return;
-    try {
-        var r = await api('/api/customers/dedup', {method: 'POST'});
-        toast(r.message);
-        loadCustomers();
-    } catch(e) { toast('Dedup failed: ' + e.message, true); }
-}
+async function dedupCustomers() { dedupEntity('/api/customers/dedup', 'customer', loadCustomers); }
 
-async function dedupTransporters() {
-    if (!confirm('Remove duplicate transporters? Transporters with the same Name will be merged.')) return;
-    try {
-        var r = await api('/api/transporters/dedup', {method: 'POST'});
-        toast(r.message);
-        loadTransporters();
-    } catch(e) { toast('Dedup failed: ' + e.message, true); }
-}
+async function dedupTransporters() { dedupEntity('/api/transporters/dedup', 'transporter', loadTransporters); }
 
 async function openPricing(id) {
     $('f-prpid').value = id;
@@ -460,10 +473,6 @@ async function openPricing(id) {
         $('f-pgst').value = pr.gst_rate || 18;
     } catch(e) { console.error('Failed to load pricing:', e); }
     showModal('m-pricing');
-}
-
-async function loadOrders() {
-    await loadAllOrders();
 }
 
 async function loadAllOrders() {
@@ -536,11 +545,6 @@ async function loadAllOrders() {
         }
         var orderStatusBadge = '';
         if (r.order_status && r.order_status !== '-') {
-            var statusLabels = {
-                'draft': 'Draft', 'confirmed': 'Confirmed', 'po_created': 'PO Created',
-                'transport_pending': 'Transport Pending', 'transport_finalized': 'Transport Finalized',
-                'billing': 'Billing', 'completed': 'Completed'
-            };
             var osc = r.order_status === 'draft' ? 'bg-gray-100 text-gray-600'
                 : r.order_status === 'confirmed' ? 'bg-blue-100 text-blue-700'
                 : r.order_status === 'po_created' ? 'bg-indigo-100 text-indigo-700'
@@ -549,20 +553,14 @@ async function loadAllOrders() {
                 : r.order_status === 'billing' ? 'bg-purple-100 text-purple-700'
                 : r.order_status === 'completed' ? 'bg-green-100 text-green-700'
                 : 'bg-gray-100 text-gray-600';
-            orderStatusBadge = '<span class="px-2 py-1 rounded text-xs ' + osc + '">' + escapeHtml(statusLabels[r.order_status] || r.order_status) + '</span>';
+            orderStatusBadge = '<span class="px-2 py-1 rounded text-xs ' + osc + '">' + escapeHtml(ORDER_STATUS_LABELS[r.order_status] || r.order_status) + '</span>';
         }
-        var statusOptions = ['draft','confirmed','po_created','transport_pending','transport_finalized','billing','completed'];
-        var statusLabels = {
-            'draft': 'Draft', 'confirmed': 'Confirmed', 'po_created': 'PO Created',
-            'transport_pending': 'Transport Pending', 'transport_finalized': 'Transport Finalized',
-            'billing': 'Billing', 'completed': 'Completed'
-        };
         var statusSelect = '';
         if (r.type !== 'COGS') {
             statusSelect = '<select onchange="changeOrderStatus(' + r.id + ', this.value)" style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 4px;font-size:11px;font-family:Inter,sans-serif;cursor:pointer;">';
-            statusOptions.forEach(function(s) {
+            ORDER_STATUSES.forEach(function(s) {
                 var sel = r.order_status === s ? ' selected' : '';
-                statusSelect += '<option value="' + s + '"' + sel + '>' + statusLabels[s] + '</option>';
+                statusSelect += '<option value="' + s + '"' + sel + '>' + ORDER_STATUS_LABELS[s] + '</option>';
             });
             statusSelect += '</select>';
         }
@@ -604,7 +602,7 @@ function changeOrderStatus(orderId, newStatus) {
     }).then(function() {
         loadAllOrders();
     }).catch(function(e) {
-        alert('Failed to update status: ' + e.message);
+        toast('Failed to update status: ' + e.message, true);
     });
 }
 
@@ -641,14 +639,7 @@ async function editOrder(id) {
     }
 }
 
-async function deleteOrder(id) {
-    if (!confirm('Delete this order?')) return;
-    try {
-        await api('/api/orders/' + id, {method: 'DELETE'});
-        toast('Order deleted');
-        loadOrders();
-    } catch(e) { toast('Delete failed: ' + e.message, true); }
-}
+async function deleteOrder(id) { deleteEntity('/api/orders/' + id, 'order', loadAllOrders); }
 
 async function loadCustomers() {
     showLoading('t-customers', 10);
@@ -727,14 +718,7 @@ function editTransporter(id) {
     showModal('m-transporter');
 }
 
-async function deleteTransporter(id) {
-    if (!confirm('Delete this transporter?')) return;
-    try {
-        await api('/api/transporters/' + id, {method: 'DELETE'});
-        toast('Transporter deleted');
-        loadTransporters();
-    } catch(e) { toast('Delete failed: ' + e.message, true); }
-}
+async function deleteTransporter(id) { deleteEntity('/api/transporters/' + id, 'transporter', loadTransporters); }
 
 var _purchaseRates = [];
 async function loadPurchaseRates() {
@@ -775,14 +759,7 @@ async function editPurchaseRate(id) {
     showModal('m-purchase-rate');
 }
 
-async function deletePurchaseRate(id) {
-    if (!confirm('Delete this purchase rate?')) return;
-    try {
-        await api('/api/purchase-rates/' + id, {method: 'DELETE'});
-        toast('Purchase rate deleted');
-        loadPurchaseRates();
-    } catch(e) { toast('Delete failed: ' + e.message, true); }
-}
+async function deletePurchaseRate(id) { deleteEntity('/api/purchase-rates/' + id, 'purchase rate', loadPurchaseRates); }
 
 async function refreshProductDropdown() {
     if (!_products.length) _products = await api('/api/products');
@@ -844,14 +821,7 @@ function editCustomer(id) {
     showModal('m-customer');
 }
 
-async function deleteCustomer(id) {
-    if (!confirm('Delete this customer?')) return;
-    try {
-        await api('/api/customers/' + id, {method: 'DELETE'});
-        toast('Customer deleted');
-        loadCustomers();
-    } catch(e) { toast('Delete failed: ' + e.message, true); }
-}
+async function deleteCustomer(id) { deleteEntity('/api/customers/' + id, 'customer', loadCustomers); }
 
 try { $('f-csameaddr').addEventListener('change', function() {
     if (this.checked) {
@@ -946,14 +916,7 @@ async function addTransporterFromSales(name) {
     }
 }
 
-async function deleteSale(id) {
-    if (!confirm('Delete this sale?')) return;
-    try {
-        await api('/api/sales/' + id, {method: 'DELETE'});
-        toast('Sale deleted');
-        loadSales();
-    } catch(e) { toast('Delete failed: ' + e.message, true); }
-}
+async function deleteSale(id) { deleteEntity('/api/sales/' + id, 'sale', loadSales); }
 
 function showLrTrackingModal(saleId, lrNo, status, url, transporter) {
     $('f-lrsaleid').value = saleId;
@@ -1300,14 +1263,7 @@ async function editExpense(id) {
     }
 }
 
-async function deleteExpense(id) {
-    if (!confirm('Delete this expense?')) return;
-    try {
-        await api('/api/expenses/' + id, {method: 'DELETE'});
-        toast('Expense deleted');
-        loadExpenses();
-    } catch(e) { toast('Delete failed: ' + e.message, true); }
-}
+async function deleteExpense(id) { deleteEntity('/api/expenses/' + id, 'expense', loadExpenses); }
 
 async function loadDashboard() {
     try {
@@ -2025,139 +1981,16 @@ $('f-expense').addEventListener('submit', async function(e) {
 });
 
 // ---- CSV IMPORT ----
-async function importOrdersCSV(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var fd = new FormData();
-    fd.append('file', file);
-    toast('Importing orders...');
-    try {
-        var r = await fetch('/api/import/orders', {method: 'POST', body: fd});
-        var d = await r.json();
-        if (!r.ok) throw new Error(d.detail || 'Import failed');
-        toast(d.message);
-        loadAllOrders();
-    } catch(e) { toast('Error: ' + e.message, true); }
-    input.value = '';
-}
-
-async function importOrdersXLSX(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var fd = new FormData();
-    fd.append('file', file);
-    toast('Importing orders from XLSX...');
-    try {
-        var r = await fetch('/api/import/orders-xlsx', {method: 'POST', body: fd});
-        var d = await r.json();
-        if (!r.ok) throw new Error(d.detail || 'Import failed');
-        toast(d.message);
-        loadAllOrders();
-    } catch(e) { toast('Error: ' + e.message, true); }
-    input.value = '';
-}
-
-async function importSalesCSV(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var fd = new FormData();
-    fd.append('file', file);
-    toast('Importing sales...');
-    try {
-        var r = await fetch('/api/import/sales', {method: 'POST', body: fd});
-        var d = await r.json();
-        if (!r.ok) throw new Error(d.detail || 'Import failed');
-        toast(d.message);
-        loadSales();
-    } catch(e) { toast('Error: ' + e.message, true); }
-    input.value = '';
-}
-
-async function importSalesXLSX(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var fd = new FormData();
-    fd.append('file', file);
-    toast('Importing sales from XLSX...');
-    try {
-        var r = await fetch('/api/import/sales-xlsx', {method: 'POST', body: fd});
-        var d = await r.json();
-        if (!r.ok) throw new Error(d.detail || 'Import failed');
-        toast(d.message);
-        loadSales();
-    } catch(e) { toast('Error: ' + e.message, true); }
-    input.value = '';
-}
-
-async function importProductsCSV(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var fd = new FormData();
-    fd.append('file', file);
-    toast('Importing products...');
-    try {
-        var r = await fetch('/api/import/products', {method: 'POST', body: fd});
-        var d = await r.json();
-        if (!r.ok) throw new Error(d.detail || 'Import failed');
-        toast(d.message);
-        loadProducts();
-    } catch(e) { toast('Error: ' + e.message, true); }
-    input.value = '';
-}
-
-async function importCustomersCSV(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var fd = new FormData();
-    fd.append('file', file);
-    toast('Importing customers...');
-    try {
-        var r = await fetch('/api/import/customers', {method: 'POST', body: fd});
-        var d = await r.json();
-        if (!r.ok) throw new Error(d.detail || 'Import failed');
-        toast(d.message);
-        loadCustomers();
-    } catch(e) { toast('Error: ' + e.message, true); }
-    input.value = '';
-}
-
-async function importTransportersCSV(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var fd = new FormData();
-    fd.append('file', file);
-    toast('Importing transporters...');
-    try {
-        var r = await fetch('/api/import/transporters', {method: 'POST', body: fd});
-        var d = await r.json();
-        if (!r.ok) throw new Error(d.detail || 'Import failed');
-        toast(d.message);
-        loadTransporters();
-    } catch(e) { toast('Error: ' + e.message, true); }
-    input.value = '';
-}
-
-async function importExpensesCSV(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var fd = new FormData();
-    fd.append('file', file);
-    toast('Importing expenses...');
-    try {
-        var r = await fetch('/api/import/expenses', {method: 'POST', body: fd});
-        var d = await r.json();
-        if (!r.ok) throw new Error(d.detail || 'Import failed');
-        toast(d.message);
-        loadExpenses();
-    } catch(e) { toast('Error: ' + e.message, true); }
-    input.value = '';
-}
+async function importOrdersCSV(input) { importFile('/api/import/orders', input, 'orders', loadAllOrders); }
+async function importOrdersXLSX(input) { importFile('/api/import/orders-xlsx', input, 'orders from XLSX', loadAllOrders); }
+async function importSalesCSV(input) { importFile('/api/import/sales', input, 'sales', loadSales); }
+async function importSalesXLSX(input) { importFile('/api/import/sales-xlsx', input, 'sales from XLSX', loadSales); }
+async function importProductsCSV(input) { importFile('/api/import/products', input, 'products', loadProducts); }
+async function importCustomersCSV(input) { importFile('/api/import/customers', input, 'customers', loadCustomers); }
+async function importTransportersCSV(input) { importFile('/api/import/transporters', input, 'transporters', loadTransporters); }
+async function importExpensesCSV(input) { importFile('/api/import/expenses', input, 'expenses', loadExpenses); }
 
 // ---- PROFORMA ORDERS (PI/PO) ----
-async function loadProformaOrders() {
-    await loadAllOrders();
-}
-
 async function showProformaOrderModal() {
     _editingProformaId = null;
     _proformaItems = [];
@@ -2205,14 +2038,7 @@ async function _loadProformaOrder(id, readonly) {
 function editProformaOrder(id) { return _loadProformaOrder(id, false); }
 function viewProformaOrder(id) { return _loadProformaOrder(id, true); }
 
-async function deleteProformaOrder(id) {
-    if (!confirm('Delete this order?')) return;
-    try {
-        await api('/api/proforma-orders/' + id, {method: 'DELETE'});
-        toast('Order deleted');
-        loadAllOrders();
-    } catch(e) { toast('Delete failed: ' + e.message, true); }
-}
+async function deleteProformaOrder(id) { deleteEntity('/api/proforma-orders/' + id, 'order', loadAllOrders); }
 
 function addProformaItem() {
     _proformaItems.push({
@@ -2873,14 +2699,7 @@ async function editUser(id) {
     }
 }
 
-async function deleteUser(id) {
-    if (!confirm('Delete this user?')) return;
-    try {
-        await api('/api/users/' + id, {method: 'DELETE'});
-        toast('User deleted');
-        loadUsers();
-    } catch(e) { toast('Delete failed: ' + e.message, true); }
-}
+async function deleteUser(id) { deleteEntity('/api/users/' + id, 'user', loadUsers); }
 
 async function saveSettings() {
     var data = {
@@ -2915,13 +2734,13 @@ document.getElementById('f-user').onsubmit = async function(e) {
             await api('/api/users/' + id, {method: 'PUT', body: JSON.stringify(data)});
             toast('User updated');
         } else {
-            if (!pw) { alert('Password is required for new users'); return; }
+            if (!pw) { toast('Password is required for new users', true); return; }
             await api('/api/users', {method: 'POST', body: JSON.stringify(data)});
             toast('User created');
         }
         hideModal('m-user');
         loadUsers();
     } catch(err) {
-        alert(err.message || 'Error saving user');
+        toast(err.message || 'Error saving user', true);
     }
 };

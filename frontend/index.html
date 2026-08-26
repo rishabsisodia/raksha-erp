@@ -385,7 +385,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-product-title">Add Product</h3>
-                <button onclick="hideModal('m-product')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-product')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-product" style="padding:24px;" class="space-y-4">
                 <input type="hidden" id="f-pid">
@@ -411,7 +411,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Set Pricing</h3>
-                <button onclick="hideModal('m-pricing')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-pricing')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-pricing" style="padding:24px;" class="space-y-4">
                 <input type="hidden" id="f-prpid">
@@ -430,7 +430,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:800px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:10;border-radius:16px 16px 0 0;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-order-title">Add Order</h3>
-                <button onclick="hideModal('m-order')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-order')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-order" style="padding:24px;" class="space-y-4">
                 <input type="hidden" id="f-oid">
@@ -496,7 +496,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:95vw;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:10;border-radius:16px 16px 0 0;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-po-title">New PI/PO Order</h3>
-                <button onclick="hideModal('m-proforma-order')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-proforma-order')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-proforma-order" style="padding:24px;" class="space-y-4">
                 <input type="hidden" id="f-pooid">
@@ -605,7 +605,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:650px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-cust-title">Add Customer</h3>
-                <button onclick="hideModal('m-customer')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-customer')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-customer" style="padding:24px;" class="space-y-4">
                 <input type="hidden" id="f-cid">
@@ -656,7 +656,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:650px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-trans-title">Add Transporter</h3>
-                <button onclick="hideModal('m-transporter')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-transporter')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-transporter" style="padding:24px;" class="space-y-4" novalidate>
                 <input type="hidden" id="f-tid">
@@ -715,7 +715,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-pr-title">Add Purchase Rate</h3>
-                <button onclick="hideModal('m-purchase-rate')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-purchase-rate')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-purchase-rate" style="padding:24px;" class="space-y-4">
                 <input type="hidden" id="f-prid">
@@ -739,7 +739,7 @@
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;display:flex;align-items:center;gap:8px;">
                     <i class="fab fa-whatsapp" style="color:#25d366;font-size:22px;"></i> Send WhatsApp
                 </h3>
-                <button onclick="hideModal('m-whatsapp')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-whatsapp')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <div style="padding:24px;">
                 <input type="hidden" id="f-waoid">
@@ -767,7 +767,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:550px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-sale-title">New Sale</h3>
-                <button onclick="hideModal('m-sale')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-sale')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-sale" style="padding:24px;" class="space-y-4">
                 <input type="hidden" id="f-slid">
@@ -823,7 +823,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-expense-title">Add Expense</h3>
-                <button onclick="hideModal('m-expense')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-expense')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-expense" style="padding:24px;" class="space-y-4">
                 <input type="hidden" id="f-eid">
@@ -844,7 +844,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">LR Tracking</h3>
-                <button onclick="hideModal('m-lr-tracking')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-lr-tracking')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <div style="padding:24px;">
                 <input type="hidden" id="f-lrsaleid">
@@ -905,7 +905,7 @@
         <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
             <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-user-title">Add User</h3>
-                <button onclick="hideModal('m-user')" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-user')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
             </div>
             <form id="f-user" style="padding:24px;" class="space-y-4">
                 <input type="hidden" id="f-uid">
@@ -932,7 +932,7 @@
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl hidden" style="font-weight:600;font-size:14px;background:#10b981;"></div>
+    <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl hidden" role="alert" aria-live="polite" style="font-weight:600;font-size:14px;background:#10b981;"></div>
 
     <script src="/static/js/app.js?v=20260817v2"></script>
 </body>

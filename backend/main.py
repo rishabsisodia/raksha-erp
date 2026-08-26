@@ -82,6 +82,10 @@ if not JWT_SECRET:
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+DEFAULT_GST_RATE = 18.0
+TCS_RATE = 0.001
+WHATSAPP_API_VERSION = "v18.0"
+CORS_MAX_AGE = 600
 
 CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
 if CLOUDINARY_URL and "@" in CLOUDINARY_URL:
@@ -740,7 +744,7 @@ def backfill_pieces_per_box():
                     updated += 1
         if updated:
             db.commit()
-            print(f"Backfilled pieces_per_box and tonnage for {updated} products")
+            logger.info(f"Backfilled pieces_per_box and tonnage for {updated} products")
     finally:
         db.close()
 
@@ -876,7 +880,7 @@ def backfill_part_numbers():
                 updated += 1
         if updated:
             db.commit()
-            print(f"Backfilled part_no for {updated} products")
+            logger.info(f"Backfilled part_no for {updated} products")
     finally:
         db.close()
 
@@ -936,7 +940,7 @@ def backfill_product_names():
                 updated += 1
         if updated:
             db.commit()
-            print(f"Backfilled product names for {updated} products")
+            logger.info(f"Backfilled product names for {updated} products")
     finally:
         db.close()
 
@@ -1055,11 +1059,11 @@ def seed_data():
             p = Product(id=pid, part_no=prod["part_no"], name=prod["name"], category=prod["category"], size=prod["size"], load_rating=prod.get("tonnage", "5 Ton"), material="FRP", color=prod["color"], hsn_code="39259090", pieces_per_box=prod.get("ppb", 1), std_packaging=prod.get("ppb", 1))
             db.add(p)
             db.flush()
-            db.add(Pricing(product_id=p.id, raw_material_cost=prod["rate"], total_cost=prod["rate"], profit_margin=20, gst_rate=18, mrp=prod["mrp"]))
+            db.add(Pricing(product_id=p.id, raw_material_cost=prod["rate"], total_cost=prod["rate"], profit_margin=20, gst_rate=DEFAULT_GST_RATE, mrp=prod["mrp"]))
             pid += 1
 
         db.commit()
-        print(f"Seeded {pid - 1} products")
+        logger.info(f"Seeded {pid - 1} products")
     finally:
         db.close()
 
@@ -1090,7 +1094,7 @@ def seed_billing_sites():
         for s in sites:
             db.add(BillingSite(**s))
         db.commit()
-        print(f"Seeded {len(sites)} billing sites")
+        logger.info(f"Seeded {len(sites)} billing sites")
     finally:
         db.close()
 
@@ -1536,24 +1540,78 @@ def update_pricing(pid: int, inp: PricingIn, user: User = Depends(require_permis
         db.close()
 
 
+def _order_to_dict(o):
+    return {"id": o.id, "sl_no": o.sl_no, "po_no": o.po_no, "po_date": o.po_date,
+             "customer_name": o.customer_name or "",
+             "billing_site": o.billing_site, "shipping_site": o.shipping_site,
+             "no_of_boxes": o.no_of_boxes, "value_excl_gst_freight": o.value_excl_gst_freight,
+             "invoice_no": o.invoice_no, "invoice_date": o.invoice_date,
+             "invoice_amount_excl_gst": o.invoice_amount_excl_gst,
+             "weight_kgs": o.weight_kgs, "freight_rate_per_kg": o.freight_rate_per_kg,
+             "transport_charges": o.transport_charges, "invoice_amount": o.invoice_amount,
+             "eway_bill_no": o.eway_bill_no, "lr_no": o.lr_no, "entry_date": o.entry_date,
+             "credit_note_amount": o.credit_note_amount, "credit_note_no": o.credit_note_no,
+             "transporter": o.transporter, "transporter_no": o.transporter_no}
+
+
+def _sale_to_dict(s, sale_items=None, cust_name=""):
+    party = s.party_name or cust_name or ""
+    loc = s.location or ""
+    items = sale_items if sale_items is not None else []
+    return {
+        "id": s.id, "invoice_no": s.invoice_no or "",
+        "customer_id": s.customer_id or None,
+        "product_id": s.product_id or None,
+        "quantity": s.quantity or 0,
+        "unit_price": s.unit_price or 0,
+        "discount_percent": s.discount_percent or 0,
+        "taxable_amount": s.taxable_amount or 0,
+        "cgst_amount": s.cgst_amount or 0,
+        "sgst_amount": s.sgst_amount or 0,
+        "freight_amount": s.freight_amount or 0,
+        "payment_status": s.payment_status or "",
+        "payment_method": s.payment_method or "",
+        "notes": s.notes or "",
+        "party_name": party, "location": loc,
+        "state": s.state or "",
+        "transporter_name": s.transporter_name or "",
+        "lr_no": s.lr_no or "",
+        "weight_kgs": s.weight_kgs or 0,
+        "gp": s.gp or 0,
+        "gp_percent": s.gp_percent or 0,
+        "invoice_value": s.invoice_value or 0,
+        "total_amount": s.total_amount or 0,
+        "sale_date": s.sale_date.isoformat() if s.sale_date else None,
+        "payment_terms": s.payment_terms or "",
+        "source_csv": s.source_csv or "",
+        "lr_tracking_status": s.lr_tracking_status or "",
+        "lr_tracking_url": s.lr_tracking_url or "",
+        "lr_last_checked": s.lr_last_checked.isoformat() if s.lr_last_checked else None,
+        "items": items,
+    }
+
+
+def _sale_item_dict(si):
+    return {
+        "id": si.id, "sl_no": si.sl_no,
+        "product_id": si.product_id,
+        "quantity": si.quantity, "unit_price": si.unit_price,
+        "discount_percent": si.discount_percent,
+        "taxable_amount": si.taxable_amount,
+        "gst_rate": si.gst_rate,
+        "cgst_amount": si.cgst_amount,
+        "sgst_amount": si.sgst_amount,
+        "total_amount": si.total_amount,
+    }
+
+
 # ---- ORDERS ----
 @app.get("/api/orders")
 def list_orders(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Order).order_by(Order.id).all()
-        return [{"id": o.id, "sl_no": o.sl_no, "po_no": o.po_no, "po_date": o.po_date,
-                 "customer_name": o.customer_name or "",
-                 "billing_site": o.billing_site, "shipping_site": o.shipping_site,
-                 "no_of_boxes": o.no_of_boxes, "value_excl_gst_freight": o.value_excl_gst_freight,
-                 "invoice_no": o.invoice_no, "invoice_date": o.invoice_date,
-                 "invoice_amount_excl_gst": o.invoice_amount_excl_gst,
-                 "weight_kgs": o.weight_kgs, "freight_rate_per_kg": o.freight_rate_per_kg,
-                 "transport_charges": o.transport_charges, "invoice_amount": o.invoice_amount,
-                 "eway_bill_no": o.eway_bill_no, "lr_no": o.lr_no, "entry_date": o.entry_date,
-                 "credit_note_amount": o.credit_note_amount, "credit_note_no": o.credit_note_no,
-                 "transporter": o.transporter, "transporter_no": o.transporter_no}
-                for o in rows]
+        return [_order_to_dict(o) for o in rows]
     finally:
         db.close()
 
@@ -1565,17 +1623,7 @@ def get_order(oid: int, user: User = Depends(get_current_user)):
         o = db.query(Order).filter(Order.id == oid).first()
         if not o:
             raise HTTPException(404, "Order not found")
-        return {"id": o.id, "sl_no": o.sl_no, "po_no": o.po_no, "po_date": o.po_date,
-                 "customer_name": o.customer_name or "",
-                 "billing_site": o.billing_site, "shipping_site": o.shipping_site,
-                 "no_of_boxes": o.no_of_boxes, "value_excl_gst_freight": o.value_excl_gst_freight,
-                 "invoice_no": o.invoice_no, "invoice_date": o.invoice_date,
-                 "invoice_amount_excl_gst": o.invoice_amount_excl_gst,
-                 "weight_kgs": o.weight_kgs, "freight_rate_per_kg": o.freight_rate_per_kg,
-                 "transport_charges": o.transport_charges, "invoice_amount": o.invoice_amount,
-                 "eway_bill_no": o.eway_bill_no, "lr_no": o.lr_no, "entry_date": o.entry_date,
-                 "credit_note_amount": o.credit_note_amount, "credit_note_no": o.credit_note_no,
-                 "transporter": o.transporter, "transporter_no": o.transporter_no}
+        return _order_to_dict(o)
     finally:
         db.close()
 
@@ -1777,8 +1825,6 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
             total_basic += item.basic_amount
             total_basic_excl_cd += item.final_qty * net_excl_cd
 
-        gst_amount = total_basic * get_gst_rate() / 100
-        
         # Calculate discount scheme on basic value EXCLUDING CD
         discount_pct = 0
         discount_amount = 0
@@ -2005,8 +2051,6 @@ COMPANY_BANK_DETAILS = """
 </table>
 </div>
 """
-
-COMPANY_TERMS = ""
 
 def _generate_po_html(order, customer, items, pi_date, billing_site=None):
     cust_name = customer.contact_name if customer else (order.billing_site or "")
@@ -2240,8 +2284,7 @@ def _generate_pi_html(order, customer, items, pi_date, billing_site=None):
     
     gst = sub_total * get_gst_rate() / 100
     total_value = sub_total + gst
-    tcs_rate = 0.001  # 0.1%
-    tcs_amount = total_value * tcs_rate
+    tcs_amount = total_value * TCS_RATE
     final_value = total_value + tcs_amount
 
     html = f"""<!DOCTYPE html><html><head><title>Quotation cum Proforma Invoice</title>
@@ -2346,8 +2389,6 @@ table{{width:100%;border-collapse:collapse;}}
 </td>
 </tr>
 </table>
-
-{COMPANY_TERMS}
 
 <div style="margin-top:40px;text-align:right;font-size:11px;">
 <p>For <b>{escape_html((billing_site.name if billing_site else "Raksha Pipes Private Limited").replace("Private Limited", "Pvt. Ltd."))}</b></p>
@@ -2808,12 +2849,11 @@ def whatsapp_send(inp: WhatsAppSendIn, user: User = Depends(require_permission("
     """Send a WhatsApp message"""
     phone = inp.phone
     message = inp.message
-    media_url = None
     
     if not phone or not message:
         raise HTTPException(400, "Phone and message are required")
     
-    result = send_whatsapp_message(phone, message, media_url)
+    result = send_whatsapp_message(phone, message)
     return result
 
 
@@ -3061,13 +3101,11 @@ def list_sales(user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Sale).order_by(Sale.id.desc()).all()
-        # Batch-load customer names to avoid N+1
         cust_ids = list(set(s.customer_id for s in rows if s.customer_id))
         cust_map = {}
         if cust_ids:
             custs = db.query(Customer).filter(Customer.id.in_(cust_ids)).all()
             cust_map = {c.id: c.contact_name for c in custs}
-        # Batch-load all sale items to avoid N+1
         sale_ids = [s.id for s in rows]
         all_items = db.query(SaleItem).filter(SaleItem.sale_id.in_(sale_ids)).order_by(SaleItem.sl_no).all()
         items_map = {}
@@ -3077,55 +3115,10 @@ def list_sales(user: User = Depends(get_current_user)):
         for s in rows:
             try:
                 cust_name = cust_map.get(s.customer_id, "") if s.customer_id else ""
-                party = s.party_name or cust_name or ""
-                loc = s.location or ""
-                sale_items = [
-                    {
-                        "id": si.id, "sl_no": si.sl_no,
-                        "product_id": si.product_id,
-                        "quantity": si.quantity, "unit_price": si.unit_price,
-                        "discount_percent": si.discount_percent,
-                        "taxable_amount": si.taxable_amount,
-                        "gst_rate": si.gst_rate,
-                        "cgst_amount": si.cgst_amount,
-                        "sgst_amount": si.sgst_amount,
-                        "total_amount": si.total_amount,
-                    }
-                    for si in items_map.get(s.id, [])
-                ]
-                out.append({
-                    "id": s.id, "invoice_no": s.invoice_no or "",
-                    "customer_id": s.customer_id or None,
-                    "product_id": s.product_id or None,
-                    "quantity": s.quantity or 0,
-                    "unit_price": s.unit_price or 0,
-                    "discount_percent": s.discount_percent or 0,
-                    "taxable_amount": s.taxable_amount or 0,
-                    "cgst_amount": s.cgst_amount or 0,
-                    "sgst_amount": s.sgst_amount or 0,
-                    "freight_amount": s.freight_amount or 0,
-                    "payment_status": s.payment_status or "",
-                    "payment_method": s.payment_method or "",
-                    "notes": s.notes or "",
-                    "party_name": party, "location": loc,
-                    "state": s.state or "",
-                    "transporter_name": s.transporter_name or "",
-                    "lr_no": s.lr_no or "",
-                    "weight_kgs": s.weight_kgs or 0,
-                    "gp": s.gp or 0,
-                    "gp_percent": s.gp_percent or 0,
-                    "invoice_value": s.invoice_value or 0,
-                    "total_amount": s.total_amount or 0,
-                    "sale_date": s.sale_date.isoformat() if s.sale_date else None,
-                    "payment_terms": s.payment_terms or "",
-                    "source_csv": s.source_csv or "",
-                    "lr_tracking_status": s.lr_tracking_status or "",
-                    "lr_tracking_url": s.lr_tracking_url or "",
-                    "lr_last_checked": s.lr_last_checked.isoformat() if s.lr_last_checked else None,
-                    "items": sale_items,
-                })
+                sale_items = [_sale_item_dict(si) for si in items_map.get(s.id, [])]
+                out.append(_sale_to_dict(s, sale_items, cust_name))
             except Exception as e:
-                print(f"Error loading sale {s.id}: {e}")
+                logger.error(f"Error loading sale {s.id}: {e}")
                 continue
         return out
     finally:
@@ -3143,53 +3136,8 @@ def get_sale(sid: int, user: User = Depends(get_current_user)):
         if s.customer_id:
             cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
             cust_name = cust.contact_name if cust else ""
-        party = s.party_name or cust_name or ""
-        loc = s.location or ""
-        sale_items = [
-            {
-                "id": si.id, "sl_no": si.sl_no,
-                "product_id": si.product_id,
-                "quantity": si.quantity, "unit_price": si.unit_price,
-                "discount_percent": si.discount_percent,
-                "taxable_amount": si.taxable_amount,
-                "gst_rate": si.gst_rate,
-                "cgst_amount": si.cgst_amount,
-                "sgst_amount": si.sgst_amount,
-                "total_amount": si.total_amount,
-            }
-            for si in db.query(SaleItem).filter(SaleItem.sale_id == s.id).order_by(SaleItem.sl_no).all()
-        ]
-        return {
-            "id": s.id, "invoice_no": s.invoice_no or "",
-            "customer_id": s.customer_id or None,
-            "product_id": s.product_id or None,
-            "quantity": s.quantity or 0,
-            "unit_price": s.unit_price or 0,
-            "discount_percent": s.discount_percent or 0,
-            "taxable_amount": s.taxable_amount or 0,
-            "cgst_amount": s.cgst_amount or 0,
-            "sgst_amount": s.sgst_amount or 0,
-            "freight_amount": s.freight_amount or 0,
-            "payment_status": s.payment_status or "",
-            "payment_method": s.payment_method or "",
-            "notes": s.notes or "",
-            "party_name": party, "location": loc,
-            "state": s.state or "",
-            "transporter_name": s.transporter_name or "",
-            "lr_no": s.lr_no or "",
-            "weight_kgs": s.weight_kgs or 0,
-            "gp": s.gp or 0,
-            "gp_percent": s.gp_percent or 0,
-            "invoice_value": s.invoice_value or 0,
-            "total_amount": s.total_amount or 0,
-            "sale_date": s.sale_date.isoformat() if s.sale_date else None,
-            "payment_terms": s.payment_terms or "",
-            "source_csv": s.source_csv or "",
-            "lr_tracking_status": s.lr_tracking_status or "",
-            "lr_tracking_url": s.lr_tracking_url or "",
-            "lr_last_checked": s.lr_last_checked.isoformat() if s.lr_last_checked else None,
-            "items": sale_items,
-        }
+        sale_items = [_sale_item_dict(si) for si in db.query(SaleItem).filter(SaleItem.sale_id == s.id).order_by(SaleItem.sl_no).all()]
+        return _sale_to_dict(s, sale_items, cust_name)
     finally:
         db.close()
 
@@ -3535,7 +3483,6 @@ def auto_generate_tracking_urls(user: User = Depends(require_permission("sales",
 
 
 # ---- AUTO FETCH TRACKING STATUS ----
-http_requests = requests
 try:
     from bs4 import BeautifulSoup
     HAS_BS4 = True
@@ -3552,165 +3499,75 @@ TRACKING_HEADERS = {
     "Accept-Language": "en-US,en;q=0.5",
 }
 
-def fetch_vrl_tracking(lr_no):
-    try:
-        url = f"https://vrlgroup.in/Track/LRNumber/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        rows = soup.select('table tr')
-        statuses = []
-        for row in rows:
-            cells = row.find_all('td')
-            if len(cells) >= 3:
-                date_text = cells[0].get_text(strip=True)
-                location = cells[1].get_text(strip=True)
-                status = cells[2].get_text(strip=True)
-                if status:
-                    statuses.append({"date": date_text, "location": location, "status": status})
-        if statuses:
-            latest = statuses[-1]
-            return {"status": latest["status"], "location": latest["location"], "date": latest["date"], "history": statuses, "source": "VRL Logistics"}
-        return {"status": "", "message": "No tracking data found"}
-    except Exception as e:
-        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
-
-
-def fetch_dtdc_tracking(lr_no):
-    try:
-        url = f"https://www.dtdc.in/tracking/dtdc-tracking-results.asp?Lrnos={lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        rows = soup.select('table tr')
-        statuses = []
-        for row in rows:
-            cells = row.find_all('td')
-            if len(cells) >= 3:
-                date_text = cells[0].get_text(strip=True)
-                location = cells[1].get_text(strip=True)
-                status = cells[2].get_text(strip=True)
-                if status and date_text:
-                    statuses.append({"date": date_text, "location": location, "status": status})
-        if statuses:
-            latest = statuses[-1]
-            return {"status": latest["status"], "location": latest["location"], "date": latest["date"], "history": statuses, "source": "DTDC"}
-        return {"status": "", "message": "No tracking data found"}
-    except Exception as e:
-        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
-
-
-def fetch_safexpress_tracking(lr_no):
-    try:
-        url = f"https://www.safexpress.com/track-trace/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        text = soup.get_text()
-        statuses = []
-        for keyword in ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Exception", "Not Delivered"]:
-            if keyword.lower() in text.lower():
-                statuses.append(keyword)
-        if statuses:
-            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Safexpress"}
-        return {"status": "", "message": "No tracking data found"}
-    except Exception as e:
-        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
-
-
-def fetch_gati_tracking(lr_no):
-    try:
-        url = f"https://www.gati.com/shipmentTracking/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        text = soup.get_text()
-        statuses = []
-        for keyword in ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Reached Destination", "Dispatched"]:
-            if keyword.lower() in text.lower():
-                statuses.append(keyword)
-        if statuses:
-            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Gati"}
-        return {"status": "", "message": "No tracking data found"}
-    except Exception as e:
-        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
-
-
-def fetch_professional_tracking(lr_no):
-    try:
-        url = f"https://www.professional.couriers.in/tracking/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        text = soup.get_text()
-        statuses = []
-        for keyword in ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Exception"]:
-            if keyword.lower() in text.lower():
-                statuses.append(keyword)
-        if statuses:
-            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Professional Couriers"}
-        return {"status": "", "message": "No tracking data found"}
-    except Exception as e:
-        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
-
-
-def fetch_ecom_express_tracking(lr_no):
-    try:
-        url = f"https://www.ecomexpress.in/tracking/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        text = soup.get_text()
-        statuses = []
-        for keyword in ["Picked", "In Transit", "Out for Delivery", "Delivered", "Reached"]:
-            if keyword.lower() in text.lower():
-                statuses.append(keyword)
-        if statuses:
-            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Ecom Express"}
-        return {"status": "", "message": "No tracking data found"}
-    except Exception as e:
-        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
-
-
-def fetch_delhivery_tracking(lr_no):
-    try:
-        url = f"https://www.delhivery.com/tracking/package/{lr_no}"
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        text = soup.get_text()
-        statuses = []
-        for keyword in ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Reached Destination Hub"]:
-            if keyword.lower() in text.lower():
-                statuses.append(keyword)
-        if statuses:
-            return {"status": statuses[-1], "location": "", "date": "", "history": [], "source": "Delhivery"}
-        return {"status": "", "message": "No tracking data found"}
-    except Exception as e:
-        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
-
-
-TRANSPORTER_TRACKERS = {
-    "vrl": fetch_vrl_tracking,
-    "vrl logistics": fetch_vrl_tracking,
-    "vrl group": fetch_vrl_tracking,
-    "v trans": fetch_vrl_tracking,
-    "v xpress": fetch_vrl_tracking,
-    "dtdc": fetch_dtdc_tracking,
-    "dtdc courier": fetch_dtdc_tracking,
-    "dtdc express": fetch_dtdc_tracking,
-    "safexpress": fetch_safexpress_tracking,
-    "saf express": fetch_safexpress_tracking,
-    "gati": fetch_gati_tracking,
-    "gati courier": fetch_gati_tracking,
-    "professional": fetch_professional_tracking,
-    "professional couriers": fetch_professional_tracking,
-    "professional courier": fetch_professional_tracking,
-    "ecom": fetch_ecom_express_tracking,
-    "ecom express": fetch_ecom_express_tracking,
-    "delhivery": fetch_delhivery_tracking,
+TRACKING_CONFIG = {
+    "vrl": {"url": "https://vrlgroup.in/Track/LRNumber/{lr_no}", "source": "VRL Logistics", "mode": "table"},
+    "dtdc": {"url": "https://www.dtdc.in/tracking/dtdc-tracking-results.asp?Lrnos={lr_no}", "source": "DTDC", "mode": "table"},
+    "safexpress": {"url": "https://www.safexpress.com/track-trace/{lr_no}", "source": "Safexpress", "mode": "keyword",
+                   "keywords": ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Exception", "Not Delivered"]},
+    "gati": {"url": "https://www.gati.com/shipmentTracking/{lr_no}", "source": "Gati", "mode": "keyword",
+             "keywords": ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Reached Destination", "Dispatched"]},
+    "professional": {"url": "https://www.professional.couriers.in/tracking/{lr_no}", "source": "Professional Couriers", "mode": "keyword",
+                     "keywords": ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Exception"]},
+    "ecom": {"url": "https://www.ecomexpress.in/tracking/{lr_no}", "source": "Ecom Express", "mode": "keyword",
+             "keywords": ["Picked", "In Transit", "Out for Delivery", "Delivered", "Reached"]},
+    "delhivery": {"url": "https://www.delhivery.com/tracking/package/{lr_no}", "source": "Delhivery", "mode": "keyword",
+                  "keywords": ["Picked Up", "In Transit", "Out for Delivery", "Delivered", "Reached Destination Hub"]},
 }
+
+TRANSPORTER_TRACKER_KEYS = {
+    "vrl": "vrl", "vrl logistics": "vrl", "vrl group": "vrl", "v trans": "vrl", "v xpress": "vrl",
+    "dtdc": "dtdc", "dtdc courier": "dtdc", "dtdc express": "dtdc",
+    "safexpress": "safexpress", "saf express": "safexpress",
+    "gati": "gati", "gati courier": "gati",
+    "professional": "professional", "professional couriers": "professional", "professional courier": "professional",
+    "ecom": "ecom", "ecom express": "ecom",
+    "delhivery": "delhivery",
+}
+
+
+def _fetch_tracking(lr_no, config):
+    try:
+        url = config["url"].format(lr_no=lr_no)
+        r = requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True, allow_redirects=True)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        if config["mode"] == "table":
+            rows = soup.select('table tr')
+            statuses = []
+            for row in rows:
+                cells = row.find_all('td')
+                if len(cells) >= 3:
+                    date_text = cells[0].get_text(strip=True)
+                    location = cells[1].get_text(strip=True)
+                    status = cells[2].get_text(strip=True)
+                    if status and (date_text or config["source"] != "DTDC"):
+                        statuses.append({"date": date_text, "location": location, "status": status})
+            if statuses:
+                latest = statuses[-1]
+                return {"status": latest["status"], "location": latest["location"], "date": latest["date"], "history": statuses, "source": config["source"]}
+        else:
+            text = soup.get_text()
+            keywords = config.get("keywords", ["Picked Up", "In Transit", "Out for Delivery", "Delivered"])
+            found = [kw for kw in keywords if kw.lower() in text.lower()]
+            if found:
+                return {"status": found[-1], "location": "", "date": "", "history": [], "source": config["source"]}
+        return {"status": "", "message": "No tracking data found"}
+    except Exception as e:
+        return {"status": "", "message": f"Failed to fetch: {str(e)}"}
 
 
 def get_tracker_for_transporter(transporter_name):
     name_lower = (transporter_name or "").lower().strip()
-    for key, func in TRANSPORTER_TRACKERS.items():
+    for key, tracker_key in TRANSPORTER_TRACKER_KEYS.items():
         if key in name_lower:
-            return func
+            return tracker_key
     return None
+
+
+def fetch_tracking_by_key(lr_no, tracker_key):
+    config = TRACKING_CONFIG.get(tracker_key)
+    if not config:
+        return {"status": "", "message": f"Unknown tracker: {tracker_key}"}
+    return _fetch_tracking(lr_no, config)
 
 
 def fetch_generic_tracking(lr_no, tracking_url_pattern):
@@ -3718,7 +3575,7 @@ def fetch_generic_tracking(lr_no, tracking_url_pattern):
         if not tracking_url_pattern:
             return {"status": "", "message": "No tracking URL pattern configured"}
         url = tracking_url_pattern.replace("{lr_no}", lr_no).replace("{LR_NO}", lr_no)
-        r = http_requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True, allow_redirects=True)
+        r = requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True, allow_redirects=True)
         soup = BeautifulSoup(r.text, 'html.parser')
         text = soup.get_text().lower()
         statuses = []
@@ -3743,7 +3600,7 @@ def fetch_tracking_status(sid: int, user: User = Depends(require_permission("sal
             return {"status": "", "message": "No LR number set for this sale"}
         tracker = get_tracker_for_transporter(s.transporter_name)
         if tracker:
-            result = tracker(s.lr_no)
+            result = fetch_tracking_by_key(s.lr_no, tracker)
         else:
             t = db.query(Transporter).filter(Transporter.name.ilike(s.transporter_name)).first()
             if t and t.tracking_url_pattern:
@@ -3782,7 +3639,7 @@ def fetch_tracking_bulk(user: User = Depends(require_permission("sales", "bulk_e
         for s in sales:
             tracker = get_tracker_for_transporter(s.transporter_name)
             if tracker:
-                result = tracker(s.lr_no)
+                result = fetch_tracking_by_key(s.lr_no, tracker)
             else:
                 t = db.query(Transporter).filter(Transporter.name.ilike(s.transporter_name)).first()
                 if t and t.tracking_url_pattern:
@@ -4423,8 +4280,9 @@ def dedup_customers(user: User = Depends(require_permission("customers", "edit")
         for c in customers:
             key = (c.name.strip().lower(),) if c.name and c.name.strip() else (c.customer_id.strip(),)
             if key in seen:
-                for sale in db.query(Sale).filter(Sale.customer_id == seen[key].id).all():
-                    pass
+                keep = seen[key]
+                for sale in db.query(Sale).filter(Sale.customer_id == c.id).all():
+                    sale.customer_id = keep.id
                 db.delete(c)
                 removed += 1
             else:
@@ -4731,7 +4589,7 @@ async def import_standard_packaging(file: UploadFile = File(...), user: User = D
                             if pr:
                                 pr.mrp = mrp
                             else:
-                                db.add(Pricing(product_id=product.id, mrp=mrp, gst_rate=18))
+                                db.add(Pricing(product_id=product.id, mrp=mrp, gst_rate=DEFAULT_GST_RATE))
                     except ValueError:
                         logger.warning("Invalid MRP value '%s' for product %s", mrp_val, part_no)
                 updated += 1
@@ -4752,7 +4610,7 @@ async def import_standard_packaging(file: UploadFile = File(...), user: User = D
                         mrp_val = float(row[mrp_idx].strip().replace(",", "").replace("₹", "").replace("?", ""))
                     except ValueError:
                         logger.warning("Invalid MRP value for new product: %s", row[mrp_idx])
-                db.add(Pricing(product_id=new_p.id, mrp=mrp_val, gst_rate=18))
+                db.add(Pricing(product_id=new_p.id, mrp=mrp_val, gst_rate=DEFAULT_GST_RATE))
                 created += 1
 
         db.commit()
