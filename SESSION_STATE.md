@@ -215,6 +215,25 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - **Business Account ID**: 4397763287203081
 - **Tested with**: +916366263535 ✅
 
+## Code Cleanup (Aug 26, 2026)
+- [x] **print→logger**: All 6 print() calls replaced with logger.info/error
+- [x] **Dead Code Removed**: Duplicate engine creation, unused media_url, empty COMPANY_TERMS
+- [x] **dedup_customers Bug Fix**: Sales now reassigned to kept customer (was data loss)
+- [x] **http_requests Alias Removed**: Confusing alias replaced with direct requests usage
+- [x] **Backend Constants**: DEFAULT_GST_RATE, TCS_RATE, WHATSAPP_API_VERSION, CORS_MAX_AGE
+- [x] **Serialization Helpers**: _order_to_dict(), _sale_to_dict(), _sale_item_dict() deduplicated
+- [x] **Tracking Fetchers Consolidated**: 7 near-identical functions → data-driven _fetch_tracking()
+- [x] **Frontend deleteEntity/dedupEntity/importFile**: 19 repetitive functions → 3 helpers
+- [x] **Dead Wrappers Removed**: loadOrders(), loadProformaOrders()
+- [x] **Duplicate statusLabels**: Consolidated to global ORDER_STATUS_LABELS/ORDER_STATUSES
+- [x] **alert()→toast()**: All 3 alert() calls replaced with toast() for consistency
+- [x] **CSS Dedup**: Merged duplicate .stat-card and input:focus selectors
+- [x] **Unused CSS Removed**: .badge and .gradient-text classes
+- [x] **Brittle Attribute Selectors**: Replaced with .search-input and .lr-status-inline classes
+- [x] **Accessibility**: role=alert on toast, aria-label=Close on 12 modal close buttons
+- **Net**: -357 lines (592 deleted, 235 added)
+- **Commit**: eba5b15
+
 ## Next Steps
 1. **WhatsApp Integration** — Using Meta WhatsApp Cloud API (user to provide credentials)
    - PI auto-send as PDF to Sales Manager/Executive
