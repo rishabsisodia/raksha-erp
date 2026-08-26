@@ -4253,17 +4253,13 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
                 for model in [Sale, ProformaOrderItem]:
                     for obj in db.query(model).filter(model.product_id == p.id).all():
                         obj.product_id = keep.id
-                try:
-                    db.execute(text("UPDATE stock SET product_id = :keep_id WHERE product_id = :remove_id"), {"keep_id": keep.id, "remove_id": p.id})
-                    db.flush()
-                except Exception as e:
-                    logger.warning(f"Could not reassign stock for product {p.id}: {e}")
-                    continue
-                try:
-                    db.delete(p)
-                    removed += 1
-                except Exception as e:
-                    logger.warning(f"Could not delete duplicate product {p.id}: {e}")
+                for tbl in ["stock"]:
+                    try:
+                        db.execute(text(f"DELETE FROM {tbl} WHERE product_id = :pid"), {"pid": p.id})
+                    except Exception:
+                        pass
+                db.delete(p)
+                removed += 1
             else:
                 seen[key] = p
         db.commit()
