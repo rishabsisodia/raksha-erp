@@ -243,6 +243,16 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - **Tested**: 8 duplicate products removed, 69 remaining. All 3 dedup endpoints verified on Render.
 - **Commits**: 8457b4f + ca0df4e + 4353fa5 + 87220bb
 
+## Bug Fixes & Performance (Aug 27, 2026 - Round 2)
+- [x] **freight-summary 422 Fix**: Swapped route order — FastAPI `{sid}` was matching before `freight-summary` path
+- [x] **Security Headers Extended**: Now apply to ALL paths (HTML pages + API), not just `/api/`
+- [x] **12 FK Indexes Added**: `sales.customer_id`, `sale_items.sale_id`, `sale_items.product_id`, `proforma_orders.customer_id`, `proforma_orders.transporter_id`, `proforma_order_items.proforma_order_id`, `proforma_order_items.product_id`, `purchase_rates.product_id`, `transporter_quotes.order_id`, `transporter_quotes.transporter_id`
+- [x] **Sales Pagination**: `GET /api/sales` now accepts `limit` (default 500) and `offset` params, returns `{total, items}` format
+- [x] **fetch_tracking_status Dual Commit Fix**: Single `db.commit()` instead of two separate commits on same record
+- [x] **3 Silent Exception Handlers Fixed**: Added `logger.warning()` to bulk tracking, dashboard, and CSV import exception blocks
+- [x] **Frontend Updated**: `loadSales()` handles new paginated response format
+- **Commits**: 6014872
+
 ## Next Steps
 1. **WhatsApp Integration** — Using Meta WhatsApp Cloud API (user to provide credentials)
    - PI auto-send as PDF to Sales Manager/Executive
