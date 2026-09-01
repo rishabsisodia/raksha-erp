@@ -6,10 +6,10 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
-from auth import get_current_user, require_permission
-from database import SessionLocal
-from models import Transporter, TransporterQuote, ProformaOrder, User
-from schemas import TransporterIn
+from ..auth import get_current_user, require_permission
+from ..database import SessionLocal
+from ..models import Transporter, TransporterQuote, ProformaOrder, User
+from ..schemas import TransporterIn
 
 router = APIRouter(tags=["transporters"])
 

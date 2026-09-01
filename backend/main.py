@@ -12,28 +12,28 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 
-from config import (
+from .config import (
     JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS,
     ROLE_PERMISSIONS, ALLOWED_EXTENSIONS, DEFAULT_GST_RATE, TCS_RATE,
     WHATSAPP_API_VERSION, WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_BUSINESS_ACCOUNT_ID,
     WHATSAPP_API_URL, CLOUDINARY_URL, MAX_UPLOAD_SIZE
 )
-from database import engine, SessionLocal, Base
-from models import User, Product, Settings, BillingSite
-from auth import get_current_user, require_permission, audit_log
+from .database import engine, SessionLocal, Base
+from .models import User, Product, Settings, BillingSite
+from .auth import get_current_user, require_permission, audit_log
 
-from routes.customers import router as customers_router
-from routes.transporters import router as transporters_router
-from routes.products import router as products_router
-from routes.expenses import router as expenses_router
-from routes.sales import router as sales_router
-from routes.orders import router as orders_router
-from routes.tracking import router as tracking_router
-from routes.whatsapp import router as whatsapp_router
-from routes.imports import router as imports_router
-from routes.exports import router as exports_router
-from routes.reports import router as reports_router
-from routes.auth_routes import router as auth_router
+from .routes.customers import router as customers_router
+from .routes.transporters import router as transporters_router
+from .routes.products import router as products_router
+from .routes.expenses import router as expenses_router
+from .routes.sales import router as sales_router
+from .routes.orders import router as orders_router
+from .routes.tracking import router as tracking_router
+from .routes.whatsapp import router as whatsapp_router
+from .routes.imports import router as imports_router
+from .routes.exports import router as exports_router
+from .routes.reports import router as reports_router
+from .routes.auth_routes import router as auth_router
 
 logger = logging.getLogger("raksha-erp")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -424,7 +424,7 @@ def seed_data():
             {"part_no": "RGC00005-WH", "name": "Raksha FRP Gully Cover 24x24 - White", "category": "Gully Cover", "size": "24x24", "color": "White", "rate": 765, "mrp": 2560, "ppb": 2, "tonnage": ""},
         ]
         for pdata in products:
-            from models import Pricing
+            from .models import Pricing
             p = Product(
                 part_no=pdata["part_no"], name=pdata["name"], category=pdata["category"],
                 size=pdata["size"], load_rating=pdata.get("tonnage", ""), material="FRP",

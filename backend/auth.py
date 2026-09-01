@@ -5,9 +5,9 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
-from config import JWT_SECRET, JWT_ALGORITHM, ROLE_PERMISSIONS
-from database import SessionLocal
-from models import User, AuditLog
+from .config import JWT_SECRET, JWT_ALGORITHM, ROLE_PERMISSIONS
+from .database import SessionLocal
+from .models import User, AuditLog
 
 logger = logging.getLogger("raksha-erp")
 

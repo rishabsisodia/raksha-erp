@@ -1,15 +1,15 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.security import HTTPBearer
-from models import (
+from ..models import (
     Order, Sale, Product, Pricing, Customer, Transporter, Expense, User
 )
-from schemas import (
+from ..schemas import (
     ProductIn, PricingIn
 )
-from auth import get_current_user, require_permission
-from database import SessionLocal
+from ..auth import get_current_user, require_permission
+from ..database import SessionLocal
 from sqlalchemy import text
-from config import ALLOWED_EXTENSIONS, DEFAULT_GST_RATE
+from ..config import ALLOWED_EXTENSIONS, DEFAULT_GST_RATE
 from datetime import datetime, timezone
 from typing import Optional
 import os

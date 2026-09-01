@@ -1,7 +1,7 @@
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-from config import DATABASE_URL
+from .config import DATABASE_URL
 
 logger = logging.getLogger("raksha-erp")
 

@@ -1,7 +1,7 @@
 from datetime import datetime, date, timezone
 from sqlalchemy import Column, Integer, String, Float, DateTime, Date, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from database import Base
+from .database import Base
 
 
 class Product(Base):

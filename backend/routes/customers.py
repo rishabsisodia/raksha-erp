@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from models import Customer, Sale, ProformaOrder, User
-from schemas import CustomerIn
-from auth import get_current_user, require_permission
-from database import SessionLocal
+from ..models import Customer, Sale, ProformaOrder, User
+from ..schemas import CustomerIn
+from ..auth import get_current_user, require_permission
+from ..database import SessionLocal
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
 

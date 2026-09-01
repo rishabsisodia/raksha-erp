@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from models import User, TokenBlacklist, LoginAttempt
-from schemas import LoginIn, RefreshIn, LogoutIn, UserCreateIn, UserUpdateIn, ChangePasswordIn
-from auth import get_current_user, require_permission, audit_log
-from database import SessionLocal
-from config import (
+from ..models import User, TokenBlacklist, LoginAttempt
+from ..schemas import LoginIn, RefreshIn, LogoutIn, UserCreateIn, UserUpdateIn, ChangePasswordIn
+from ..auth import get_current_user, require_permission, audit_log
+from ..database import SessionLocal
+from ..config import (
     JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
     REFRESH_TOKEN_EXPIRE_DAYS, LOGIN_LOCKOUT_THRESHOLD,
     LOGIN_LOCKOUT_MINUTES, ROLE_PERMISSIONS,

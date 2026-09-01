@@ -7,10 +7,10 @@ import requests
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 
-from auth import get_current_user, require_permission
-from database import SessionLocal
-from models import Sale, Transporter, User
-from schemas import LRTrackingIn
+from ..auth import get_current_user, require_permission
+from ..database import SessionLocal
+from ..models import Sale, Transporter, User
+from ..schemas import LRTrackingIn
 
 router = APIRouter(tags=["tracking"])
 

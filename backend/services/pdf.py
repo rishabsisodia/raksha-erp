@@ -1,13 +1,13 @@
 """PDF generation helpers for PI/PO documents."""
 from html import escape as escape_html
-from config import TCS_RATE
-from services.discount import calculate_discount_scheme
+from ..config import TCS_RATE
+from .discount import calculate_discount_scheme
 
 
 def _get_gst_rate():
     """Lazy import to avoid circular dependency."""
-    from database import SessionLocal
-    from models import Settings
+    from ..database import SessionLocal
+    from ..models import Settings
     try:
         db = SessionLocal()
         row = db.query(Settings).filter(Settings.key == "default_gst_rate").first()
@@ -60,7 +60,7 @@ def _billing_site_header(bs=None):
 def generate_po_html(order, customer, items, pi_date, billing_site=None):
     """Generate Purchase Order HTML. Called from routes."""
     # Import here to avoid circular imports at module level
-    from services.discount import calculate_discount_scheme as _calc_disc
+    from .discount import calculate_discount_scheme as _calc_disc
     gst_rate = _get_gst_rate()
 
     cust_name = customer.contact_name if customer else (order.billing_site or "")
@@ -214,7 +214,7 @@ table{{width:100%;border-collapse:collapse;}}
 
 def generate_pi_html(order, customer, items, pi_date, billing_site=None):
     """Generate Proforma Invoice HTML. Called from routes."""
-    from services.discount import calculate_discount_scheme as _calc_disc
+    from .discount import calculate_discount_scheme as _calc_disc
     gst_rate = _get_gst_rate()
 
     cust_name = customer.contact_name if customer else (order.billing_site or "")
