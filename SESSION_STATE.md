@@ -235,6 +235,14 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - **Net**: -357 lines (592 deleted, 235 added)
 - **Commit**: eba5b15
 
+## Dedup Fix (Aug 27, 2026)
+- [x] **Root Cause**: `stock` table had FK to products but old code's `DELETE FROM stock` was silently failing (swallowed by `except: pass`). Also `stock_entries` table existed with its own FK constraint.
+- [x] **dedup_products**: Now deletes from BOTH `stock` and `stock_entries` tables before removing duplicate products. Added logging for delete failures.
+- [x] **dedup_customers**: Added `ProformaOrder.customer_id` reassignment (was only reassigning Sales, missed PIs).
+- [x] **dedup_transporters**: Added `ProformaOrder.transporter_id` + `TransporterQuote.transporter_id` reassignment (was just deleting without FK cleanup).
+- **Tested**: 8 duplicate products removed, 69 remaining. All 3 dedup endpoints verified on Render.
+- **Commits**: 8457b4f + ca0df4e + 4353fa5 + 87220bb
+
 ## Next Steps
 1. **WhatsApp Integration** — Using Meta WhatsApp Cloud API (user to provide credentials)
    - PI auto-send as PDF to Sales Manager/Executive
@@ -276,3 +284,4 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 
 ## Next Task
 Fix WhatsApp token (update WHATSAPP_TOKEN env var on Render), then test WhatsApp PDF sending.
+OR: Further code cleanup / new features as requested.
