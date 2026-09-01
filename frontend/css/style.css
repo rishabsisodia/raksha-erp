@@ -325,6 +325,7 @@ header h2 {
 .dash-panel-title .panel-icon.purple { background: #f5f3ff !important; color: #8b5cf6 !important; }
 .dash-panel-title .panel-icon.green { background: #ecfdf5 !important; color: #10b981 !important; }
 .dash-panel-title .panel-icon.red { background: #fef2f2 !important; color: #ef4444 !important; }
+.dash-panel-title .panel-icon.indigo { background: #eef2ff !important; color: #4f46e5 !important; }
 
 /* ============================================================
    CONTENT CARDS (Page sections)
@@ -1238,4 +1239,105 @@ button:active {
 @media (max-width: 480px) {
     main { padding: 8px !important; }
     h2, h3 { font-size: 16px !important; }
+}
+
+/* ============================================================
+   FRP-SPECIFIC STYLES
+   ============================================================ */
+
+/* Category badges */
+.cat-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 3px 10px !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+    white-space: nowrap !important;
+}
+
+.cat-manhole { background: #ede9fe !important; color: #6d28d9 !important; }
+.cat-gully { background: #dbeafe !important; color: #1d4ed8 !important; }
+.cat-gratings { background: #fef3c7 !important; color: #b45309 !important; }
+.cat-frames { background: #d1fae5 !important; color: #047857 !important; }
+.cat-locks { background: #fce7f3 !important; color: #be185d !important; }
+.cat-hinges { background: #e0e7ff !important; color: #4338ca !important; }
+.cat-default { background: #f1f5f9 !important; color: #475569 !important; }
+
+/* Load rating badges */
+.load-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 2px 8px !important;
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+}
+
+.load-2 { background: #dcfce7 !important; color: #166534 !important; }
+.load-5 { background: #dbeafe !important; color: #1e40af !important; }
+.load-10 { background: #fef3c7 !important; color: #92400e !important; }
+.load-12 { background: #fed7aa !important; color: #9a3412 !important; }
+.load-25 { background: #fecaca !important; color: #991b1b !important; }
+.load-40 { background: #e9d5ff !important; color: #6b21a8 !important; }
+
+/* Product image thumbnail in tables */
+.product-thumb {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 8px !important;
+    object-fit: cover !important;
+    border: 1px solid #e2e8f0 !important;
+    flex-shrink: 0 !important;
+}
+
+/* FRP category grid on dashboard */
+.frp-cat-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+}
+
+.frp-cat-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 12px 8px !important;
+    border-radius: 10px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    transition: all 0.2s !important;
+    cursor: pointer !important;
+}
+
+.frp-cat-item:hover {
+    background: #eff6ff !important;
+    border-color: #93c5fd !important;
+    transform: translateY(-1px) !important;
+}
+
+.frp-cat-icon {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 14px !important;
+}
+
+.frp-cat-label {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    text-align: center !important;
+}
+
+.frp-cat-count {
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
 }

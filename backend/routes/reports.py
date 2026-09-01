@@ -221,6 +221,15 @@ def dashboard(user=Depends(get_current_user)):
             location_revenue[row.location] = row.total
         location_chart = {"labels": list(location_revenue.keys()), "data": list(location_revenue.values())}
 
+        # Category breakdown
+        category_counts = {}
+        cat_rows = db.query(
+            Product.category,
+            func.count(Product.id).label("cnt")
+        ).filter(Product.category.isnot(None), Product.category != "").group_by(Product.category).all()
+        for row in cat_rows:
+            category_counts[row.category] = row.cnt
+
         return {
             "total_products": db.query(Product).count(),
             "total_customers": db.query(Customer).count(),
@@ -241,6 +250,7 @@ def dashboard(user=Depends(get_current_user)):
             "revenue_chart": revenue_chart,
             "party_chart": party_chart,
             "location_chart": location_chart,
+            "category_counts": category_counts,
         }
     except Exception as e:
         return {"error": str(e), "total_products": 0, "total_customers": 0,

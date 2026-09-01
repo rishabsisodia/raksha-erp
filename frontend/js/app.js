@@ -358,6 +358,19 @@ function hideModal(id) { $(id).classList.add('hidden'); }
 
 function fmt(n) { return INR + Number(n || 0).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
 
+function frpCatBadge(cat) {
+    if (!cat) return '<span class="cat-badge cat-default">-</span>';
+    var cls = {'Manhole Cover':'cat-manhole','Gully Cover':'cat-gully','Gratings':'cat-gratings','Frames':'cat-frames','Lock(s)':'cat-locks','Hinges':'cat-hinges'};
+    return '<span class="cat-badge ' + (cls[cat] || 'cat-default') + '">' + escapeHtml(cat) + '</span>';
+}
+
+function loadBadge(rating) {
+    if (!rating) return '<span style="color:#94a3b8;font-size:12px;">-</span>';
+    var num = parseFloat(rating) || 0;
+    var cls = num <= 2.5 ? 'load-2' : num <= 5 ? 'load-5' : num <= 10 ? 'load-10' : num <= 12.5 ? 'load-12' : num <= 25 ? 'load-25' : 'load-40';
+    return '<span class="load-badge ' + cls + '">' + escapeHtml(rating) + '</span>';
+}
+
 function sortTable(tableId, colIdx, type) {
     var state = _sortState[tableId];
     if (state && state.col === colIdx) {
@@ -436,9 +449,9 @@ async function loadProducts() {
         h += '<td class="px-3 py-2">' + p.id + '</td>';
         h += '<td class="px-3 py-2">' + escapeHtml(p.part_no || '-') + '</td>';
         h += '<td class="px-3 py-2 font-medium">' + escapeHtml(p.name) + '</td>';
-        h += '<td class="px-3 py-2">' + escapeHtml(p.category || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + frpCatBadge(p.category) + '</td>';
         h += '<td class="px-3 py-2">' + escapeHtml(p.size || '-') + '</td>';
-        h += '<td class="px-3 py-2">' + escapeHtml(p.load_rating || '-') + '</td>';
+        h += '<td class="px-3 py-2">' + loadBadge(p.load_rating) + '</td>';
         h += '<td class="px-3 py-2">' + fmt(p.mrp) + '</td>';
         h += '<td class="px-3 py-2" onclick="event.stopPropagation()">';
         h += '<button onclick="editProduct(' + p.id + ')" class="action-btn action-btn-edit" title="Edit"><i class="fas fa-pen"></i> Edit</button>';
@@ -1327,6 +1340,28 @@ async function loadDashboard() {
         rh = '<p style="color:#94a3b8;font-size:14px;text-align:center;padding:24px;">No sales yet</p>';
     }
     $('dash-recent').innerHTML = rh;
+
+    // FRP Product Categories
+    var catIcons = {'Manhole Cover':'fa-circle','Gully Cover':'fa-square','Gratings':'fa-border-all','Frames':'fa-vector-square','Lock(s)':'fa-lock','Hinges':'fa-link'};
+    var catColors = {'Manhole Cover':'#ede9fe,#6d28d9','Gully Cover':'#dbeafe,#1d4ed8','Gratings':'#fef3c7,#b45309','Frames':'#d1fae5,#047857','Lock(s)':'#fce7f3,#be185d','Hinges':'#e0e7ff,#4338ca'};
+    var catHtml = '<div class="frp-cat-grid">';
+    var cats = d.category_counts || {};
+    var catKeys = Object.keys(cats);
+    if (catKeys.length) {
+        catKeys.forEach(function(c) {
+            var icon = catIcons[c] || 'fa-cube';
+            var clr = (catColors[c] || '#f1f5f9,#475569').split(',');
+            catHtml += '<div class="frp-cat-item" onclick="go(\'products\');setTimeout(function(){var s=document.getElementById(\'search-products\');if(s){s.value=\'' + c + '\';s.dispatchEvent(new Event(\'input\'));}},200);">';
+            catHtml += '<div class="frp-cat-icon" style="background:' + clr[0] + ';color:' + clr[1] + ';"><i class="fas ' + icon + '"></i></div>';
+            catHtml += '<div class="frp-cat-count">' + cats[c] + '</div>';
+            catHtml += '<div class="frp-cat-label">' + c + '</div>';
+            catHtml += '</div>';
+        });
+    } else {
+        catHtml += '<div style="grid-column:span 3;text-align:center;color:#94a3b8;padding:20px;font-size:13px;">No products yet</div>';
+    }
+    catHtml += '</div>';
+    $('dash-categories').innerHTML = catHtml;
 
     if (d.revenue_chart && d.revenue_chart.labels && d.revenue_chart.labels.length) {
         var ctx1 = document.getElementById('chart-dash-revenue');
