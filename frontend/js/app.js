@@ -224,11 +224,21 @@ document.addEventListener('input', function(e) {
 
 function go(page, el) {
     document.querySelectorAll('[id^="p-"]').forEach(function(p) { p.classList.add('hidden'); });
-    document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('bg-indigo-700'); });
+    document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('bg-indigo-700','active'); });
     $('p-' + page).classList.remove('hidden');
-    if (el) el.classList.add('bg-indigo-700');
+    if (el) {
+        el.classList.add('bg-indigo-700');
+    } else {
+        var navBtns = document.querySelectorAll('.nav-btn');
+        navBtns.forEach(function(b) {
+            var oc = b.getAttribute('onclick') || '';
+            if (oc.indexOf("'" + page + "'") !== -1) b.classList.add('bg-indigo-700');
+        });
+    }
     var t = {dashboard:'Dashboard',products:'Products',orders:'Orders',customers:'Customers',transporters:'Transporters','purchase-rates':'Purchase Rates',sales:'Sales',expenses:'Expenses',reports:'Reports',settings:'Settings'};
+    var s = {dashboard:'Welcome to Raksha ERP',products:'Manage your product catalog',orders:'Track all orders and proformas',customers:'Customer master data',transporters:'Transporter directory','purchase-rates':'Vendor pricing rates',sales:'Sales invoices and LR tracking',expenses:'Business expense records',reports:'Business analytics and reports',settings:'System configuration'};
     $('pg-title').textContent = t[page] || page;
+    $('pg-sub').textContent = s[page] || 'Raksha ERP';
     if (page === 'dashboard') loadDashboard();
     if (page === 'products') loadProducts();
     if (page === 'orders') loadAllOrders();
@@ -1331,6 +1341,9 @@ async function loadDashboard() {
                 options: {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'#f1f5f9'},ticks:{callback:function(v){return '₹'+v.toLocaleString('en-IN')}}}}}
             });
         }
+    } else {
+        var c1 = document.getElementById('chart-dash-revenue');
+        if (c1 && c1.parentElement) c1.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:13px;"><i class="fas fa-chart-bar" style="margin-right:8px;font-size:20px;"></i>No revenue data yet</div>';
     }
 
     if (d.location_chart && d.location_chart.labels && d.location_chart.labels.length) {
@@ -1347,6 +1360,9 @@ async function loadDashboard() {
                 options: {responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},padding:8}}}}
             });
         }
+    } else {
+        var c2 = document.getElementById('chart-dash-location');
+        if (c2 && c2.parentElement) c2.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:13px;"><i class="fas fa-map-marker-alt" style="margin-right:8px;font-size:20px;"></i>No location data yet</div>';
     }
     } catch(e) { console.error('Dashboard error:', e); }
 }
