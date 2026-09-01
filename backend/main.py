@@ -4254,9 +4254,14 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
                     for obj in db.query(model).filter(model.product_id == p.id).all():
                         obj.product_id = keep.id
                 try:
-                    db.execute(text("UPDATE stock SET product_id = :keep WHERE product_id = :pid"), {"keep": keep.id, "pid": p.id})
+                    sp = db.begin_nested()
+                    try:
+                        db.execute(text("DELETE FROM stock WHERE product_id = :pid"), {"pid": p.id})
+                        sp.commit()
+                    except Exception:
+                        sp.rollback()
                 except Exception as ex:
-                    logger.warning(f"Dedup: could not reassign stock for product {p.id}: {ex}")
+                    logger.warning(f"Dedup: could not clear stock for product {p.id}: {ex}")
                 db.delete(p)
                 removed += 1
             else:
