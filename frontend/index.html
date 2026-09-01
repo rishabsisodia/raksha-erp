@@ -25,11 +25,11 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex">
-    <aside class="w-64 text-white min-h-screen fixed left-0 top-0 z-50" style="background: linear-gradient(180deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%); box-shadow: 4px 0 24px rgba(30, 27, 75, 0.15); border-right: 1px solid rgba(255,255,255,0.08);">
+    <aside class="w-64 text-white min-h-screen fixed left-0 top-0 z-50">
         <div class="p-6 border-b" style="border-color: rgba(255,255,255,0.1);">
             <div class="flex items-center gap-3">
-                <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.3);flex-shrink:0;">
-                    <img src="/static/img/logo.png" alt="Raksha ERP" style="width:100%;height:100%;object-fit:cover;">
+                <div class="sidebar-logo">
+                    <img src="/static/img/logo.png" alt="Raksha ERP">
                 </div>
                 <div>
                     <h1 style="font-size:18px;font-weight:800;letter-spacing:-0.03em;">Raksha ERP</h1>
@@ -38,17 +38,17 @@
             </div>
         </div>
         <nav class="p-4" role="navigation" aria-label="Main navigation">
-            <a href="#" onclick="go('dashboard',this)" class="nav-btn active block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-home" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Dashboard</a>
-            <a href="#" onclick="go('products',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-box" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Products</a>
-            <a href="#" onclick="go('orders',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-clipboard-list" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Orders</a>
-            <a href="#" onclick="go('customers',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-users" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Customers</a>
-            <a href="#" onclick="go('transporters',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-truck" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Transporters</a>
-            <a href="#" onclick="go('purchase-rates',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-tags" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Purchase Rates</a>
-            <a href="#" onclick="go('sales',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-shopping-cart" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Sales</a>
-            <a href="#" onclick="go('expenses',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-receipt" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Expenses</a>
-            <div style="height:1px;background:rgba(255,255,255,0.1);margin:12px 0;"></div>
-            <a href="#" onclick="go('reports',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-chart-line" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Reports</a>
-            <a href="#" onclick="go('settings',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-cog" style="width:20px;text-align:center;font-size:15px;margin-right:12px;"></i>Settings</a>
+            <a href="#" onclick="go('dashboard',this)" class="nav-btn active block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-home"></i>Dashboard</a>
+            <a href="#" onclick="go('products',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-box"></i>Products</a>
+            <a href="#" onclick="go('orders',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-clipboard-list"></i>Orders</a>
+            <a href="#" onclick="go('customers',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-users"></i>Customers</a>
+            <a href="#" onclick="go('transporters',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-truck"></i>Transporters</a>
+            <a href="#" onclick="go('purchase-rates',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-tags"></i>Purchase Rates</a>
+            <a href="#" onclick="go('sales',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-shopping-cart"></i>Sales</a>
+            <a href="#" onclick="go('expenses',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-receipt"></i>Expenses</a>
+            <div class="sidebar-divider"></div>
+            <a href="#" onclick="go('reports',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-chart-line"></i>Reports</a>
+            <a href="#" onclick="go('settings',this)" class="nav-btn block px-4 py-3 rounded-xl mb-1" style="font-size:14px;font-weight:500;"><i class="fas fa-cog"></i>Settings</a>
         </nav>
     </aside>
 
@@ -58,71 +58,66 @@
                 <h2 id="pg-title" style="font-size:26px;font-weight:800;letter-spacing:-0.03em;color:#0f172a;">Dashboard</h2>
                 <p id="pg-sub" style="font-size:14px;color:#64748b;margin-top:2px;">Welcome to Raksha ERP</p>
             </div>
-            <div style="display:flex;align-items:center;gap:12px;">
-                <span id="today-date" style="font-size:13px;color:#94a3b8;background:#f1f5f9;padding:8px 16px;border-radius:10px;font-weight:500;"></span>
-                <div style="display:flex;align-items:center;gap:8px;background:#f1f5f9;padding:6px 14px;border-radius:10px;">
+            <div class="header-actions">
+                <span id="today-date" class="header-date"></span>
+                <div class="header-user">
                     <span id="user-display" style="font-size:13px;font-weight:600;color:#374151;"></span>
                     <span id="role-badge" style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;"></span>
                 </div>
-                <button onclick="handleLogout()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#ef4444;transition:all 0.15s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#f1f5f9'"><i class="fas fa-sign-out-alt" style="margin-right:4px;"></i>Logout</button>
+                <button onclick="handleLogout()" class="header-logout"><i class="fas fa-sign-out-alt" style="margin-right:4px;"></i>Logout</button>
             </div>
         </header>
 
         <div id="p-dashboard">
+            <div class="dash-hero">
+                <div>
+                    <div class="dash-hero-title">Welcome to Raksha ERP</div>
+                    <div class="dash-hero-subtitle">FRP Manhole Covers &mdash; Manufacturing, Sales & Orders</div>
+                </div>
+                <img src="/static/img/products/hero-frp-cover.jpg" alt="FRP Cover" class="dash-hero-img">
+            </div>
             <div class="grid grid-cols-3 gap-5 mb-8" id="dash-cards"></div>
             <div class="grid grid-cols-2 gap-6 mb-8">
-                <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                    <h3 style="font-weight:700;margin-bottom:16px;font-size:15px;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px;">
-                        <span style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);display:inline-flex;align-items:center;justify-content:center;color:#8b5cf6;font-size:15px;"><i class="fas fa-clipboard-list"></i></span>
-                        Recent Orders
-                    </h3>
+                <div class="dash-panel">
+                    <h3 class="dash-panel-title"><span class="panel-icon purple"><i class="fas fa-clipboard-list"></i></span>Recent Orders</h3>
                     <div id="dash-orders"></div>
+                    <img src="/static/img/products/dashboard-cover-1.jpg" alt="" class="dash-panel-image">
                 </div>
-                <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                    <h3 style="font-weight:700;margin-bottom:16px;font-size:15px;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px;">
-                        <span style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);display:inline-flex;align-items:center;justify-content:center;color:#10b981;font-size:15px;"><i class="fas fa-clock"></i></span>
-                        Recent Sales
-                    </h3>
+                <div class="dash-panel">
+                    <h3 class="dash-panel-title"><span class="panel-icon green"><i class="fas fa-clock"></i></span>Recent Sales</h3>
                     <div id="dash-recent"></div>
+                    <img src="/static/img/products/dashboard-cover-2.jpg" alt="" class="dash-panel-image">
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-6 mb-8">
-                <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                    <h3 style="font-weight:700;margin-bottom:16px;font-size:15px;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px;">
-                        <span style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#fef2f2,#fee2e2);display:inline-flex;align-items:center;justify-content:center;color:#ef4444;font-size:15px;"><i class="fas fa-truck"></i></span>
-                        LR Tracking
-                    </h3>
+                <div class="dash-panel">
+                    <h3 class="dash-panel-title"><span class="panel-icon red"><i class="fas fa-truck"></i></span>LR Tracking</h3>
                     <div id="dash-lr"></div>
+                    <img src="/static/img/products/dashboard-cover-white.jpg" alt="" class="dash-panel-image">
                 </div>
-                <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                    <h3 style="font-weight:700;margin-bottom:16px;font-size:15px;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px;">
-                        <span style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);display:inline-flex;align-items:center;justify-content:center;color:#8b5cf6;font-size:15px;"><i class="fas fa-chart-line"></i></span>
-                        Revenue Trend
-                    </h3>
+                <div class="dash-panel">
+                    <h3 class="dash-panel-title"><span class="panel-icon purple"><i class="fas fa-chart-line"></i></span>Revenue Trend</h3>
                     <div style="height:220px;"><canvas id="chart-dash-revenue"></canvas></div>
                 </div>
-                <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                    <h3 style="font-weight:700;margin-bottom:16px;font-size:15px;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px;">
-                        <span style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);display:inline-flex;align-items:center;justify-content:center;color:#10b981;font-size:15px;"><i class="fas fa-map-marker-alt"></i></span>
-                        Top Locations
-                    </h3>
+                <div class="dash-panel">
+                    <h3 class="dash-panel-title"><span class="panel-icon green"><i class="fas fa-map-marker-alt"></i></span>Top Locations</h3>
                     <div style="height:220px;"><canvas id="chart-dash-location"></canvas></div>
                 </div>
             </div>
         </div>
 
         <div id="p-products" class="hidden">
-            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                <div class="flex justify-between items-center mb-5">
-                    <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Products</h3>
-                    <div class="flex gap-2 items-center">
-                        <div style="position:relative;">
-                            <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-products" placeholder="Search products..." oninput="filterTable('t-products', this.value, [0,1,2,3,4,5])" aria-label="Search products" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h3>Products</h3>
+                    <div class="content-card-actions">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-products" placeholder="Search products..." oninput="filterTable('t-products', this.value, [0,1,2,3,4,5])" aria-label="Search products" class="search-input">
                         </div>
-                        <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importProductsCSV(this)"></label>
-                        <button onclick="dedupProducts()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(245,158,11,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-clone" style="margin-right:4px;"></i>Clean Dups</button>
-                        <button onclick="showModal('m-product')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Product</button>
+                        <label class="btn-import"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importProductsCSV(this)"></label>
+                        <button onclick="dedupProducts()" class="btn-dedup"><i class="fas fa-clone" style="margin-right:4px;"></i>Clean Dups</button>
+                        <button onclick="showModal('m-product')" class="btn-add"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Product</button>
                     </div>
                 </div>
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
@@ -139,36 +134,36 @@
         </div>
 
         <div id="p-orders" class="hidden">
-            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                <div class="flex justify-between items-center mb-5">
-                    <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Orders</h3>
-                    <div class="flex gap-2 items-center">
-                        <div style="position:relative;">
-                            <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-orders" placeholder="Search orders..." oninput="filterTable('t-all-orders', this.value, [0,1,2,3,4,7,10])" aria-label="Search orders" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:200px;">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h3>Orders</h3>
+                    <div class="content-card-actions">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-orders" placeholder="Search orders..." oninput="filterTable('t-all-orders', this.value, [0,1,2,3,4,7,10])" aria-label="Search orders" class="search-input" style="width:200px;">
                         </div>
                         <select id="f-orderfilter" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;font-family:'Inter',sans-serif;" onchange="loadAllOrders()">
                             <option value="">All Orders</option>
                             <option value="COGS">COGS Orders</option>
                             <option value="PIPO">PI/PO Orders</option>
                         </select>
-                        <div class="relative group">
-                            <button style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-import" style="margin-right:4px;"></i>Import</button>
-                            <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-xl z-10 whitespace-nowrap" style="border-color:#e2e8f0;border-radius:12px;">
-                                <label class="block px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm" style="font-weight:500;"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV<input type="file" accept=".csv" class="hidden" onchange="importOrdersCSV(this)"></label>
-                                <label class="block px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm" style="font-weight:500;"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importOrdersXLSX(this)"></label>
+                        <div class="dropdown-group">
+                            <button class="btn-import"><i class="fas fa-file-import" style="margin-right:4px;"></i>Import</button>
+                            <div class="dropdown-menu hidden group-hover:block">
+                                <label class="block"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV<input type="file" accept=".csv" class="hidden" onchange="importOrdersCSV(this)"></label>
+                                <label class="block"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importOrdersXLSX(this)"></label>
                             </div>
                         </div>
-                        <div class="relative group">
-                            <button style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(99,102,241,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-export" style="margin-right:4px;"></i>Export</button>
-                            <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-xl z-10 whitespace-nowrap" style="border-color:#e2e8f0;border-radius:12px;">
-                                <a onclick="downloadExport('/api/export/orders?format=csv')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV</a>
-                                <a onclick="downloadExport('/api/export/orders?format=xlsx')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX</a>
-                                <a onclick="downloadExport('/api/export/orders?format=pdf')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
+                        <div class="dropdown-group">
+                            <button class="btn-export"><i class="fas fa-file-export" style="margin-right:4px;"></i>Export</button>
+                            <div class="dropdown-menu hidden group-hover:block">
+                                <a onclick="downloadExport('/api/export/orders?format=csv')" class="block"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV</a>
+                                <a onclick="downloadExport('/api/export/orders?format=xlsx')" class="block"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX</a>
+                                <a onclick="downloadExport('/api/export/orders?format=pdf')" class="block"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
                             </div>
                         </div>
-                        <button onclick="testWhatsApp()" style="background:#25d366;color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(37,211,102,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fab fa-whatsapp" style="margin-right:4px;"></i>Test WhatsApp</button>
-                        <button onclick="showProformaOrderModal()" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(59,130,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Create a PI</button>
+                        <button onclick="testWhatsApp()" class="btn-whatsapp"><i class="fab fa-whatsapp" style="margin-right:4px;"></i>Test WhatsApp</button>
+                        <button onclick="showProformaOrderModal()" class="btn-pi"><i class="fas fa-plus" style="margin-right:4px;"></i>Create a PI</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -191,17 +186,17 @@
         </div>
 
         <div id="p-customers" class="hidden">
-            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                <div class="flex justify-between items-center mb-5">
-                    <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Customers</h3>
-                    <div class="flex gap-2 items-center">
-                        <div style="position:relative;">
-                            <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-customers" placeholder="Search customers..." oninput="filterTable('t-customers', this.value, [0,1,2,3,4,5,6,7])" aria-label="Search customers" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h3>Customers</h3>
+                    <div class="content-card-actions">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-customers" placeholder="Search customers..." oninput="filterTable('t-customers', this.value, [0,1,2,3,4,5,6,7])" aria-label="Search customers" class="search-input">
                         </div>
-                        <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importCustomersCSV(this)"></label>
-                        <button onclick="dedupCustomers()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(245,158,11,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-clone" style="margin-right:4px;"></i>Clean Dups</button>
-                        <button onclick="showModal('m-customer')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Customer</button>
+                        <label class="btn-import"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importCustomersCSV(this)"></label>
+                        <button onclick="dedupCustomers()" class="btn-dedup"><i class="fas fa-clone" style="margin-right:4px;"></i>Clean Dups</button>
+                        <button onclick="showModal('m-customer')" class="btn-add"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Customer</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -222,17 +217,17 @@
         </div>
 
         <div id="p-transporters" class="hidden">
-            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                <div class="flex justify-between items-center mb-5">
-                    <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Transporters</h3>
-                    <div class="flex gap-2 items-center">
-                        <div style="position:relative;">
-                            <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-transporters" placeholder="Search transporters..." oninput="filterTable('t-transporters', this.value, [0,1,2,3,4,5,6])" aria-label="Search transporters" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h3>Transporters</h3>
+                    <div class="content-card-actions">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-transporters" placeholder="Search transporters..." oninput="filterTable('t-transporters', this.value, [0,1,2,3,4,5,6])" aria-label="Search transporters" class="search-input">
                         </div>
-                        <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importTransportersCSV(this)"></label>
-                        <button onclick="dedupTransporters()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(245,158,11,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-clone" style="margin-right:4px;"></i>Clean Dups</button>
-                        <button onclick="showModal('m-transporter')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Transporter</button>
+                        <label class="btn-import"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importTransportersCSV(this)"></label>
+                        <button onclick="dedupTransporters()" class="btn-dedup"><i class="fas fa-clone" style="margin-right:4px;"></i>Clean Dups</button>
+                        <button onclick="showModal('m-transporter')" class="btn-add"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Transporter</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -252,16 +247,16 @@
         </div>
 
         <div id="p-purchase-rates" class="hidden">
-            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                <div class="flex justify-between items-center mb-5">
-                    <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Purchase Rates</h3>
-                    <div class="flex gap-2 items-center">
-                        <div style="position:relative;">
-                            <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-purchase-rates" placeholder="Search rates..." oninput="filterTable('t-purchase-rates', this.value, [1,2,3,4,5])" aria-label="Search purchase rates" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h3>Purchase Rates</h3>
+                    <div class="content-card-actions">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-purchase-rates" placeholder="Search rates..." oninput="filterTable('t-purchase-rates', this.value, [1,2,3,4,5])" aria-label="Search purchase rates" class="search-input">
                         </div>
-                        <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importPurchaseRatesCSV(this)"></label>
-                        <button onclick="showModal('m-purchase-rate')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Rate</button>
+                        <label class="btn-import"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importPurchaseRatesCSV(this)"></label>
+                        <button onclick="showModal('m-purchase-rate')" class="btn-add"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Rate</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -281,31 +276,31 @@
         </div>
 
         <div id="p-sales" class="hidden">
-            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                <div class="flex justify-between items-center mb-5">
-                    <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Sales</h3>
-                    <div class="flex gap-2 items-center">
-                        <div style="position:relative;">
-                            <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-sales" placeholder="Search sales..." oninput="filterTable('t-sales', this.value, [0,1,2,3,4,9])" aria-label="Search sales" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:200px;">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h3>Sales</h3>
+                    <div class="content-card-actions">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-sales" placeholder="Search sales..." oninput="filterTable('t-sales', this.value, [0,1,2,3,4,9])" aria-label="Search sales" class="search-input" style="width:200px;">
                         </div>
-                        <div class="relative group">
-                            <button style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-import" style="margin-right:4px;"></i>Import</button>
-                            <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-xl z-10 whitespace-nowrap" style="border-color:#e2e8f0;border-radius:12px;">
-                                <label class="block px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm" style="font-weight:500;"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV<input type="file" accept=".csv" class="hidden" onchange="importSalesCSV(this)"></label>
-                                <label class="block px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm" style="font-weight:500;"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importSalesXLSX(this)"></label>
+                        <div class="dropdown-group">
+                            <button class="btn-import"><i class="fas fa-file-import" style="margin-right:4px;"></i>Import</button>
+                            <div class="dropdown-menu hidden group-hover:block">
+                                <label class="block"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV<input type="file" accept=".csv" class="hidden" onchange="importSalesCSV(this)"></label>
+                                <label class="block"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX<input type="file" accept=".xlsx,.xls" class="hidden" onchange="importSalesXLSX(this)"></label>
                             </div>
                         </div>
-                        <div class="relative group">
-                            <button style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(99,102,241,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-export" style="margin-right:4px;"></i>Export</button>
-                            <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-xl z-10 whitespace-nowrap" style="border-color:#e2e8f0;border-radius:12px;">
-                                <a onclick="downloadExport('/api/export/sales?format=csv')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV</a>
-                                <a onclick="downloadExport('/api/export/sales?format=xlsx')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX</a>
-                                <a onclick="downloadExport('/api/export/sales?format=pdf')" class="block px-4 py-2 hover:bg-gray-100 text-sm" style="text-decoration:none;color:#0f172a;font-weight:500;cursor:pointer;"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
+                        <div class="dropdown-group">
+                            <button class="btn-export"><i class="fas fa-file-export" style="margin-right:4px;"></i>Export</button>
+                            <div class="dropdown-menu hidden group-hover:block">
+                                <a onclick="downloadExport('/api/export/sales?format=csv')" class="block"><i class="fas fa-file-csv mr-2" style="color:#10b981;"></i>CSV</a>
+                                <a onclick="downloadExport('/api/export/sales?format=xlsx')" class="block"><i class="fas fa-file-excel mr-2" style="color:#10b981;"></i>XLSX</a>
+                                <a onclick="downloadExport('/api/export/sales?format=pdf')" class="block"><i class="fas fa-file-pdf mr-2" style="color:#ef4444;"></i>PDF</a>
                             </div>
                         </div>
-                        <button onclick="fetchBulkTracking()" id="btn-fetch-all-tracking" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(245,158,11,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>Fetch All Tracking</button>
-                        <button onclick="showModal('m-sale')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>New Sale</button>
+                        <button onclick="fetchBulkTracking()" id="btn-fetch-all-tracking" class="btn-fetch"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>Fetch All Tracking</button>
+                        <button onclick="showModal('m-sale')" class="btn-add"><i class="fas fa-plus" style="margin-right:4px;"></i>New Sale</button>
                     </div>
                 </div>
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
@@ -325,16 +320,16 @@
         </div>
 
         <div id="p-expenses" class="hidden">
-            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                <div class="flex justify-between items-center mb-5">
-                    <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Expenses</h3>
-                    <div class="flex gap-2 items-center">
-                        <div style="position:relative;">
-                            <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;"></i>
-                            <input type="text" id="search-expenses" placeholder="Search expenses..." oninput="filterTable('t-expenses', this.value, [0,1,2,3])" aria-label="Search expenses" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;width:220px;">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h3>Expenses</h3>
+                    <div class="content-card-actions">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-expenses" placeholder="Search expenses..." oninput="filterTable('t-expenses', this.value, [0,1,2,3])" aria-label="Search expenses" class="search-input">
                         </div>
-                        <label style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importExpensesCSV(this)"></label>
-                        <button onclick="showModal('m-expense')" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.25);transition:all 0.15s;display:inline-flex;align-items:center;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Expense</button>
+                        <label class="btn-import"><i class="fas fa-file-csv" style="margin-right:4px;"></i>Import CSV<input type="file" accept=".csv" class="hidden" onchange="importExpensesCSV(this)"></label>
+                        <button onclick="showModal('m-expense')" class="btn-add"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Expense</button>
                     </div>
                 </div>
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
@@ -349,24 +344,24 @@
         </div>
 
         <div id="p-reports" class="hidden">
-            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;">
-                <div class="flex justify-between items-center mb-5">
-                    <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Business Reports</h3>
-                    <div class="flex gap-3 items-center">
-                        <input type="date" id="rpt-from" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;font-family:'Inter',sans-serif;">
-                        <span style="color:#94a3b8;font-size:13px;">to</span>
-                        <input type="date" id="rpt-to" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 14px;font-size:13px;font-family:'Inter',sans-serif;">
-                        <button onclick="loadReport()" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(99,102,241,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(99,102,241,0.35)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(99,102,241,0.25)'"><i class="fas fa-filter" style="margin-right:6px;"></i>Filter</button>
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h3>Business Reports</h3>
+                    <div class="report-date-filter">
+                        <input type="date" id="rpt-from">
+                        <span>to</span>
+                        <input type="date" id="rpt-to">
+                        <button onclick="loadReport()" class="btn-filter"><i class="fas fa-filter" style="margin-right:6px;"></i>Filter</button>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-5 mb-6">
-                    <div style="background:#f8fafc;border-radius:12px;padding:20px;border:1px solid #f1f5f9;"><canvas id="chart-revenue" height="200"></canvas></div>
-                    <div style="background:#f8fafc;border-radius:12px;padding:20px;border:1px solid #f1f5f9;"><canvas id="chart-expenses" height="200"></canvas></div>
+                    <div class="report-chart-card"><canvas id="chart-revenue" height="200"></canvas></div>
+                    <div class="report-chart-card"><canvas id="chart-expenses" height="200"></canvas></div>
                 </div>
                 <div class="grid grid-cols-2 gap-5 mb-6">
-                    <div style="background:#f8fafc;border-radius:12px;padding:20px;border:1px solid #f1f5f9;"><canvas id="chart-gp" height="200"></canvas></div>
-                    <div style="background:#f8fafc;border-radius:12px;padding:20px;border:1px solid #f1f5f9;"><canvas id="chart-sales" height="200"></canvas></div>
+                    <div class="report-chart-card"><canvas id="chart-gp" height="200"></canvas></div>
+                    <div class="report-chart-card"><canvas id="chart-sales" height="200"></canvas></div>
                 </div>
 
                 <div id="rpt-body"></div>
@@ -374,20 +369,20 @@
         </div>
 
         <div id="p-settings" class="hidden">
-            <div style="background:#fff;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);padding:24px;border:1px solid #f1f5f9;max-width:600px;">
+            <div class="content-card" style="max-width:600px;">
                 <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;margin-bottom:20px;">Settings</h3>
                 <div id="settings-body"></div>
             </div>
         </div>
     </main>
 
-    <div id="m-product" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-product-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-product-title">Add Product</h3>
-                <button onclick="hideModal('m-product')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-product" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-product-title">
+        <div class="modal-content" style="max-width:500px;margin:0 16px;">
+            <div class="modal-header">
+                <h3 id="m-product-title">Add Product</h3>
+                <button onclick="hideModal('m-product')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-product" style="padding:24px;" class="space-y-4">
+            <form id="f-product" class="modal-body space-y-4">
                 <input type="hidden" id="f-pid">
                 <label class="block text-sm font-medium text-gray-700">Part No. *</label><input type="text" id="f-ppartno" required class="w-full border rounded px-3 py-2">
                 <label class="block text-sm font-medium text-gray-700">Description *</label><input type="text" id="f-pname" required class="w-full border rounded px-3 py-2">
@@ -407,13 +402,13 @@
         </div>
     </div>
 
-    <div id="m-pricing" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-pricing-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Set Pricing</h3>
-                <button onclick="hideModal('m-pricing')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-pricing" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-pricing-title">
+        <div class="modal-content" style="max-width:500px;margin:0 16px;">
+            <div class="modal-header">
+                <h3>Set Pricing</h3>
+                <button onclick="hideModal('m-pricing')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-pricing" style="padding:24px;" class="space-y-4">
+            <form id="f-pricing" class="modal-body space-y-4">
                 <input type="hidden" id="f-prpid">
                 <label class="block text-sm font-medium text-gray-700">Purchase Price (Excl. GST)</label><input type="number" min="0" step="0.01" id="f-praw" class="w-full border rounded px-3 py-2">
                 <label class="block text-sm font-medium text-gray-700">MRP</label><input type="number" min="0" step="0.01" id="f-pmrp" class="w-full border rounded px-3 py-2">
@@ -426,13 +421,13 @@
         </div>
     </div>
 
-    <div id="m-order" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-order-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:800px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:10;border-radius:16px 16px 0 0;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-order-title">Add Order</h3>
-                <button onclick="hideModal('m-order')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-order" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-order-title">
+        <div class="modal-content" style="max-width:800px;margin:0 16px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header" style="position:sticky;top:0;background:#fff;z-index:10;border-radius:16px 16px 0 0;">
+                <h3 id="m-order-title">Add Order</h3>
+                <button onclick="hideModal('m-order')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-order" style="padding:24px;" class="space-y-4">
+            <form id="f-order" class="modal-body space-y-4">
                 <input type="hidden" id="f-oid">
                 <input type="hidden" id="f-oslno">
                 <div class="grid grid-cols-3 gap-3">
@@ -492,13 +487,13 @@
         </div>
     </div>
 
-    <div id="m-proforma-order" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-proforma-order-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:95vw;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:10;border-radius:16px 16px 0 0;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-po-title">New PI/PO Order</h3>
-                <button onclick="hideModal('m-proforma-order')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-proforma-order" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-proforma-order-title">
+        <div class="modal-content" style="max-width:95vw;margin:0 16px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header" style="position:sticky;top:0;background:#fff;z-index:10;border-radius:16px 16px 0 0;">
+                <h3 id="m-po-title">New PI/PO Order</h3>
+                <button onclick="hideModal('m-proforma-order')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-proforma-order" style="padding:24px;" class="space-y-4">
+            <form id="f-proforma-order" class="modal-body space-y-4">
                 <input type="hidden" id="f-pooid">
                 <div class="grid grid-cols-4 gap-3">
                     <div><label class="block text-sm font-medium">Order Type *</label><select id="f-pootype" class="w-full border rounded px-3 py-2"><option value="PI">Proforma Invoice (PI)</option><option value="PO">Purchase Order (PO)</option></select></div>
@@ -560,29 +555,29 @@
                     <div><label class="block text-sm">Delivery (Days)</label><input type="number" min="1" id="f-poodelivery" value="30" class="w-full border rounded px-3 py-2"></div>
                 </div>
 
-                <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:10px;padding:16px;border:1px solid #e2e8f0;font-size:14px;">
-                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#64748b;">Sub Total (excl GST):</span><span id="pov-subtotal" style="font-weight:600;">₹0.00</span></div>
-                    <div id="discount-row" style="display:none;background:#ecfdf5;border-radius:6px;padding:6px 10px;margin:6px 0;border:1px solid #a7f3d0;">
+                <div class="summary-box">
+                    <div class="summary-row"><span class="label">Sub Total (excl GST):</span><span id="pov-subtotal" class="value">₹0.00</span></div>
+                    <div id="discount-row" class="discount-box" style="display:none;">
                         <div style="display:flex;justify-content:space-between;font-size:13px;">
                             <span style="color:#059669;font-weight:600;">Discount Scheme (54% + <span id="pov-additional-discount">0</span>%):</span>
                             <span id="pov-discount-amount" style="font-weight:700;color:#059669;">-₹0.00</span>
                         </div>
                         <div style="font-size:11px;color:#059669;margin-top:2px;">Slab: <span id="pov-slab-info">-</span></div>
                     </div>
-                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#64748b;">GST @18%:</span><span id="pov-gst" style="font-weight:600;">₹0.00</span></div>
-                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#64748b;">Freight:</span><span id="pov-freight" style="font-weight:600;">₹0.00</span></div>
-                    <div style="display:flex;justify-content:space-between;padding:8px 0 0;margin-top:8px;border-top:2px solid #e2e8f0;font-size:18px;"><span style="font-weight:700;">Grand Total:</span><span id="pov-total" style="font-weight:800;color:#10b981;">₹0.00</span></div>
+                    <div class="summary-row"><span class="label">GST @18%:</span><span id="pov-gst" class="value">₹0.00</span></div>
+                    <div class="summary-row"><span class="label">Freight:</span><span id="pov-freight" class="value">₹0.00</span></div>
+                    <div class="summary-row" style="padding:8px 0 0;margin-top:8px;border-top:2px solid #e2e8f0;font-size:18px;"><span style="font-weight:700;">Grand Total:</span><span id="pov-total" style="font-weight:800;color:#10b981;">₹0.00</span></div>
                 </div>
 
-                <div style="background:#fffbeb;border-radius:8px;padding:10px 14px;border:1px solid #fde68a;display:flex;align-items:center;gap:10px;">
-                    <input type="checkbox" id="f-poodiscount" onchange="onDiscountSchemeChange()" style="width:18px;height:18px;cursor:pointer;">
+                <div class="discount-check">
+                    <input type="checkbox" id="f-poodiscount" onchange="onDiscountSchemeChange()">
                     <div>
                         <label for="f-poodiscount" style="font-weight:600;font-size:13px;cursor:pointer;color:#92400e;">Apply Discount Scheme (54% + Slab)</label>
                         <p style="font-size:11px;color:#a16207;margin-top:2px;">Valid: 1 Aug - 31 Oct 2026 | Applied on basic value excl. C.D & GST</p>
                     </div>
                 </div>
 
-                <div id="gp-section" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:10px;padding:16px;border:1px solid #bfdbfe;font-size:14px;">
+                <div id="gp-section" class="gp-section">
                     <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#1e40af;">Purchase Total:</span><span id="pov-purchase-total" style="font-weight:600;color:#1e40af;">₹0.00</span></div>
                     <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#1e40af;">Transport Cost:</span><span id="pov-transport-cost" style="font-weight:600;color:#1e40af;">₹0.00</span></div>
                     <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#1e40af;">Gross Profit:</span><span id="pov-gp" style="font-weight:700;color:#1e40af;">₹0.00</span></div>
@@ -592,8 +587,8 @@
 
                 <div><label class="block text-sm">Notes</label><textarea id="f-poonotes" rows="2" class="w-full border rounded px-3 py-2"></textarea></div>
 
-                <div style="display:flex;justify-content:flex-end;gap:12px;position:sticky;bottom:0;background:white;padding:16px 0 0;border-top:1px solid #f1f5f9;">
-                    <button type="button" onclick="generateProformaPDF()" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(139,92,246,0.25);transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'"><i class="fas fa-file-pdf" style="margin-right:6px;"></i>Generate PI PDF</button>
+                <div class="modal-footer" style="position:sticky;bottom:0;background:white;border-top:1px solid #f1f5f9;">
+                    <button type="button" onclick="generateProformaPDF()" class="btn-import"><i class="fas fa-file-pdf" style="margin-right:6px;"></i>Generate PI PDF</button>
                     <button type="button" onclick="hideModal('m-proforma-order')" class="btn-cancel">Cancel</button>
                     <button type="submit" class="btn-save">Save Order</button>
                 </div>
@@ -601,13 +596,13 @@
         </div>
     </div>
 
-    <div id="m-customer" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-customer-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:650px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-cust-title">Add Customer</h3>
-                <button onclick="hideModal('m-customer')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-customer" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-customer-title">
+        <div class="modal-content" style="max-width:650px;margin:0 16px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3 id="m-cust-title">Add Customer</h3>
+                <button onclick="hideModal('m-customer')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-customer" style="padding:24px;" class="space-y-4">
+            <form id="f-customer" class="modal-body space-y-4">
                 <input type="hidden" id="f-cid">
                 <div class="grid grid-cols-2 gap-3">
                     <div><label class="block text-sm font-medium text-gray-700">Customer ID *</label><input type="text" id="f-ccustid" required class="w-full border rounded px-3 py-2"></div>
@@ -652,13 +647,13 @@
         </div>
     </div>
 
-    <div id="m-transporter" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-transporter-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:650px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-trans-title">Add Transporter</h3>
-                <button onclick="hideModal('m-transporter')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-transporter" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-transporter-title">
+        <div class="modal-content" style="max-width:650px;margin:0 16px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3 id="m-trans-title">Add Transporter</h3>
+                <button onclick="hideModal('m-transporter')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-transporter" style="padding:24px;" class="space-y-4" novalidate>
+            <form id="f-transporter" class="modal-body space-y-4" novalidate>
                 <input type="hidden" id="f-tid">
                 <div class="grid grid-cols-2 gap-3">
                     <div><label class="block text-sm font-medium text-gray-700">Transporter ID *</label><input type="text" id="f-ttransid" required class="w-full border rounded px-3 py-2"></div>
@@ -711,13 +706,13 @@
         </div>
     </div>
 
-    <div id="m-purchase-rate" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-purchase-rate-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-pr-title">Add Purchase Rate</h3>
-                <button onclick="hideModal('m-purchase-rate')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-purchase-rate" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-purchase-rate-title">
+        <div class="modal-content" style="max-width:500px;margin:0 16px;">
+            <div class="modal-header">
+                <h3 id="m-pr-title">Add Purchase Rate</h3>
+                <button onclick="hideModal('m-purchase-rate')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-purchase-rate" style="padding:24px;" class="space-y-4">
+            <form id="f-purchase-rate" class="modal-body space-y-4">
                 <input type="hidden" id="f-prid">
                 <label class="block text-sm font-medium text-gray-700">Product *</label><select id="f-prproduct" required class="w-full border rounded px-3 py-2"></select>
                 <div class="grid grid-cols-2 gap-3">
@@ -733,47 +728,47 @@
         </div>
     </div>
 
-    <div id="m-whatsapp" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-whatsapp-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:450px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;display:flex;align-items:center;gap:8px;">
+    <div id="m-whatsapp" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-whatsapp-title">
+        <div class="modal-content" style="max-width:450px;margin:0 16px;">
+            <div class="modal-header">
+                <h3 id="m-whatsapp-title" style="display:flex;align-items:center;gap:8px;">
                     <i class="fab fa-whatsapp" style="color:#25d366;font-size:22px;"></i> Send WhatsApp
                 </h3>
-                <button onclick="hideModal('m-whatsapp')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+                <button onclick="hideModal('m-whatsapp')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <div style="padding:24px;">
+            <div class="modal-body">
                 <input type="hidden" id="f-waoid">
                 <input type="hidden" id="f-watype">
-                <div style="background:#f0fdf4;border-radius:8px;padding:12px;margin-bottom:16px;border:1px solid #bbf7d0;">
-                    <p style="font-size:13px;color:#166534;"><strong>Order:</strong> <span id="f-waorder"></span></p>
-                    <p style="font-size:13px;color:#166534;"><strong>Customer:</strong> <span id="f-wacustomer"></span></p>
+                <div class="wa-info-box">
+                    <p><strong>Order:</strong> <span id="f-waorder"></span></p>
+                    <p><strong>Customer:</strong> <span id="f-wacustomer"></span></p>
                 </div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
-                <input type="tel" id="f-waphone" placeholder="Enter 10-digit mobile number" maxlength="10" class="w-full border rounded px-3 py-2 mb-4" style="border:1.5px solid #e2e8f0;">
-                <div style="display:flex;gap:8px;">
-                    <button onclick="sendWhatsAppPI()" style="flex:1;background:#25d366;color:white;padding:10px;border-radius:8px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <input type="tel" id="f-waphone" placeholder="Enter 10-digit mobile number" maxlength="10" class="w-full border rounded px-3 py-2 mb-4">
+                <div class="wa-buttons">
+                    <button onclick="sendWhatsAppPI()" class="wa-btn-send" style="background:#25d366;">
                         <i class="fas fa-file-pdf"></i> Send PI
                     </button>
-                    <button onclick="sendWhatsAppPO()" style="flex:1;background:#075e54;color:white;padding:10px;border-radius:8px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <button onclick="sendWhatsAppPO()" class="wa-btn-send" style="background:#075e54;">
                         <i class="fas fa-shopping-cart"></i> Send PO
                     </button>
                 </div>
-                <div id="wa-status" style="margin-top:12px;display:none;padding:10px;border-radius:8px;font-size:13px;"></div>
+                <div id="wa-status" class="tracking-status"></div>
             </div>
         </div>
     </div>
 
-    <div id="m-sale" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-sale-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:550px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-sale-title">New Sale</h3>
-                <button onclick="hideModal('m-sale')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-sale" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-sale-title">
+        <div class="modal-content" style="max-width:550px;margin:0 16px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3 id="m-sale-title">New Sale</h3>
+                <button onclick="hideModal('m-sale')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-sale" style="padding:24px;" class="space-y-4">
+            <form id="f-sale" class="modal-body space-y-4">
                 <input type="hidden" id="f-slid">
                 <label class="block text-sm font-medium text-gray-700">Customer *</label><select id="f-slcust" required class="w-full border rounded px-3 py-2"></select>
-                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+                <div class="sale-line-items">
+                    <div class="sale-line-items-header">
                         <span style="font-weight:600;font-size:13px;color:#334155;">Line Items</span>
                         <button type="button" onclick="addSaleItem()" style="background:#3b82f6;color:white;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Item</button>
                     </div>
@@ -787,7 +782,7 @@
                             <th class="px-2 py-1 text-center" style="width:8%;"></th>
                         </tr></thead><tbody id="sale-items-body"></tbody></table>
                     </div>
-                    <div style="padding:8px 14px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:16px;font-size:13px;">
+                    <div class="sale-line-items-footer">
                         <span style="color:#64748b;">Total Qty: <strong id="sale-total-qty">0</strong></span>
                         <span style="color:#64748b;">Total: <strong id="sale-total-amount" style="color:#10b981;">₹0.00</strong></span>
                     </div>
@@ -804,12 +799,12 @@
                     <div><label class="block text-sm font-medium text-gray-700">Payment</label><select id="f-slstatus" class="w-full border rounded px-3 py-2"><option>Pending</option><option>Paid</option><option>Partial</option></select></div>
                     <div><label class="block text-sm font-medium text-gray-700">Method</label><select id="f-slmethod" class="w-full border rounded px-3 py-2"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option></select></div>
                 </div>
-                <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:10px;padding:16px;margin-top:8px;border:1px solid #e2e8f0;">
-                    <div style="display:flex;justify-content:space-between;font-size:14px;padding:4px 0;"><span style="color:#64748b;">Taxable:</span><span id="sv-tax" style="font-weight:600;color:#0f172a;">0</span></div>
-                    <div style="display:flex;justify-content:space-between;font-size:14px;padding:4px 0;"><span style="color:#64748b;">CGST:</span><span id="sv-cgst" style="font-weight:600;color:#0f172a;">0</span></div>
-                    <div style="display:flex;justify-content:space-between;font-size:14px;padding:4px 0;"><span style="color:#64748b;">SGST:</span><span id="sv-sgst" style="font-weight:600;color:#0f172a;">0</span></div>
-                    <div style="display:flex;justify-content:space-between;font-size:14px;padding:4px 0;"><span style="color:#64748b;">Freight:</span><span id="sv-frt" style="font-weight:600;color:#0f172a;">0</span></div>
-                    <div style="display:flex;justify-content:space-between;padding:8px 0 0;margin-top:8px;border-top:2px solid #e2e8f0;font-size:18px;"><span style="font-weight:700;color:#0f172a;">Total:</span><span id="sv-total" style="font-weight:800;color:#10b981;">0</span></div>
+                <div class="summary-box" style="margin-top:8px;">
+                    <div class="summary-row"><span class="label">Taxable:</span><span id="sv-tax" class="value" style="color:#0f172a;">0</span></div>
+                    <div class="summary-row"><span class="label">CGST:</span><span id="sv-cgst" class="value" style="color:#0f172a;">0</span></div>
+                    <div class="summary-row"><span class="label">SGST:</span><span id="sv-sgst" class="value" style="color:#0f172a;">0</span></div>
+                    <div class="summary-row"><span class="label">Freight:</span><span id="sv-frt" class="value" style="color:#0f172a;">0</span></div>
+                    <div class="summary-row" style="padding:8px 0 0;margin-top:8px;border-top:2px solid #e2e8f0;font-size:18px;"><span style="font-weight:700;color:#0f172a;">Total:</span><span id="sv-total" style="font-weight:800;color:#10b981;">0</span></div>
                 </div>
                 <div class="flex justify-end gap-3 pt-4 border-t">
                     <button type="button" onclick="hideModal('m-sale')" class="btn-cancel">Cancel</button>
@@ -819,13 +814,13 @@
         </div>
     </div>
 
-    <div id="m-expense" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-expense-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-expense-title">Add Expense</h3>
-                <button onclick="hideModal('m-expense')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-expense" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-expense-title">
+        <div class="modal-content" style="max-width:500px;margin:0 16px;">
+            <div class="modal-header">
+                <h3 id="m-expense-title">Add Expense</h3>
+                <button onclick="hideModal('m-expense')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-expense" style="padding:24px;" class="space-y-4">
+            <form id="f-expense" class="modal-body space-y-4">
                 <input type="hidden" id="f-eid">
                 <label class="block text-sm font-medium text-gray-700">Category *</label><select id="f-ecat" required class="w-full border rounded px-3 py-2"><option>Rent</option><option>Salary</option><option>Utilities</option><option>Transport</option><option>Raw Material</option><option>Maintenance</option><option>Marketing</option><option>Office</option><option>Depreciation</option><option>Interest</option><option>Other</option></select>
                 <label class="block text-sm font-medium text-gray-700">Description</label><input type="text" id="f-edesc" class="w-full border rounded px-3 py-2">
@@ -840,13 +835,13 @@
         </div>
     </div>
 
-    <div id="m-lr-tracking" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-lr-tracking-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;max-height:90vh;overflow-y:auto;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">LR Tracking</h3>
-                <button onclick="hideModal('m-lr-tracking')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-lr-tracking" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-lr-tracking-title">
+        <div class="modal-content" style="max-width:500px;margin:0 16px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3>LR Tracking</h3>
+                <button onclick="hideModal('m-lr-tracking')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <div style="padding:24px;">
+            <div class="modal-body">
                 <input type="hidden" id="f-lrsaleid">
                 <label class="block text-sm font-medium text-gray-700 mb-1">LR Number *</label>
                 <input type="text" id="f-lrlrno" class="w-full border rounded px-3 py-2 mb-4" placeholder="Enter LR number">
@@ -864,12 +859,12 @@
                 <input type="url" id="f-lrurl" class="w-full border rounded px-3 py-2 mb-2" placeholder="https://...">
                 <div style="display:flex;gap:8px;margin-bottom:16px;">
                     <button onclick="generateTrackingUrl()" type="button" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px;color:#4f46e5;cursor:pointer;font-weight:600;"><i class="fas fa-magic mr-1"></i> Auto-generate URL</button>
-                    <button onclick="fetchSingleTracking()" type="button" id="btn-fetch-tracking" style="background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600;"><i class="fas fa-sync-alt mr-1"></i> Fetch Status</button>
+                    <button onclick="fetchSingleTracking()" type="button" id="btn-fetch-tracking" class="btn-add" style="padding:6px 12px;font-size:12px;"><i class="fas fa-sync-alt mr-1"></i> Fetch Status</button>
                 </div>
                 <div id="f-lrlink" style="display:none;margin-bottom:16px;">
                     <a id="f-lrlinka" href="#" target="_blank" style="color:#4f46e5;text-decoration:underline;font-size:13px;"><i class="fas fa-external-link-alt mr-1"></i>Open tracking page</a>
                 </div>
-                <div class="flex justify-end gap-3 pt-4 border-t">
+                <div class="modal-footer">
                     <button type="button" onclick="hideModal('m-lr-tracking')" class="btn-cancel">Cancel</button>
                     <button type="button" onclick="saveLrTracking()" class="btn-save">Save</button>
                 </div>
@@ -877,56 +872,59 @@
         </div>
     </div>
 
-    <div id="login-overlay" class="fixed inset-0 z-[200] flex items-center justify-center" style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 100%);display:none;">
-        <div style="background:#fff;border-radius:20px;width:100%;max-width:400px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);padding:40px;">
-            <div style="text-align:center;margin-bottom:32px;">
-                <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;margin:0 auto 16px;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-                    <img src="/static/img/logo.png" alt="Raksha ERP" style="width:100%;height:100%;object-fit:cover;">
+    <div id="login-overlay" class="fixed inset-0 z-[200] flex items-center justify-center login-overlay" style="display:none;">
+        <div class="login-card" style="width:100%;max-width:800px;margin:0 16px;">
+            <div class="login-card-left">
+                <div class="login-logo">
+                    <img src="/static/img/logo.png" alt="Raksha ERP">
                 </div>
-                <h2 style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.03em;">Raksha ERP</h2>
-                <p style="font-size:13px;color:#64748b;margin-top:4px;">Sign in to your account</p>
+                <h2 class="login-title">Raksha ERP</h2>
+                <p class="login-subtitle">Sign in to your account</p>
+                <form id="login-form" onsubmit="handleLogin(event)" style="margin-top:24px;">
+                    <div class="login-field" style="margin-bottom:16px;">
+                        <label>Username</label>
+                        <input type="text" id="login-username" required autocomplete="username">
+                    </div>
+                    <div class="login-field" style="margin-bottom:24px;">
+                        <label>Password</label>
+                        <input type="password" id="login-password" required autocomplete="current-password">
+                    </div>
+                    <p id="login-error" style="color:#ef4444;font-size:13px;margin-bottom:16px;display:none;"></p>
+                    <button type="submit" id="login-btn" class="login-btn">Sign In</button>
+                </form>
             </div>
-            <form id="login-form" onsubmit="handleLogin(event)">
-                <div style="margin-bottom:16px;">
-                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Username</label>
-                    <input type="text" id="login-username" required autocomplete="username" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:'Inter',sans-serif;box-sizing:border-box;">
-                </div>
-                <div style="margin-bottom:24px;">
-                    <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Password</label>
-                    <input type="password" id="login-password" required autocomplete="current-password" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:14px;font-family:'Inter',sans-serif;box-sizing:border-box;">
-                </div>
-                <p id="login-error" style="color:#ef4444;font-size:13px;margin-bottom:16px;display:none;"></p>
-                <button type="submit" id="login-btn" style="width:100%;background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;padding:12px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(99,102,241,0.3);transition:all 0.15s;">Sign In</button>
-            </form>
+            <div class="login-card-right">
+                <img src="/static/img/products/login-frp-cover.jpg" alt="FRP Manhole Cover">
+            </div>
         </div>
     </div>
 
-    <div id="m-user" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-user-title" style="background:rgba(15,23,42,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:500px;margin:0 16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #f1f5f9;" class="modal-content">
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="font-weight:700;font-size:18px;letter-spacing:-0.02em;" id="m-user-title">Add User</h3>
-                <button onclick="hideModal('m-user')" aria-label="Close" style="width:32px;height:32px;border-radius:8px;background:#f1f5f9;border:none;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#0f172a'" onmouseout="this.style.background='#f1f5f9';this.style.color='#64748b'">&times;</button>
+    <div id="m-user" class="modal-bg hidden fixed inset-0 flex items-center justify-center z-[100]" role="dialog" aria-modal="true" aria-labelledby="m-user-title">
+        <div class="modal-content" style="max-width:500px;margin:0 16px;">
+            <div class="modal-header">
+                <h3 id="m-user-title">Add User</h3>
+                <button onclick="hideModal('m-user')" aria-label="Close" class="modal-close">&times;</button>
             </div>
-            <form id="f-user" style="padding:24px;" class="space-y-4">
+            <form id="f-user" class="modal-body space-y-4">
                 <input type="hidden" id="f-uid">
                 <label class="block text-sm font-medium text-gray-700">Username *</label>
-                <input type="text" id="f-uusername" required class="w-full border rounded px-3 py-2" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                <input type="text" id="f-uusername" required class="w-full border rounded px-3 py-2">
                 <label class="block text-sm font-medium text-gray-700">Full Name</label>
-                <input type="text" id="f-ufullname" class="w-full border rounded px-3 py-2" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                <input type="text" id="f-ufullname" class="w-full border rounded px-3 py-2">
                 <label class="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" id="f-uemail" class="w-full border rounded px-3 py-2" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                <input type="email" id="f-uemail" class="w-full border rounded px-3 py-2">
                 <label class="block text-sm font-medium text-gray-700">Password <span id="f-upw-hint">(required)</span></label>
-                <input type="password" id="f-upassword" class="w-full border rounded px-3 py-2" minlength="6" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                <input type="password" id="f-upassword" class="w-full border rounded px-3 py-2" minlength="6">
                 <label class="block text-sm font-medium text-gray-700">Role *</label>
-                <select id="f-urole" required class="w-full border rounded px-3 py-2" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;">
+                <select id="f-urole" required class="w-full border rounded px-3 py-2">
                     <option value="viewer">Viewer</option>
                     <option value="manager">Manager</option>
                     <option value="admin">Admin</option>
                 </select>
                 <label class="block text-sm" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f-uisactive" checked> Active</label>
-                <div class="flex justify-end gap-3 pt-4 border-t" style="display:flex;justify-content:flex-end;gap:12px;padding-top:16px;border-top:1px solid #f1f5f9;">
-                    <button type="button" onclick="hideModal('m-user')" class="btn-cancel" style="padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;border:1.5px solid #e2e8f0;background:#fff;color:#374151;">Cancel</button>
-                    <button type="submit" class="btn-save" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(16,185,129,0.3);">Save User</button>
+                <div class="modal-footer">
+                    <button type="button" onclick="hideModal('m-user')" class="btn-cancel">Cancel</button>
+                    <button type="submit" class="btn-save">Save User</button>
                 </div>
             </form>
         </div>
@@ -934,6 +932,6 @@
 
     <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl hidden" role="alert" aria-live="polite" style="font-weight:600;font-size:14px;background:#10b981;"></div>
 
-    <script src="/static/js/app.js?v=20260827v1"></script>
+    <script src="/static/js/app.js?v=20260901v1"></script>
 </body>
 </html>
