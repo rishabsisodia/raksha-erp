@@ -1450,7 +1450,14 @@ function destroyCharts() {
 
 function renderReportCharts(d) {
     destroyCharts();
-    if (typeof Chart === 'undefined') { console.warn('Chart.js not loaded'); return; }
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js not loaded');
+        ['chart-revenue','chart-expenses','chart-gp','chart-sales'].forEach(function(id) {
+            var c = document.getElementById(id);
+            if (c && c.parentElement) c.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;color:#94a3b8;font-size:13px;"><i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>Chart library failed to load. Check your connection.</div>';
+        });
+        return;
+    }
     var colors = {
         indigo: '#6366f1', green: '#10b981', red: '#ef4444', orange: '#f59e0b',
         purple: '#8b5cf6', blue: '#3b82f6', yellow: '#eab308', teal: '#14b8a6',
@@ -1459,7 +1466,8 @@ function renderReportCharts(d) {
 
     // Revenue vs COGS Bar Chart
     var ctx1 = document.getElementById('chart-revenue');
-    if (ctx1) {
+    var hasRevenue = (d.total_revenue || 0) + (d.total_cogs || 0) + (d.order_freight_cost || 0) + (d.order_credit_notes || 0);
+    if (ctx1 && hasRevenue > 0) {
         _reportCharts.revenue = new Chart(ctx1, {
             type: 'bar',
             data: {
@@ -1491,6 +1499,8 @@ function renderReportCharts(d) {
                 }
             }
         });
+    } else if (ctx1) {
+        ctx1.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:200px;color:#94a3b8;font-size:13px;"><i class="fas fa-chart-bar" style="margin-right:8px;font-size:20px;"></i>No revenue data for this period</div>';
     }
 
     // Expense Breakdown Doughnut
