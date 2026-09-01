@@ -1538,3 +1538,288 @@ button:active {
         font-size: 11px !important;
     }
 }
+
+/* ============================================================
+   PREMIUM ANIMATIONS
+   ============================================================ */
+
+/* ---- Dashboard Hero Entrance ---- */
+@keyframes heroSlideIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dash-hero {
+    animation: heroSlideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Hero Image Float ---- */
+@keyframes heroFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-6px) rotate(1deg); }
+}
+
+.dash-hero-img {
+    animation: heroFloat 4s ease-in-out infinite;
+}
+
+/* ---- Stat Card Stagger Entrance ---- */
+@keyframes statCardIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.stat-card {
+    animation: statCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.05s; }
+.stat-card:nth-child(2) { animation-delay: 0.1s; }
+.stat-card:nth-child(3) { animation-delay: 0.15s; }
+.stat-card:nth-child(4) { animation-delay: 0.2s; }
+.stat-card:nth-child(5) { animation-delay: 0.25s; }
+.stat-card:nth-child(6) { animation-delay: 0.3s; }
+
+/* ---- Dashboard Panel Entrance ---- */
+@keyframes panelFadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dash-panel {
+    animation: panelFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.dash-panel:nth-child(1) { animation-delay: 0.1s; }
+.dash-panel:nth-child(2) { animation-delay: 0.2s; }
+.dash-panel:nth-child(3) { animation-delay: 0.3s; }
+.dash-panel:nth-child(4) { animation-delay: 0.4s; }
+.dash-panel:nth-child(5) { animation-delay: 0.5s; }
+
+/* ---- Sidebar Nav Glow on Hover ---- */
+@keyframes navGlow {
+    0% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+    50% { box-shadow: 0 0 12px 2px rgba(255,255,255,0.08); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+}
+
+aside .nav-btn:hover {
+    animation: navGlow 0.6s ease-out;
+}
+
+/* ---- Active Nav Pulse ---- */
+@keyframes navPulse {
+    0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
+    50% { box-shadow: 0 2px 12px rgba(52, 211, 153, 0.3); }
+}
+
+aside .nav-btn.active {
+    animation: navPulse 3s ease-in-out infinite;
+}
+
+/* ---- Button Shimmer ---- */
+@keyframes btnShimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+
+.btn-save,
+.btn-add,
+.btn-pi {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-save::after,
+.btn-add::after,
+.btn-pi::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+    background-size: 200% 100%;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.btn-save:hover::after,
+.btn-add:hover::after,
+.btn-pi:hover::after {
+    opacity: 1;
+    animation: btnShimmer 0.8s ease-out;
+}
+
+/* ---- Content Card Entrance ---- */
+@keyframes cardSlideIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.content-card {
+    animation: cardSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Table Header Glow ---- */
+thead th {
+    transition: all 0.3s ease;
+}
+
+thead th:hover {
+    text-shadow: 0 0 8px rgba(79, 70, 229, 0.15);
+}
+
+/* ---- Sort Arrow Bounce ---- */
+@keyframes sortBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+}
+
+th.sortable:hover .sort-arrow {
+    animation: sortBounce 0.3s ease-out;
+}
+
+/* ---- Login Card Entrance ---- */
+@keyframes loginCardIn {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.login-card {
+    animation: loginCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Login Right Panel Image Ken Burns ---- */
+@keyframes kenBurns {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.login-card-right img {
+    animation: kenBurns 8s ease-in-out infinite;
+}
+
+/* ---- Modal Backdrop Fade ---- */
+.modal-bg {
+    transition: opacity 0.2s ease;
+}
+
+/* ---- Panel Image Reveal ---- */
+@keyframes imageReveal {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 0.08; transform: scale(1); }
+}
+
+.dash-panel-image {
+    animation: imageReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+}
+
+/* ---- Toast Success Bounce ---- */
+@keyframes toastBounce {
+    0% { transform: translateX(100%); }
+    60% { transform: translateX(-8px); }
+    80% { transform: translateX(4px); }
+    100% { transform: translateX(0); }
+}
+
+#toast:not(.hidden) {
+    animation: toastBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---- Action Button Ripple ---- */
+.action-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transition: width 0.3s, height 0.3s, top 0.3s, left 0.3s;
+    transform: translate(-50%, -50%);
+    z-index: 0;
+}
+
+.action-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.action-btn:active::before {
+    width: 200%;
+    height: 200%;
+}
+
+/* ---- Dropdown Menu Slide ---- */
+@keyframes dropdownSlide {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-menu:not(.hidden) {
+    animation: dropdownSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Focus Ring Animation ---- */
+@keyframes focusRing {
+    0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+    100% { box-shadow: 0 0 0 4px rgba(79, 70, 229, 0); }
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    animation: focusRing 0.3s ease-out;
+}
+
+/* ---- Skeleton Loading Pulse ---- */
+@keyframes skeletonPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, var(--surface-muted) 25%, var(--border-light) 50%, var(--surface-muted) 75%);
+    background-size: 200% 100%;
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+    border-radius: 8px;
+}
+
+/* ---- Stat Value Count Up (placeholder for JS) ---- */
+.stat-value {
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Sidebar Logo Hover ---- */
+.sidebar-logo {
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.sidebar-logo:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+/* ---- Smooth Scroll ---- */
+html {
+    scroll-behavior: smooth;
+}
+
+/* ---- Selection Color ---- */
+::selection {
+    background: rgba(79, 70, 229, 0.2);
+    color: var(--text);
+}
+
+/* ---- Reduced Motion ---- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
