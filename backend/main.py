@@ -4253,11 +4253,10 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
                 for model in [Sale, ProformaOrderItem, SaleItem, PurchaseRate]:
                     for obj in db.query(model).filter(model.product_id == p.id).all():
                         obj.product_id = keep.id
-                for tbl in ["stock_entries"]:
-                    try:
-                        db.execute(text(f"DELETE FROM {tbl} WHERE product_id = :pid"), {"pid": p.id})
-                    except Exception as ex:
-                        logger.warning(f"Dedup: could not clear {tbl} for product {p.id}: {ex}")
+                try:
+                    db.execute(text("UPDATE stock SET product_id = :keep WHERE product_id = :pid"), {"keep": keep.id, "pid": p.id})
+                except Exception as ex:
+                    logger.warning(f"Dedup: could not reassign stock for product {p.id}: {ex}")
                 db.delete(p)
                 removed += 1
             else:
