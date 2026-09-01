@@ -32,20 +32,21 @@
 * { box-sizing: border-box; }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg, #f0f4ff 0%, #f8fafc 50%, #f0fdfa 100%);
-    color: var(--text);
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    background: linear-gradient(135deg, #f0f4ff 0%, #f8fafc 50%, #f0fdfa 100%) !important;
+    color: var(--text) !important;
+    min-height: 100vh !important;
+    -webkit-font-smoothing: antialiased !important;
 }
 
 /* ---- Sidebar ---- */
 aside {
     background: linear-gradient(180deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%) !important;
-    border-right: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 4px 0 24px rgba(30, 27, 75, 0.15);
+    border-right: 1px solid rgba(255,255,255,0.08) !important;
+    box-shadow: 4px 0 24px rgba(30, 27, 75, 0.15) !important;
     position: relative;
     overflow: hidden;
+    color: white !important;
 }
 
 aside::before {
@@ -105,18 +106,18 @@ aside .nav-btn i {
 
 /* ---- Sidebar Logo ---- */
 .sidebar-logo {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    flex-shrink: 0;
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    flex-shrink: 0 !important;
 }
 
 .sidebar-logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
 }
 
 /* ---- Sidebar Divider ---- */
@@ -128,90 +129,93 @@ aside .nav-btn i {
 
 /* ---- Main Content ---- */
 main {
-    background: transparent;
+    background: transparent !important;
 }
 
 /* ---- Page Header ---- */
 header h2 {
-    font-weight: 700;
-    letter-spacing: -0.025em;
+    font-weight: 700 !important;
+    letter-spacing: -0.025em !important;
 }
 
 /* ---- Header Buttons ---- */
 .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
 }
 
 .header-date {
-    font-size: 13px;
-    color: var(--text-muted);
-    background: var(--surface-muted);
-    padding: 8px 16px;
-    border-radius: 10px;
-    font-weight: 500;
+    font-size: 13px !important;
+    color: var(--text-muted) !important;
+    background: var(--surface-muted) !important;
+    padding: 8px 16px !important;
+    border-radius: 10px !important;
+    font-weight: 500 !important;
 }
 
 .header-user {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--surface-muted);
-    padding: 6px 14px;
-    border-radius: 10px;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: var(--surface-muted) !important;
+    padding: 6px 14px !important;
+    border-radius: 10px !important;
 }
 
 .header-logout {
-    background: var(--surface-muted);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    color: var(--danger);
-    transition: all 0.15s;
+    background: var(--surface-muted) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    color: var(--danger) !important;
+    transition: all 0.15s !important;
 }
 
 .header-logout:hover {
-    background: #fee2e2;
+    background: #fee2e2 !important;
 }
 
 /* ---- Dashboard Hero Banner ---- */
 .dash-hero {
-    position: relative;
-    border-radius: 16px;
-    overflow: hidden;
-    margin-bottom: 24px;
-    height: 140px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 40px;
+    position: relative !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    margin-bottom: 24px !important;
+    height: 140px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 40px !important;
+    background: linear-gradient(135deg, rgba(79,70,229,0.92) 0%, rgba(99,102,241,0.8) 50%, rgba(139,92,246,0.7) 100%) !important;
+    flex-shrink: 0 !important;
 }
 
 .dash-hero::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('/static/img/products/hero-frp-cover.jpg') center center / cover no-repeat;
-    opacity: 0.15;
-    z-index: 0;
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: url('/static/img/products/hero-frp-cover.jpg') center center / cover no-repeat !important;
+    opacity: 0.15 !important;
+    z-index: 0 !important;
 }
 
 .dash-hero::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(79,70,229,0.9) 0%, rgba(99,102,241,0.7) 50%, rgba(139,92,246,0.6) 100%);
-    z-index: 1;
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: linear-gradient(135deg, rgba(79,70,229,0.92) 0%, rgba(99,102,241,0.8) 50%, rgba(139,92,246,0.7) 100%) !important;
+    z-index: 1 !important;
+}
 }
 
 .dash-hero > * {
@@ -234,24 +238,27 @@ header h2 {
 }
 
 .dash-hero-img {
-    width: 100px;
-    height: 100px;
-    border-radius: 12px;
-    object-fit: cover;
-    border: 3px solid rgba(255,255,255,0.3);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    width: 100px !important;
+    height: 100px !important;
+    max-width: 100px !important;
+    max-height: 100px !important;
+    border-radius: 12px !important;
+    object-fit: cover !important;
+    border: 3px solid rgba(255,255,255,0.3) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important;
+    flex-shrink: 0 !important;
 }
 
 /* ---- Dashboard Cards ---- */
 .stat-card {
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 20px 24px;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
+    background: var(--surface) !important;
+    border-radius: var(--radius) !important;
+    padding: 20px 24px !important;
+    box-shadow: var(--shadow-md) !important;
+    border: 1px solid var(--border-light) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
 }
 
 .stat-card::before {
@@ -333,50 +340,52 @@ header h2 {
 
 /* ---- Dashboard Panel Cards ---- */
 .dash-panel {
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    padding: 24px;
-    border: 1px solid var(--border-light);
-    position: relative;
-    overflow: hidden;
+    background: var(--surface) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-md) !important;
+    padding: 24px !important;
+    border: 1px solid var(--border-light) !important;
+    position: relative !important;
+    overflow: hidden !important;
 }
 
 .dash-panel-title {
-    font-weight: 700;
-    margin-bottom: 16px;
-    font-size: 15px;
-    letter-spacing: -0.02em;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    font-weight: 700 !important;
+    margin-bottom: 16px !important;
+    font-size: 15px !important;
+    letter-spacing: -0.02em !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
 }
 
 .dash-panel-title .panel-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 15px;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 15px !important;
 }
 
-.dash-panel-title .panel-icon.purple { background: linear-gradient(135deg,#f5f3ff,#ede9fe); color:#8b5cf6; }
-.dash-panel-title .panel-icon.green { background: linear-gradient(135deg,#ecfdf5,#d1fae5); color:#10b981; }
-.dash-panel-title .panel-icon.red { background: linear-gradient(135deg,#fef2f2,#fee2e2); color:#ef4444; }
+.dash-panel-title .panel-icon.purple { background: linear-gradient(135deg,#f5f3ff,#ede9fe) !important; color:#8b5cf6 !important; }
+.dash-panel-title .panel-icon.green { background: linear-gradient(135deg,#ecfdf5,#d1fae5) !important; color:#10b981 !important; }
+.dash-panel-title .panel-icon.red { background: linear-gradient(135deg,#fef2f2,#fee2e2) !important; color:#ef4444 !important; }
 
 .dash-panel-image {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
-    width: 72px;
-    height: 72px;
-    border-radius: 10px;
-    object-fit: cover;
-    opacity: 0.08;
-    pointer-events: none;
-    transition: opacity 0.3s;
+    position: absolute !important;
+    bottom: 12px !important;
+    right: 12px !important;
+    width: 72px !important;
+    height: 72px !important;
+    max-width: 72px !important;
+    max-height: 72px !important;
+    border-radius: 10px !important;
+    object-fit: cover !important;
+    opacity: 0.08 !important;
+    pointer-events: none !important;
+    transition: opacity 0.3s !important;
 }
 
 .dash-panel:hover .dash-panel-image {
@@ -385,31 +394,31 @@ header h2 {
 
 /* ---- Page Section Panels (Content Cards) ---- */
 .content-card {
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    padding: 24px;
-    border: 1px solid var(--border-light);
+    background: var(--surface) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-md) !important;
+    padding: 24px !important;
+    border: 1px solid var(--border-light) !important;
 }
 
 .content-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 20px !important;
 }
 
 .content-card-header h3 {
-    font-weight: 700;
-    font-size: 18px;
-    letter-spacing: -0.02em;
+    font-weight: 700 !important;
+    font-size: 18px !important;
+    letter-spacing: -0.02em !important;
 }
 
 .content-card-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
+    display: flex !important;
+    gap: 8px !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
 }
 
 /* ---- Products Page Banner ---- */
@@ -900,27 +909,27 @@ tr.freight-row:hover {
 
 /* ---- Search Input ---- */
 .search-wrapper {
-    position: relative;
+    position: relative !important;
 }
 
 .search-wrapper i {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 13px;
+    position: absolute !important;
+    left: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: var(--text-muted) !important;
+    font-size: 13px !important;
 }
 
 .search-input {
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px 8px 32px;
-    font-size: 13px;
-    font-family: 'Inter', sans-serif;
-    width: 220px;
-    background: var(--surface);
-    transition: all var(--transition);
+    border: 1.5px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 8px 12px 8px 32px !important;
+    font-size: 13px !important;
+    font-family: 'Inter', sans-serif !important;
+    width: 220px !important;
+    background: var(--surface) !important;
+    transition: all var(--transition) !important;
 }
 
 .search-input:focus {
@@ -1688,7 +1697,16 @@ th.sortable:hover .sort-arrow {
 }
 
 .login-card {
-    animation: loginCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: loginCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    max-width: 800px !important;
 }
 
 /* ---- Login Right Panel Image Ken Burns ---- */
@@ -1699,6 +1717,9 @@ th.sortable:hover .sort-arrow {
 }
 
 .login-card-right img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
     animation: kenBurns 8s ease-in-out infinite;
 }
 
