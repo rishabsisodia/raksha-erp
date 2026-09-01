@@ -74,26 +74,22 @@
                     <div class="dash-hero-title">Welcome to Raksha ERP</div>
                     <div class="dash-hero-subtitle">FRP Manhole Covers &mdash; Manufacturing, Sales & Orders</div>
                 </div>
-                <img src="/static/img/products/hero-frp-cover.jpg" alt="FRP Cover" class="dash-hero-img">
             </div>
             <div class="grid grid-cols-3 gap-5 mb-8" id="dash-cards"></div>
             <div class="grid grid-cols-2 gap-6 mb-8">
                 <div class="dash-panel">
                     <h3 class="dash-panel-title"><span class="panel-icon purple"><i class="fas fa-clipboard-list"></i></span>Recent Orders</h3>
                     <div id="dash-orders"></div>
-                    <img src="/static/img/products/dashboard-cover-1.jpg" alt="" class="dash-panel-image">
                 </div>
                 <div class="dash-panel">
                     <h3 class="dash-panel-title"><span class="panel-icon green"><i class="fas fa-clock"></i></span>Recent Sales</h3>
                     <div id="dash-recent"></div>
-                    <img src="/static/img/products/dashboard-cover-2.jpg" alt="" class="dash-panel-image">
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-6 mb-8">
                 <div class="dash-panel">
                     <h3 class="dash-panel-title"><span class="panel-icon red"><i class="fas fa-truck"></i></span>LR Tracking</h3>
                     <div id="dash-lr"></div>
-                    <img src="/static/img/products/dashboard-cover-white.jpg" alt="" class="dash-panel-image">
                 </div>
                 <div class="dash-panel">
                     <h3 class="dash-panel-title"><span class="panel-icon purple"><i class="fas fa-chart-line"></i></span>Revenue Trend</h3>
@@ -873,14 +869,14 @@
     </div>
 
     <div id="login-overlay" class="fixed inset-0 z-[200] flex items-center justify-center login-overlay" style="display:none;">
-        <div class="login-card" style="width:100%;max-width:800px;margin:0 16px;">
-            <div class="login-card-left">
+        <div class="login-card" style="width:100%;max-width:420px;margin:0 16px;">
+            <div class="login-card-left" style="width:100%;">
                 <div class="login-logo">
                     <img src="/static/img/logo.png" alt="Raksha ERP">
                 </div>
                 <h2 class="login-title">Raksha ERP</h2>
                 <p class="login-subtitle">Sign in to your account</p>
-                <form id="login-form" onsubmit="handleLogin(event)" style="margin-top:24px;">
+                <form id="login-form" onsubmit="handleLogin(event)" style="margin-top:28px;">
                     <div class="login-field" style="margin-bottom:16px;">
                         <label>Username</label>
                         <input type="text" id="login-username" required autocomplete="username">
@@ -892,9 +888,6 @@
                     <p id="login-error" style="color:#ef4444;font-size:13px;margin-bottom:16px;display:none;"></p>
                     <button type="submit" id="login-btn" class="login-btn">Sign In</button>
                 </form>
-            </div>
-            <div class="login-card-right">
-                <img src="/static/img/products/login-frp-cover.jpg" alt="FRP Manhole Cover">
             </div>
         </div>
     </div>
@@ -932,6 +925,6 @@
 
     <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl hidden" role="alert" aria-live="polite" style="font-weight:600;font-size:14px;background:#10b981;"></div>
 
-    <script src="/static/js/app.js?v=20260901v2"></script>
+    <script src="/static/js/app.js?v=20260901v3"></script>
 </body>
 </html>
