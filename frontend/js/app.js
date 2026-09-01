@@ -833,7 +833,8 @@ async function loadSales() {
     try {
     showLoading('t-sales', 11);
     api('/api/auto-generate-tracking-urls', {method: 'POST'}).catch(function(e){ console.warn('Auto-generate tracking URLs failed:', e); });
-    var sales = await api('/api/sales');
+    var salesResp = await api('/api/sales');
+    var sales = salesResp.items || salesResp;
     var rows = [];
     sales.forEach(function(s) {
         var tn = s.transporter_name || '-';

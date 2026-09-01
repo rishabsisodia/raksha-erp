@@ -58,17 +58,17 @@ app.add_middleware(
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
     response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "0"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if request.url.path.startswith("/api/"):
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "0"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self';"
-        if not request.url.scheme == "https" and request.headers.get("x-forwarded-proto", "https") != "https":
-            if os.environ.get("ENVIRONMENT") == "production":
-                return JSONResponse(status_code=301, content={"detail": "HTTPS required"}, headers={"Strict-Transport-Security": "max-age=31536000; includeSubDomains"})
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    if not request.url.scheme == "https" and request.headers.get("x-forwarded-proto", "https") != "https":
+        if os.environ.get("ENVIRONMENT") == "production":
+            return JSONResponse(status_code=301, content={"detail": "HTTPS required"}, headers={"Strict-Transport-Security": "max-age=31536000; includeSubDomains"})
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 JWT_SECRET = os.environ.get("JWT_SECRET")
@@ -317,7 +317,7 @@ class Sale(Base):
     __tablename__ = "sales"
     id = Column(Integer, primary_key=True, index=True)
     invoice_no = Column(String)
-    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     quantity = Column(Integer, nullable=True)
     unit_price = Column(Float, nullable=True)
@@ -361,9 +361,9 @@ class Sale(Base):
 class SaleItem(Base):
     __tablename__ = "sale_items"
     id = Column(Integer, primary_key=True, index=True)
-    sale_id = Column(Integer, ForeignKey("sales.id"))
+    sale_id = Column(Integer, ForeignKey("sales.id"), index=True)
     sl_no = Column(Integer, default=1)
-    product_id = Column(Integer, ForeignKey("products.id"))
+    product_id = Column(Integer, ForeignKey("products.id"), index=True)
     quantity = Column(Integer, default=0)
     unit_price = Column(Float, default=0)
     discount_percent = Column(Float, default=0)
@@ -441,7 +441,7 @@ class ProformaOrder(Base):
     id = Column(Integer, primary_key=True, index=True)
     pi_no = Column(String, unique=True)
     pi_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    customer_id = Column(Integer, ForeignKey("customers.id"))
+    customer_id = Column(Integer, ForeignKey("customers.id"), index=True)
     billing_site = Column(String, default="")
     shipping_site = Column(String, default="")
     no_of_boxes = Column(Integer, default=0)
@@ -463,7 +463,7 @@ class ProformaOrder(Base):
     transport_cost = Column(Float, default=0)
     gross_profit = Column(Float, default=0)
     net_profit = Column(Float, default=0)
-    transporter_id = Column(Integer, ForeignKey("transporters.id"), nullable=True)
+    transporter_id = Column(Integer, ForeignKey("transporters.id"), nullable=True, index=True)
     whatsapp_status = Column(String, default="pending")
     status = Column(String, default="draft")
     discount_scheme_applied = Column(Integer, default=0)
@@ -478,9 +478,9 @@ class ProformaOrder(Base):
 class ProformaOrderItem(Base):
     __tablename__ = "proforma_order_items"
     id = Column(Integer, primary_key=True, index=True)
-    proforma_order_id = Column(Integer, ForeignKey("proforma_orders.id"))
+    proforma_order_id = Column(Integer, ForeignKey("proforma_orders.id"), index=True)
     sl_no = Column(Integer)
-    product_id = Column(Integer, ForeignKey("products.id"))
+    product_id = Column(Integer, ForeignKey("products.id"), index=True)
     part_no = Column(String, default="")
     description = Column(String, default="")
     size = Column(String, default="")
@@ -521,7 +521,7 @@ class BillingSite(Base):
 class PurchaseRate(Base):
     __tablename__ = "purchase_rates"
     id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(Integer, ForeignKey("products.id"))
+    product_id = Column(Integer, ForeignKey("products.id"), index=True)
     rate = Column(Float, default=0)
     supplier = Column(String, default="")
     effective_date = Column(Date, default=date.today)
@@ -532,8 +532,8 @@ class PurchaseRate(Base):
 class TransporterQuote(Base):
     __tablename__ = "transporter_quotes"
     id = Column(Integer, primary_key=True, index=True)
-    order_id = Column(Integer, ForeignKey("proforma_orders.id"))
-    transporter_id = Column(Integer, ForeignKey("transporters.id"))
+    order_id = Column(Integer, ForeignKey("proforma_orders.id"), index=True)
+    transporter_id = Column(Integer, ForeignKey("transporters.id"), index=True)
     rate_per_kg = Column(Float, default=0)
     total_cost = Column(Float, default=0)
     status = Column(String, default="pending")
@@ -3097,10 +3097,11 @@ def whatsapp_test(inp: WhatsAppTestIn, user: User = Depends(get_current_user)):
 
 # ---- SALES ----
 @app.get("/api/sales")
-def list_sales(user: User = Depends(get_current_user)):
+def list_sales(limit: int = 500, offset: int = 0, user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        rows = db.query(Sale).order_by(Sale.id.desc()).all()
+        total = db.query(func.count(Sale.id)).scalar()
+        rows = db.query(Sale).order_by(Sale.id.desc()).offset(offset).limit(limit).all()
         cust_ids = list(set(s.customer_id for s in rows if s.customer_id))
         cust_map = {}
         if cust_ids:
@@ -3120,24 +3121,7 @@ def list_sales(user: User = Depends(get_current_user)):
             except Exception as e:
                 logger.error(f"Error loading sale {s.id}: {e}")
                 continue
-        return out
-    finally:
-        db.close()
-
-
-@app.get("/api/sales/{sid}")
-def get_sale(sid: int, user: User = Depends(get_current_user)):
-    db = SessionLocal()
-    try:
-        s = db.query(Sale).filter(Sale.id == sid).first()
-        if not s:
-            raise HTTPException(status_code=404, detail="Sale not found")
-        cust_name = ""
-        if s.customer_id:
-            cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
-            cust_name = cust.contact_name if cust else ""
-        sale_items = [_sale_item_dict(si) for si in db.query(SaleItem).filter(SaleItem.sale_id == s.id).order_by(SaleItem.sl_no).all()]
-        return _sale_to_dict(s, sale_items, cust_name)
+        return {"total": total, "items": out}
     finally:
         db.close()
 
@@ -3157,6 +3141,23 @@ def freight_summary(user: User = Depends(get_current_user)):
                 "transporter_name": s.transporter_name or "",
             })
         return out
+    finally:
+        db.close()
+
+
+@app.get("/api/sales/{sid}")
+def get_sale(sid: int, user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        s = db.query(Sale).filter(Sale.id == sid).first()
+        if not s:
+            raise HTTPException(status_code=404, detail="Sale not found")
+        cust_name = ""
+        if s.customer_id:
+            cust = db.query(Customer).filter(Customer.id == s.customer_id).first()
+            cust_name = cust.contact_name if cust else ""
+        sale_items = [_sale_item_dict(si) for si in db.query(SaleItem).filter(SaleItem.sale_id == s.id).order_by(SaleItem.sl_no).all()]
+        return _sale_to_dict(s, sale_items, cust_name)
     finally:
         db.close()
 
@@ -3620,10 +3621,9 @@ def fetch_tracking_status(sid: int, user: User = Depends(require_permission("sal
             else:
                 s.lr_tracking_status = status
             s.lr_last_checked = datetime.now(timezone.utc)
-            db.commit()
         if result.get("url") and not s.lr_tracking_url:
             s.lr_tracking_url = result["url"]
-            db.commit()
+        db.commit()
         return result
     finally:
         db.close()
@@ -3664,7 +3664,8 @@ def fetch_tracking_bulk(user: User = Depends(require_permission("sales", "bulk_e
                         s.lr_tracking_url = result["url"]
                     updated += 1
                     results.append({"sale_id": s.id, "lr_no": s.lr_no, "status": s.lr_tracking_status})
-            except Exception:
+            except Exception as ex:
+                logger.warning(f"Bulk tracking update failed for sale {s.id}: {ex}")
                 continue
         db.commit()
         return {"message": f"Updated {updated} shipments", "updated": updated, "results": results}
@@ -3891,7 +3892,8 @@ def dashboard(user: User = Depends(get_current_user)):
                     "amount": s.total_amount or 0, "status": s.payment_status or "",
                     "date": dt_str
                 })
-            except Exception:
+            except Exception as ex:
+                logger.warning(f"Dashboard recent sale {s.id} failed: {ex}")
                 continue
 
         recent_orders = []
@@ -4572,6 +4574,7 @@ async def import_standard_packaging(file: UploadFile = File(...), user: User = D
             try:
                 pieces = int(float(box_val))
             except ValueError:
+                logger.debug(f"Skipping row: invalid box value '{box_val}' for part_no '{part_no}'")
                 continue
 
             desc = str(row[desc_idx] or "").strip() if len(row) > desc_idx else ""
