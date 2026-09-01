@@ -4253,11 +4253,11 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
                 for model in [Sale, ProformaOrderItem, SaleItem, PurchaseRate]:
                     for obj in db.query(model).filter(model.product_id == p.id).all():
                         obj.product_id = keep.id
-                for tbl in ["stock"]:
+                for tbl in ["stock_entries"]:
                     try:
                         db.execute(text(f"DELETE FROM {tbl} WHERE product_id = :pid"), {"pid": p.id})
-                    except Exception:
-                        pass
+                    except Exception as ex:
+                        logger.warning(f"Dedup: could not clear {tbl} for product {p.id}: {ex}")
                 db.delete(p)
                 removed += 1
             else:
@@ -4284,6 +4284,8 @@ def dedup_customers(user: User = Depends(require_permission("customers", "edit")
                 keep = seen[key]
                 for sale in db.query(Sale).filter(Sale.customer_id == c.id).all():
                     sale.customer_id = keep.id
+                for po in db.query(ProformaOrder).filter(ProformaOrder.customer_id == c.id).all():
+                    po.customer_id = keep.id
                 db.delete(c)
                 removed += 1
             else:
@@ -4307,6 +4309,11 @@ def dedup_transporters(user: User = Depends(require_permission("transporters", "
         for t in transporters:
             key = (t.name.strip().lower(),) if t.name and t.name.strip() else (t.transporter_id.strip(),)
             if key in seen:
+                keep = seen[key]
+                for po in db.query(ProformaOrder).filter(ProformaOrder.transporter_id == t.id).all():
+                    po.transporter_id = keep.id
+                for tq in db.query(TransporterQuote).filter(TransporterQuote.transporter_id == t.id).all():
+                    tq.transporter_id = keep.id
                 db.delete(t)
                 removed += 1
             else:
