@@ -1080,6 +1080,10 @@ select {
     position: relative !important;
 }
 
+.dropdown-group:hover .dropdown-menu {
+    display: block !important;
+}
+
 .dropdown-menu {
     position: absolute !important;
     right: 0 !important;

@@ -205,7 +205,7 @@ function applyRoleUI() {
         rb.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;' + (colors[user.role] || '');
     }
     var navItems = document.querySelectorAll('.nav-btn');
-    var navMap = ['dashboard','products','orders','customers','transporters','sales','expenses','reports','settings'];
+    var navMap = ['dashboard','products','orders','customers','transporters','purchase-rates','sales','expenses','reports','settings'];
     navItems.forEach(function(item, i) {
         var module = navMap[i];
         if (module && !hasPermission(module, 'view')) {
@@ -1176,8 +1176,8 @@ function calcSaleTotals() {
     var totalSgst = 0;
     var frtEl = $('f-slfrt');
     var frt = frtEl ? (parseFloat(frtEl.value) || 0) : 0;
-    _saleItems.forEach(function(item) {
-        calcSaleItemAmount(_saleItems.indexOf(item));
+    _saleItems.forEach(function(item, idx) {
+        calcSaleItemAmount(idx);
         totalQty += item.quantity || 0;
         totalTaxable += item.taxable_amount;
         totalCgst += item.cgst_amount;
@@ -1694,7 +1694,7 @@ $('f-order').addEventListener('submit', async function(e) {
         hideModal('m-order');
         $('f-order').reset();
         $('f-oid').value = '';
-        loadOrders();
+        loadAllOrders();
     } catch(err) { toast('Error: ' + err.message, true); }
 });
 
@@ -2730,15 +2730,17 @@ async function deleteUser(id) { deleteEntity('/api/users/' + id, 'user', loadUse
 
 async function saveSettings() {
     var data = {
-        company_name: $('s-company').value,
-        default_gst_rate: $('s-gst').value,
-        invoice_prefix: $('s-invprefix').value,
-        tax_rate: $('s-taxrate').value,
-        bank_account_name: $('s-bankname').value,
-        bank_account_number: $('s-bankacc').value,
-        bank_name: $('s-bankbank').value,
-        bank_branch: $('s-bankbranch').value,
-        bank_ifsc: $('s-bankifsc').value
+        settings: {
+            company_name: $('s-company').value,
+            default_gst_rate: $('s-gst').value,
+            invoice_prefix: $('s-invprefix').value,
+            tax_rate: $('s-taxrate').value,
+            bank_account_name: $('s-bankname').value,
+            bank_account_number: $('s-bankacc').value,
+            bank_name: $('s-bankbank').value,
+            bank_branch: $('s-bankbranch').value,
+            bank_ifsc: $('s-bankifsc').value
+        }
     };
     await api('/api/settings', {method: 'PUT', body: JSON.stringify(data)});
     toast('Settings saved!');
