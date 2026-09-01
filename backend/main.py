@@ -4253,15 +4253,12 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
                 for model in [Sale, ProformaOrderItem, SaleItem, PurchaseRate]:
                     for obj in db.query(model).filter(model.product_id == p.id).all():
                         obj.product_id = keep.id
-                try:
-                    sp = db.begin_nested()
+                for tbl in ["stock", "stock_entries"]:
                     try:
-                        db.execute(text("DELETE FROM stock WHERE product_id = :pid"), {"pid": p.id})
-                        sp.commit()
-                    except Exception:
-                        sp.rollback()
-                except Exception as ex:
-                    logger.warning(f"Dedup: could not clear stock for product {p.id}: {ex}")
+                        result = db.execute(text(f"DELETE FROM {tbl} WHERE product_id = :pid"), {"pid": p.id})
+                        logger.info(f"Dedup: deleted {result.rowcount} rows from {tbl} for product {p.id}")
+                    except Exception as ex:
+                        logger.warning(f"Dedup: could not delete from {tbl} for product {p.id}: {ex}")
                 db.delete(p)
                 removed += 1
             else:
