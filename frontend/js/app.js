@@ -1341,11 +1341,19 @@ async function loadDashboard() {
     }
     $('dash-recent').innerHTML = rh;
 
-    // FRP Product Categories
+    // FRP Product Categories - normalize casing to merge duplicates
+    var catDisplayNames = {'manhole cover':'Manhole Cover','gully cover':'Gully Cover','gratings':'Gratings','frames':'Frames','lock(s)':'Lock(s)','hinges':'Hinges'};
     var catIcons = {'Manhole Cover':'fa-circle','Gully Cover':'fa-square','Gratings':'fa-border-all','Frames':'fa-vector-square','Lock(s)':'fa-lock','Hinges':'fa-link'};
     var catColors = {'Manhole Cover':'#ede9fe,#6d28d9','Gully Cover':'#dbeafe,#1d4ed8','Gratings':'#fef3c7,#b45309','Frames':'#d1fae5,#047857','Lock(s)':'#fce7f3,#be185d','Hinges':'#e0e7ff,#4338ca'};
     var catHtml = '<div class="frp-cat-grid">';
-    var cats = d.category_counts || {};
+    var rawCats = d.category_counts || {};
+    // Merge categories by lowercase key
+    var cats = {};
+    Object.keys(rawCats).forEach(function(c) {
+        var normalized = (c || '').toLowerCase().trim();
+        var displayName = catDisplayNames[normalized] || c;
+        cats[displayName] = (cats[displayName] || 0) + rawCats[c];
+    });
     var catKeys = Object.keys(cats);
     if (catKeys.length) {
         catKeys.forEach(function(c) {
