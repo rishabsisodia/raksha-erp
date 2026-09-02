@@ -2837,7 +2837,7 @@ function showTableSkeleton(tableId, rows) {
     tbody.innerHTML = html;
 }
 
-function showLoading() {
+function showOverlayLoading() {
     var existing = document.getElementById('loading-overlay');
     if (existing) return;
     var overlay = document.createElement('div');
@@ -2847,7 +2847,7 @@ function showLoading() {
     document.body.appendChild(overlay);
 }
 
-function hideLoading() {
+function hideOverlayLoading() {
     var overlay = document.getElementById('loading-overlay');
     if (overlay) overlay.remove();
 }
