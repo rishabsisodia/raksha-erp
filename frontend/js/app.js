@@ -2808,3 +2808,231 @@ document.getElementById('f-user').onsubmit = async function(e) {
         toast(err.message || 'Error saving user', true);
     }
 };
+
+/* ============================================================
+   LOADING FUNCTIONS
+   ============================================================ */
+
+function showTableSkeleton(tableId, rows) {
+    rows = rows || 5;
+    var tbody = document.getElementById(tableId);
+    if (!tbody) return;
+    var cols = tbody.closest('table').querySelectorAll('thead th').length;
+    var html = '';
+    for (var i = 0; i < rows; i++) {
+        html += '<tr class="table-skeleton">';
+        for (var j = 0; j < cols; j++) {
+            html += '<td><div class="skeleton-cell" style="width: ' + (Math.random() * 40 + 60) + '%"></div></td>';
+        }
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
+}
+
+function showLoading() {
+    var existing = document.getElementById('loading-overlay');
+    if (existing) return;
+    var overlay = document.createElement('div');
+    overlay.id = 'loading-overlay';
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = '<div class="loading-spinner"></div>';
+    document.body.appendChild(overlay);
+}
+
+function hideLoading() {
+    var overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.remove();
+}
+
+function addBtnSpinner(btn) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="btn-spinner"></span> Loading...';
+}
+
+function removeBtnSpinner(btn) {
+    btn.disabled = false;
+    if (btn.dataset.originalHtml) {
+        btn.innerHTML = btn.dataset.originalHtml;
+    }
+}
+
+/* ============================================================
+   ENHANCED TOAST NOTIFICATION
+   ============================================================ */
+
+var toastContainer = null;
+
+function initToastContainer() {
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+}
+
+var _originalToast = typeof toast === 'function' ? toast : null;
+
+function toast(message, isError, options) {
+    isError = isError || false;
+    options = options || {};
+    initToastContainer();
+
+    var type = isError ? 'error' : (options.type || 'success');
+    var title = options.title || (isError ? 'Error' : 'Success');
+    var duration = options.duration || 3000;
+    var actions = options.actions || [];
+
+    var icons = {
+        success: 'fas fa-check',
+        error: 'fas fa-times',
+        warning: 'fas fa-exclamation-triangle',
+        info: 'fas fa-info'
+    };
+
+    var toastEl = document.createElement('div');
+    toastEl.className = 'toast ' + type;
+    toastEl.innerHTML = '<div class="toast-icon"><i class="' + icons[type] + '"></i></div>' +
+        '<div class="toast-content">' +
+            '<div class="toast-title">' + title + '</div>' +
+            '<div class="toast-message">' + message + '</div>' +
+            (actions.length ? '<div class="toast-actions">' +
+                actions.map(function(a) {
+                    return '<button class="toast-action ' + (a.primary ? 'primary' : 'secondary') + '" ' +
+                        'onclick="' + a.onclick + '">' + a.label + '</button>';
+                }).join('') + '</div>' : '') +
+        '</div>' +
+        '<button class="toast-close" onclick="this.parentElement.remove()">&times;</button>' +
+        '<div class="toast-progress" style="animation-duration: ' + duration + 'ms"></div>';
+
+    toastContainer.appendChild(toastEl);
+
+    setTimeout(function() {
+        if (toastEl.parentElement) {
+            toastEl.style.animation = 'toastSlideOut 0.3s ease forwards';
+            setTimeout(function() { if (toastEl.parentElement) toastEl.remove(); }, 300);
+        }
+    }, duration);
+
+    toastEl.addEventListener('mouseenter', function() {
+        var progress = toastEl.querySelector('.toast-progress');
+        if (progress) progress.style.animationPlayState = 'paused';
+    });
+
+    toastEl.addEventListener('mouseleave', function() {
+        var progress = toastEl.querySelector('.toast-progress');
+        if (progress) progress.style.animationPlayState = 'running';
+    });
+}
+
+/* ============================================================
+   ACTIVITY FEED
+   ============================================================ */
+
+var _activityLog = [];
+
+function logActivity(type, title, details) {
+    _activityLog.unshift({
+        type: type,
+        title: title,
+        details: details || '',
+        time: new Date()
+    });
+    if (_activityLog.length > 20) _activityLog.pop();
+    renderActivityFeed();
+}
+
+function renderActivityFeed() {
+    var container = document.getElementById('dash-activity');
+    if (!container) return;
+
+    if (_activityLog.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">No recent activity</div>';
+        return;
+    }
+
+    var html = '';
+    _activityLog.slice(0, 10).forEach(function(item) {
+        var iconClass = 'product';
+        var iconBg = 'background:#dbeafe;color:#2563eb;';
+        if (item.type === 'order') { iconClass = 'order'; iconBg = 'background:#ede9fe;color:#7c3aed;'; }
+        else if (item.type === 'sale') { iconClass = 'sale'; iconBg = 'background:#d1fae5;color:#059669;'; }
+        else if (item.type === 'customer') { iconClass = 'customer'; iconBg = 'background:#fef3c7;color:#d97706;'; }
+
+        var iconName = 'box';
+        if (item.type === 'order') iconName = 'clipboard-list';
+        else if (item.type === 'sale') iconName = 'shopping-cart';
+        else if (item.type === 'customer') iconName = 'users';
+
+        var timeAgo = getTimeAgo(item.time);
+
+        html += '<div class="activity-item">' +
+            '<div class="activity-icon ' + iconClass + '" style="' + iconBg + '">' +
+                '<i class="fas fa-' + iconName + '"></i>' +
+            '</div>' +
+            '<div class="activity-content">' +
+                '<div class="activity-title">' + escapeHtml(item.title) + '</div>' +
+                '<div class="activity-time">' + timeAgo + '</div>' +
+            '</div>' +
+        '</div>';
+    });
+
+    container.innerHTML = html;
+}
+
+function getTimeAgo(date) {
+    var seconds = Math.floor((new Date() - date) / 1000);
+    if (seconds < 60) return 'Just now';
+    var minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return minutes + 'm ago';
+    var hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + 'h ago';
+    var days = Math.floor(hours / 24);
+    return days + 'd ago';
+}
+
+/* ============================================================
+   KEYBOARD SHORTCUTS
+   ============================================================ */
+
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        showProformaOrderModal();
+    }
+
+    if (e.key === 'Escape') {
+        var modals = document.querySelectorAll('.modal-bg:not(.hidden)');
+        modals.forEach(function(modal) {
+            modal.classList.add('hidden');
+        });
+    }
+
+    if (e.key === '?' && !e.target.matches('input, textarea, select')) {
+        e.preventDefault();
+        showShortcutsHelp();
+    }
+});
+
+function showShortcutsHelp() {
+    var helpHtml = '<div style="padding:20px;">' +
+        '<h3 style="font-weight:700;margin-bottom:16px;">Keyboard Shortcuts</h3>' +
+        '<table style="width:100%;font-size:14px;">' +
+        '<tr><td style="padding:8px;border-bottom:1px solid #f1f5f9;"><kbd style="background:#f1f5f9;padding:4px 8px;border-radius:4px;font-size:12px;">Ctrl + N</kbd></td><td style="padding:8px;border-bottom:1px solid #f1f5f9;">New PI/PO Order</td></tr>' +
+        '<tr><td style="padding:8px;border-bottom:1px solid #f1f5f9;"><kbd style="background:#f1f5f9;padding:4px 8px;border-radius:4px;font-size:12px;">Escape</kbd></td><td style="padding:8px;border-bottom:1px solid #f1f5f9;">Close Modal</td></tr>' +
+        '<tr><td style="padding:8px;"><kbd style="background:#f1f5f9;padding:4px 8px;border-radius:4px;font-size:12px;">?</kbd></td><td style="padding:8px;">Show This Help</td></tr>' +
+        '</table></div>';
+
+    var modal = document.createElement('div');
+    modal.className = 'modal-bg';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;';
+    modal.innerHTML = '<div style="background:white;border-radius:16px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
+        '<div style="padding:20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">' +
+            '<h3 style="font-weight:700;font-size:18px;">Keyboard Shortcuts</h3>' +
+            '<button onclick="this.closest(\'.modal-bg\').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;">&times;</button>' +
+        '</div>' +
+        helpHtml +
+    '</div>';
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+}

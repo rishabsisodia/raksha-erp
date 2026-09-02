@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260901v4">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260902v1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
@@ -81,11 +81,28 @@
                         <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,0.3);"><img src="/static/img/products/dashboard-cover-white.jpg" alt="FRP Cover" style="width:100%;height:100%;object-fit:cover;"></div>
                         <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,0.3);"><img src="/static/img/products/dashboard-cover-2.jpg" alt="FRP Cover" style="width:100%;height:100%;object-fit:cover;"></div>
                         <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,0.3);"><img src="/static/img/products/dashboard-frp-pipes.jpg" alt="FRP Pipes" style="width:100%;height:100%;object-fit:cover;"></div>
-                    </div>
                 </div>
             </div>
+            <div class="quick-actions mb-6">
+                <button onclick="showProformaOrderModal()" class="quick-action-btn">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Create PI</span>
+                </button>
+                <button onclick="showModal('m-product')" class="quick-action-btn">
+                    <i class="fas fa-box"></i>
+                    <span>Add Product</span>
+                </button>
+                <button onclick="showModal('m-sale')" class="quick-action-btn">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>New Sale</span>
+                </button>
+                <button onclick="go('reports', document.querySelector('[onclick*=reports]'))" class="quick-action-btn">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </button>
+            </div>
             <div class="grid grid-cols-3 gap-5 mb-8" id="dash-cards"></div>
-            <div class="grid grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-4 gap-6 mb-8">
                 <div class="dash-panel">
                     <h3 class="dash-panel-title"><span class="panel-icon indigo"><i class="fas fa-layer-group"></i></span>Product Categories</h3>
                     <div id="dash-categories"></div>
@@ -97,6 +114,12 @@
                 <div class="dash-panel">
                     <h3 class="dash-panel-title"><span class="panel-icon green"><i class="fas fa-clock"></i></span>Recent Sales</h3>
                     <div id="dash-recent"></div>
+                </div>
+                <div class="dash-panel">
+                    <h3 class="dash-panel-title"><span class="panel-icon blue"><i class="fas fa-history"></i></span>Recent Activity</h3>
+                    <div id="dash-activity" class="activity-feed">
+                        <div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">No recent activity</div>
+                    </div>
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-6 mb-8">
