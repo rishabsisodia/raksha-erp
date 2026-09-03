@@ -89,7 +89,7 @@ def dedup_customers(user: User = Depends(require_permission("customers", "edit")
         seen = {}
         removed = 0
         for c in customers:
-            key = (c.name.strip().lower(),) if c.name and c.name.strip() else (c.customer_id.strip(),)
+            key = (c.name.strip().lower(),) if c.name and c.name.strip() else ((c.customer_id.strip(),) if c.customer_id and c.customer_id.strip() else (str(c.id),))
             if key in seen:
                 keep = seen[key]
                 for sale in db.query(Sale).filter(Sale.customer_id == c.id).all():

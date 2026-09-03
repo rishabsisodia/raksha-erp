@@ -176,11 +176,20 @@ def create_sale(inp: SaleIn, user: dict = Depends(require_permission("sales", "c
         db.add(s)
         db.flush()
 
+        product_ids = list(set(item.product_id for item in inp.items if item.product_id))
+        products_map = {}
+        pricing_map = {}
+        if product_ids:
+            prods = db.query(Product).filter(Product.id.in_(product_ids)).all()
+            products_map = {p.id: p for p in prods}
+            pricings = db.query(Pricing).filter(Pricing.product_id.in_(product_ids)).all()
+            pricing_map = {pr.product_id: pr for pr in pricings}
+
         for idx, item in enumerate(inp.items):
-            prod = db.query(Product).filter(Product.id == item.product_id).first()
+            prod = products_map.get(item.product_id)
             if not prod:
                 continue
-            pr = db.query(Pricing).filter(Pricing.product_id == item.product_id).first()
+            pr = pricing_map.get(item.product_id)
             gst_rate = pr.gst_rate if pr else 18
 
             taxable = item.quantity * item.unit_price
@@ -269,11 +278,20 @@ def update_sale(sid: int, inp: SaleIn, user: dict = Depends(require_permission("
 
         db.query(SaleItem).filter(SaleItem.sale_id == sid).delete()
 
+        product_ids = list(set(item.product_id for item in inp.items if item.product_id))
+        products_map = {}
+        pricing_map = {}
+        if product_ids:
+            prods = db.query(Product).filter(Product.id.in_(product_ids)).all()
+            products_map = {p.id: p for p in prods}
+            pricings = db.query(Pricing).filter(Pricing.product_id.in_(product_ids)).all()
+            pricing_map = {pr.product_id: pr for pr in pricings}
+
         for idx, item in enumerate(inp.items):
-            prod = db.query(Product).filter(Product.id == item.product_id).first()
+            prod = products_map.get(item.product_id)
             if not prod:
                 continue
-            pr = db.query(Pricing).filter(Pricing.product_id == item.product_id).first()
+            pr = pricing_map.get(item.product_id)
             gst_rate = pr.gst_rate if pr else 18
 
             taxable = item.quantity * item.unit_price
@@ -343,12 +361,12 @@ def bulk_update_payment_status(body: BulkPaymentIn, user: dict = Depends(require
 
 @router.patch("/api/sales/bulk-lr-status")
 def bulk_update_lr_status(body: BulkLRIn, user: dict = Depends(require_permission("sales", "bulk_edit"))):
-    status = body.lr_no or "Delivered"
+    status = body.lr_tracking_status or body.lr_no or "Delivered"
     db = SessionLocal()
     try:
-        q = db.query(Sale)
-        if body.ids:
-            q = q.filter(Sale.id.in_(body.ids))
+        if not body.ids:
+            return {"updated": 0, "message": "No sales selected"}
+        q = db.query(Sale).filter(Sale.id.in_(body.ids))
         updated = q.filter(Sale.lr_tracking_status != status).update({"lr_tracking_status": status}, synchronize_session=False)
         db.commit()
         return {"updated": updated, "message": f"Updated {updated} sales to {status}"}

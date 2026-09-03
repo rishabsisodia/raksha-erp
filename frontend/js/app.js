@@ -55,9 +55,12 @@ async function importFile(endpoint, input, label, reloadFn) {
 
 function escapeHtml(str) {
     if (!str) return '';
-    var div = document.createElement('div');
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 async function downloadExport(url) {
@@ -106,6 +109,7 @@ async function viewFileAuth(url) {
             a.click();
             document.body.removeChild(a);
         }
+        setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 10000);
     } catch(e) { toast('Failed to load file'); }
 }
 
@@ -176,8 +180,14 @@ function handleLogout() {
 
 function getUser() {
     if (!_currentUser) {
-        var stored = sessionStorage.getItem('user');
-        if (stored) _currentUser = JSON.parse(stored);
+        try {
+            var stored = sessionStorage.getItem('user');
+            if (stored) _currentUser = JSON.parse(stored);
+        } catch(e) {
+            console.error('Failed to parse user data:', e);
+            sessionStorage.removeItem('user');
+            _currentUser = null;
+        }
     }
     return _currentUser;
 }
@@ -257,7 +267,7 @@ async function api(url, opts) {
     var token = sessionStorage.getItem('access_token');
     if (token) h['Authorization'] = 'Bearer ' + token;
     if (opts.headers) Object.assign(h, opts.headers);
-    var r = await fetch(url, {method: opts.method || 'GET', headers: h, body: opts.body ? opts.body : undefined});
+    var r = await fetch(url, {method: opts.method || 'GET', headers: h, body: opts.body !== undefined ? opts.body : undefined});
     if (r.status === 401 && !url.includes('/api/auth/')) {
         var refreshToken = sessionStorage.getItem('refresh_token');
         if (refreshToken) {
@@ -271,7 +281,7 @@ async function api(url, opts) {
                     var refreshData = await refreshRes.json();
                     sessionStorage.setItem('access_token', refreshData.access_token);
                     h['Authorization'] = 'Bearer ' + refreshData.access_token;
-                    r = await fetch(url, {method: opts.method || 'GET', headers: h, body: opts.body ? opts.body : undefined});
+                    r = await fetch(url, {method: opts.method || 'GET', headers: h, body: opts.body !== undefined ? opts.body : undefined});
                 } else {
                     throw new Error('Refresh failed');
                 }
@@ -298,7 +308,10 @@ async function api(url, opts) {
             var eJson = JSON.parse(eText); 
             throw new Error(eJson.detail || eText); 
         } catch(parseErr) { 
-            throw new Error(parseErr.message || eText); 
+            if (parseErr instanceof SyntaxError) {
+                throw new Error(eText || 'Request failed');
+            }
+            throw parseErr;
         }
     }
     return r.json();
@@ -334,6 +347,14 @@ async function showModal(id) {
     }
 }
 
+function showNewSaleModal() {
+    $('f-slid').value = '';
+    $('m-sale-title').textContent = 'New Sale';
+    _saleItems = [];
+    addSaleItem();
+    showModal('m-sale');
+}
+
 async function refreshDropdowns() {
     _products = await api('/api/products');
     _customers = await api('/api/customers');
@@ -351,8 +372,9 @@ async function refreshDropdowns() {
 }
 
 function onBillingSiteChange() {
-    var id = parseInt($('f-poobilling').value);
-    _selectedBillingSite = _billingSites.find(function(s) { return s.id === id; }) || null;
+    var val = $('f-poobilling').value;
+    var id = val ? parseInt(val) : NaN;
+    _selectedBillingSite = isNaN(id) ? null : (_billingSites.find(function(s) { return s.id === id; }) || null);
 }
 function hideModal(id) { $(id).classList.add('hidden'); }
 
@@ -734,7 +756,7 @@ function editTransporter(id) {
     $('f-tcontactperson').value = t.contact_person || '';
     $('f-tcontactnum').value = t.contact_number || '';
     $('f-ttrackurl').value = t.tracking_url_pattern || '';
-    $('f-tblacklisted').checked = t.blacklisted === 1;
+    $('f-tblacklisted').checked = t.blacklisted === 1 || t.blacklisted === true;
     $('f-tgstfile-name').innerHTML = t.gst_certificate ? '<a onclick="viewFileAuth(\'' + escapeHtml(t.gst_certificate).replace(/'/g, "\\'") + '\')" class="text-blue-600 underline" style="cursor:pointer;">View uploaded file</a>' : '';
     $('f-tpanfile-name').innerHTML = t.pan_card ? '<a onclick="viewFileAuth(\'' + escapeHtml(t.pan_card).replace(/'/g, "\\'") + '\')" class="text-blue-600 underline" style="cursor:pointer;">View uploaded file</a>' : '';
     $('m-trans-title').textContent = 'Edit Transporter';
@@ -839,7 +861,7 @@ function editCustomer(id) {
     $('f-cexecname').value = c.exec_name || '';
     $('f-cexecnum').value = c.exec_number || '';
     $('f-cexecemail').value = c.exec_email || '';
-    $('f-cblacklisted').checked = c.blacklisted === 1;
+    $('f-cblacklisted').checked = c.blacklisted === 1 || c.blacklisted === true;
     $('m-cust-title').textContent = 'Edit Customer';
     showModal('m-customer');
 }
@@ -997,7 +1019,9 @@ async function fetchSingleTracking() {
             $('f-lrstatus').value = result.status;
             toast('Status fetched: ' + result.status + (result.location ? ' at ' + result.location : ''));
             if (result.history && result.history.length > 0) {
-                var histHtml = '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px;">';
+                var existingHist = $('f-lrlink').parentElement.querySelector('.tracking-history');
+                if (existingHist) existingHist.remove();
+                var histHtml = '<div class="tracking-history" style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px;">';
                 histHtml += '<p style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">Tracking History (' + escapeHtml(result.source || '') + '):</p>';
                 result.history.reverse().forEach(function(h) {
                     histHtml += '<div style="display:flex;gap:8px;font-size:11px;padding:4px 0;border-bottom:1px solid #f1f5f9;">';
@@ -1026,27 +1050,31 @@ async function saveLrTracking() {
     var status = $('f-lrstatus').value;
     var url = $('f-lrurl').value;
 
-    var payload = {lr_no: lrNo, lr_tracking_status: status, lr_tracking_url: url};
-    await api('/api/sales/' + saleId + '/lr-tracking', {
-        method: 'PUT',
-        body: JSON.stringify(payload)
-    });
+    try {
+        var payload = {lr_no: lrNo, lr_tracking_status: status, lr_tracking_url: url};
+        await api('/api/sales/' + saleId + '/lr-tracking', {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        });
 
-    if (lrNo && !url) {
-        try {
-            var result = await api('/api/sales/' + saleId + '/generate-tracking-url', {method: 'POST'});
-            if (result.tracking_url) {
-                await api('/api/sales/' + saleId + '/lr-tracking', {
-                    method: 'PUT',
-                    body: JSON.stringify({lr_tracking_url: result.tracking_url})
-                });
-            }
-        } catch(e) { console.error('Failed to update LR tracking:', e); }
+        if (lrNo && !url) {
+            try {
+                var result = await api('/api/sales/' + saleId + '/generate-tracking-url', {method: 'POST'});
+                if (result.tracking_url) {
+                    await api('/api/sales/' + saleId + '/lr-tracking', {
+                        method: 'PUT',
+                        body: JSON.stringify({lr_tracking_url: result.tracking_url})
+                    });
+                }
+            } catch(e) { console.error('Failed to auto-generate tracking URL:', e); }
+        }
+
+        toast('LR tracking updated!');
+        hideModal('m-lr-tracking');
+        loadSales();
+    } catch(e) {
+        toast('Failed to save LR tracking: ' + e.message, true);
     }
-
-    toast('LR tracking updated!');
-    hideModal('m-lr-tracking');
-    loadSales();
 }
 
 async function quickUpdateLrStatus(saleId, newStatus) {
@@ -1079,62 +1107,66 @@ async function fetchBulkTracking() {
 }
 
 async function editSale(id) {
-    await refreshDropdowns();
-    var s = await api('/api/sales/' + id);
-    if (!s) return;
-    $('f-slid').value = s.id;
-    $('m-sale-title').textContent = 'Edit Sale';
-    if ($('f-slcust')) {
-        if (s.customer_id) {
-            $('f-slcust').value = s.customer_id;
-        } else {
-            $('f-slcust').value = '';
+    try {
+        await refreshDropdowns();
+        var s = await api('/api/sales/' + id);
+        if (!s) return;
+        $('f-slid').value = s.id;
+        $('m-sale-title').textContent = 'Edit Sale';
+        if ($('f-slcust')) {
+            if (s.customer_id) {
+                $('f-slcust').value = s.customer_id;
+            } else {
+                $('f-slcust').value = '';
+            }
         }
-    }
-    if (s.party_name) {
-        var dd = $('f-slcust');
-        if (dd) {
-            var alreadyThere = false;
-            for (var i = 0; i < dd.options.length; i++) {
-                if (dd.options[i].text === s.party_name || dd.options[i].text.indexOf(s.party_name) !== -1) {
-                    dd.selectedIndex = i;
-                    alreadyThere = true;
-                    break;
+        if (s.party_name) {
+            var dd = $('f-slcust');
+            if (dd) {
+                var alreadyThere = false;
+                for (var i = 0; i < dd.options.length; i++) {
+                    if (dd.options[i].text === s.party_name || dd.options[i].text.indexOf(s.party_name) !== -1) {
+                        dd.selectedIndex = i;
+                        alreadyThere = true;
+                        break;
+                    }
+                }
+                if (!alreadyThere && !s.customer_id) {
+                    var opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = s.party_name;
+                    opt.selected = true;
+                    dd.prepend(opt);
                 }
             }
-            if (!alreadyThere && !s.customer_id) {
-                var opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = s.party_name;
-                opt.selected = true;
-                dd.prepend(opt);
-            }
         }
+        if ($('f-slfrt')) $('f-slfrt').value = s.freight_amount || 0;
+        if ($('f-slinvval')) $('f-slinvval').value = s.invoice_value || 0;
+        if ($('f-slstatus')) $('f-slstatus').value = s.payment_status || 'Pending';
+        if ($('f-slmethod')) $('f-slmethod').value = s.payment_method || 'Cash';
+        if ($('f-sltransporter')) $('f-sltransporter').value = s.transporter_name || '';
+        if ($('f-sllrno')) $('f-sllrno').value = s.lr_no || '';
+        _saleItems = (s.items && s.items.length > 0) ? s.items.map(function(item) {
+            return {
+                product_id: item.product_id, quantity: item.quantity,
+                unit_price: item.unit_price, discount_percent: item.discount_percent,
+                taxable_amount: item.taxable_amount, gst_rate: item.gst_rate,
+                cgst_amount: item.cgst_amount, sgst_amount: item.sgst_amount,
+                total_amount: item.total_amount
+            };
+        }) : [{
+            product_id: s.product_id || 0, quantity: s.quantity || 0,
+            unit_price: s.unit_price || 0, discount_percent: s.discount_percent || 0,
+            taxable_amount: s.taxable_amount || 0, gst_rate: 18,
+            cgst_amount: s.cgst_amount || 0, sgst_amount: s.sgst_amount || 0,
+            total_amount: s.total_amount || 0
+        }];
+        renderSaleItems();
+        calcSaleTotals();
+        showModal('m-sale');
+    } catch(e) {
+        toast('Failed to load sale: ' + e.message, true);
     }
-    if ($('f-slfrt')) $('f-slfrt').value = s.freight_amount || 0;
-    if ($('f-slinvval')) $('f-slinvval').value = s.invoice_value || 0;
-    if ($('f-slstatus')) $('f-slstatus').value = s.payment_status || 'Pending';
-    if ($('f-slmethod')) $('f-slmethod').value = s.payment_method || 'Cash';
-    if ($('f-sltransporter')) $('f-sltransporter').value = s.transporter_name || '';
-    if ($('f-sllrno')) $('f-sllrno').value = s.lr_no || '';
-    _saleItems = (s.items && s.items.length > 0) ? s.items.map(function(item) {
-        return {
-            product_id: item.product_id, quantity: item.quantity,
-            unit_price: item.unit_price, discount_percent: item.discount_percent,
-            taxable_amount: item.taxable_amount, gst_rate: item.gst_rate,
-            cgst_amount: item.cgst_amount, sgst_amount: item.sgst_amount,
-            total_amount: item.total_amount
-        };
-    }) : [{
-        product_id: s.product_id || 0, quantity: s.quantity || 0,
-        unit_price: s.unit_price || 0, discount_percent: s.discount_percent || 0,
-        taxable_amount: s.taxable_amount || 0, gst_rate: 18,
-        cgst_amount: s.cgst_amount || 0, sgst_amount: s.sgst_amount || 0,
-        total_amount: s.total_amount || 0
-    }];
-    renderSaleItems();
-    calcSaleTotals();
-    showModal('m-sale');
 }
 
 function addSaleItem() {
@@ -1155,15 +1187,19 @@ function updateSaleItem(idx, field, value) {
     _saleItems[idx][field] = value;
 }
 
+var _saleProductChangeCounter = 0;
 async function onSaleProductChange(idx, pid) {
     if (!pid) return;
+    var thisRequest = ++_saleProductChangeCounter;
     try {
         var pr = await api('/api/products/' + pid + '/pricing');
+        if (thisRequest !== _saleProductChangeCounter) return;
         if (pr) {
             _saleItems[idx].unit_price = pr.mrp || pr.dealer_price || pr.distributor_price || 0;
             _saleItems[idx].gst_rate = pr.gst_rate || 18;
         }
     } catch(e) { console.error('Failed to load product pricing:', e); }
+    if (thisRequest !== _saleProductChangeCounter) return;
     calcSaleItemAmount(idx);
     renderSaleItems();
     calcSaleTotals();
@@ -1171,15 +1207,15 @@ async function onSaleProductChange(idx, pid) {
 
 function calcSaleItemAmount(idx) {
     var item = _saleItems[idx];
-    var taxable = (item.quantity || 0) * (item.unit_price || 0);
-    var discAmt = taxable * (item.discount_percent || 0) / 100;
+    var taxable = Math.round((item.quantity || 0) * (item.unit_price || 0) * 100) / 100;
+    var discAmt = Math.round(taxable * (item.discount_percent || 0) / 100 * 100) / 100;
     taxable -= discAmt;
-    var cgst = taxable * (item.gst_rate || 18) / 200;
-    var sgst = taxable * (item.gst_rate || 18) / 200;
+    var cgst = Math.round(taxable * (item.gst_rate || 18) / 200 * 100) / 100;
+    var sgst = Math.round(taxable * (item.gst_rate || 18) / 200 * 100) / 100;
     item.taxable_amount = taxable;
     item.cgst_amount = cgst;
     item.sgst_amount = sgst;
-    item.total_amount = taxable + cgst + sgst;
+    item.total_amount = Math.round((taxable + cgst + sgst) * 100) / 100;
 }
 
 function calcSaleTotals() {
@@ -1359,7 +1395,7 @@ async function loadDashboard() {
         catKeys.forEach(function(c) {
             var icon = catIcons[c] || 'fa-cube';
             var clr = (catColors[c] || '#f1f5f9,#475569').split(',');
-            catHtml += '<div class="frp-cat-item" onclick="go(\'products\');setTimeout(function(){var s=document.getElementById(\'search-products\');if(s){s.value=\'' + c + '\';s.dispatchEvent(new Event(\'input\'));}},200);">';
+            catHtml += '<div class="frp-cat-item" onclick="go(\'products\');setTimeout(function(){var s=document.getElementById(\'search-products\');if(s){s.value=' + JSON.stringify(c) + ';s.dispatchEvent(new Event(\'input\'));}},200);">';
             catHtml += '<div class="frp-cat-icon" style="background:' + clr[0] + ';color:' + clr[1] + ';"><i class="fas ' + icon + '"></i></div>';
             catHtml += '<div class="frp-cat-count">' + cats[c] + '</div>';
             catHtml += '<div class="frp-cat-label">' + c + '</div>';
@@ -1386,7 +1422,14 @@ async function loadDashboard() {
         }
     } else {
         var c1 = document.getElementById('chart-dash-revenue');
-        if (c1 && c1.parentElement) c1.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:13px;"><i class="fas fa-chart-bar" style="margin-right:8px;font-size:20px;"></i>No revenue data yet</div>';
+        if (c1 && c1.parentElement && !c1._replaced) {
+            c1.style.display = 'none';
+            var placeholder = document.createElement('div');
+            placeholder.style.cssText = 'display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:13px;';
+            placeholder.innerHTML = '<i class="fas fa-chart-bar" style="margin-right:8px;font-size:20px;"></i>No revenue data yet';
+            c1.parentElement.appendChild(placeholder);
+            c1._replaced = true;
+        }
     }
 
     if (d.location_chart && d.location_chart.labels && d.location_chart.labels.length) {
@@ -1405,7 +1448,14 @@ async function loadDashboard() {
         }
     } else {
         var c2 = document.getElementById('chart-dash-location');
-        if (c2 && c2.parentElement) c2.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:13px;"><i class="fas fa-map-marker-alt" style="margin-right:8px;font-size:20px;"></i>No location data yet</div>';
+        if (c2 && c2.parentElement && !c2._replaced) {
+            c2.style.display = 'none';
+            var placeholder2 = document.createElement('div');
+            placeholder2.style.cssText = 'display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:13px;';
+            placeholder2.innerHTML = '<i class="fas fa-map-marker-alt" style="margin-right:8px;font-size:20px;"></i>No location data yet';
+            c2.parentElement.appendChild(placeholder2);
+            c2._replaced = true;
+        }
     }
     } catch(e) { console.error('Dashboard error:', e); }
 }
@@ -2027,10 +2077,15 @@ $('f-expense').addEventListener('submit', async function(e) {
     e.preventDefault();
     try {
         var id = $('f-eid') ? $('f-eid').value : '';
+        var amt = parseFloat($('f-eamt').value);
+        if (isNaN(amt) || amt <= 0) {
+            toast('Please enter a valid amount', true);
+            return;
+        }
         var data = {
             category: $('f-ecat').value,
             description: $('f-edesc').value,
-            amount: parseFloat($('f-eamt').value),
+            amount: amt,
             vendor: $('f-evendor').value,
             expense_date: $('f-edate').value || null
         };
@@ -2098,6 +2153,7 @@ async function _loadProformaOrder(id, readonly) {
             std_packaging: item.std_packaging, pieces_per_box: item.pieces_per_box, final_qty: item.final_qty,
             mrp: item.mrp, d1: item.d1, d2: item.d2, d3: item.d3, d4: item.d4, d5: item.d5,
             cd: item.cd, discount_percent: item.discount_percent, net_rate: item.net_rate,
+            net_rate_excl_cd: item.net_rate_excl_cd || 0,
             lock_hinge: item.lock_hinge, basic_amount: item.basic_amount
         };
     });
@@ -2238,7 +2294,8 @@ function calcProformaTotals() {
     }
     
     var afterDiscount = totalAmount - discountAmount;
-    var gst = afterDiscount * 0.18;
+    var gstRate = (_settingsCache && _settingsCache.default_gst_rate) ? parseFloat(_settingsCache.default_gst_rate) / 100 : 0.18;
+    var gst = afterDiscount * gstRate;
     var grandTotal = afterDiscount + gst + freight;
 
     $('po-total-qty').textContent = totalQty;
@@ -2326,7 +2383,7 @@ async function getSettingsCached() {
     if (_settingsCache && (now - _settingsCacheTime) < 60000) return _settingsCache;
     try {
         _settingsCache = await api('/api/settings');
-        _settingsCacheTime = now;
+        _settingsCacheTime = Date.now();
     } catch(e) { _settingsCache = {}; }
     return _settingsCache;
 }
@@ -2338,7 +2395,7 @@ async function getDiscountSchemeCached() {
     if (_discountSchemeCache && (now - _discountSchemeCacheTime) < 60000) return _discountSchemeCache;
     try {
         _discountSchemeCache = await api('/api/discount-scheme');
-        _discountSchemeCacheTime = now;
+        _discountSchemeCacheTime = Date.now();
     } catch(e) { _discountSchemeCache = {base_discount: 54, slabs: []}; }
     return _discountSchemeCache;
 }
@@ -2358,7 +2415,8 @@ function calculateDiscountFromScheme(basicValue, scheme) {
 
 function generateProformaPDF() {
     var orderType = $('f-pootype').value;
-    var customerName = $('f-poocust').options[$('f-poocust').selectedIndex].text;
+    var custSelect = $('f-poocust');
+    var customerName = custSelect.selectedIndex >= 0 ? custSelect.options[custSelect.selectedIndex].text : 'Unknown Customer';
     var piNo = $('f-pooid').value ? 'RFC/' + new Date().toISOString().slice(0,7).replace('-','') + '-' + $('f-pooid').value.padStart(3,'0') : 'NEW';
     var piDate = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
     var billingSite = $('f-poobilling').value;
@@ -2425,7 +2483,8 @@ function generateProformaPDF() {
             itemsHtml += '</tr>';
         });
 
-        var gst = totalBasic * 0.18;
+        var gstRate = (_settingsCache && _settingsCache.default_gst_rate) ? parseFloat(_settingsCache.default_gst_rate) / 100 : 0.18;
+        var gst = totalBasic * gstRate;
         var grandTotal = totalBasic + gst;
 
         var html = '<!DOCTYPE html><html><head><title>Purchase Order</title>';
@@ -2565,7 +2624,8 @@ function generateProformaPDF() {
             subTotal = totalBasic - discountAmount;
         }
 
-        var gst = subTotal * 0.18;
+        var gstRate2 = (_settingsCache && _settingsCache.default_gst_rate) ? parseFloat(_settingsCache.default_gst_rate) / 100 : 0.18;
+        var gst = subTotal * gstRate2;
         var totalValue = subTotal + gst;
         var tcsAmount = totalValue * 0.001;
         var finalValue = totalValue + tcsAmount;
@@ -2645,6 +2705,10 @@ function generateProformaPDF() {
     }
 
     var printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        toast('Popup blocked. Please allow popups for this site.', true);
+        return;
+    }
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.print();
@@ -2662,12 +2726,7 @@ if (!_user || !sessionStorage.getItem('access_token')) {
 }
 
 // ---- KEYBOARD SHORTCUTS ----
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        var modals = document.querySelectorAll('.modal-bg:not(.hidden)');
-        modals.forEach(function(m) { m.classList.add('hidden'); });
-    }
-});
+// Escape and Ctrl+N handlers defined below at line 3006
 
 // ---- MODAL FOCUS MANAGEMENT ----
 var origShowModal = showModal;
@@ -2825,7 +2884,10 @@ function showTableSkeleton(tableId, rows) {
     rows = rows || 5;
     var tbody = document.getElementById(tableId);
     if (!tbody) return;
-    var cols = tbody.closest('table').querySelectorAll('thead th').length;
+    var table = tbody.closest('table');
+    if (!table) return;
+    var cols = table.querySelectorAll('thead th').length;
+    if (!cols) return;
     var html = '';
     for (var i = 0; i < rows; i++) {
         html += '<tr class="table-skeleton">';
@@ -2859,6 +2921,7 @@ function addBtnSpinner(btn) {
 }
 
 function removeBtnSpinner(btn) {
+    if (!btn) return;
     btn.disabled = false;
     if (btn.dataset.originalHtml) {
         btn.innerHTML = btn.dataset.originalHtml;
@@ -2879,7 +2942,7 @@ function initToastContainer() {
     }
 }
 
-var _originalToast = typeof toast === 'function' ? toast : null;
+var _originalToast = null;
 
 function toast(message, isError, options) {
     isError = isError || false;
@@ -2902,12 +2965,12 @@ function toast(message, isError, options) {
     toastEl.className = 'toast ' + type;
     toastEl.innerHTML = '<div class="toast-icon"><i class="' + icons[type] + '"></i></div>' +
         '<div class="toast-content">' +
-            '<div class="toast-title">' + title + '</div>' +
-            '<div class="toast-message">' + message + '</div>' +
+            '<div class="toast-title">' + escapeHtml(title) + '</div>' +
+            '<div class="toast-message">' + escapeHtml(message) + '</div>' +
             (actions.length ? '<div class="toast-actions">' +
                 actions.map(function(a) {
                     return '<button class="toast-action ' + (a.primary ? 'primary' : 'secondary') + '" ' +
-                        'onclick="' + a.onclick + '">' + a.label + '</button>';
+                        'onclick="' + escapeHtml(a.onclick) + '">' + escapeHtml(a.label) + '</button>';
                 }).join('') + '</div>' : '') +
         '</div>' +
         '<button class="toast-close" onclick="this.parentElement.remove()">&times;</button>' +
@@ -3023,6 +3086,9 @@ document.addEventListener('keydown', function(e) {
 });
 
 function showShortcutsHelp() {
+    var existing = document.querySelector('.shortcuts-help-modal');
+    if (existing) existing.remove();
+
     var helpHtml = '<div style="padding:20px;">' +
         '<h3 style="font-weight:700;margin-bottom:16px;">Keyboard Shortcuts</h3>' +
         '<table style="width:100%;font-size:14px;">' +
@@ -3032,7 +3098,7 @@ function showShortcutsHelp() {
         '</table></div>';
 
     var modal = document.createElement('div');
-    modal.className = 'modal-bg';
+    modal.className = 'modal-bg shortcuts-help-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;';
     modal.innerHTML = '<div style="background:white;border-radius:16px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
         '<div style="padding:20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">' +

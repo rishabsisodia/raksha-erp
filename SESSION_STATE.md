@@ -189,12 +189,13 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Last Admin Protection**: Role-based check prevents deleting last active admin
 - [x] **Refresh Token Rotation**: Old refresh token blacklisted on each refresh
 
-## IMPORTANT: WhatsApp PDF Fix Needed on Render
+## IMPORTANT: WhatsApp PDF Fix Needed on Render (DO LAST - after all features complete)
 - **Root cause**: Test token can send text but NOT PDFs. Permanent token works for both.
 - **What user must do**: Update `WHATSAPP_TOKEN` env var on Render to permanent token, then Manual Deploy.
 - **Permanent token**: Set `WHATSAPP_TOKEN` env var on Render (see Render dashboard)
 - **Test phone**: +916366263535
 - **Verified**: Media upload + send works with permanent token (tested locally)
+- **Priority**: LOW — Do this LAST, after all other features/cleanup are done.
 
 ## Discount Scheme (Aug 1 - Oct 31, 2026)
 - **Base discount**: 54%
@@ -271,6 +272,58 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 - [x] **Frontend Updated**: `loadSales()` handles new paginated response format
 - **Commits**: 6014872
 
+## Bug Fixes Round 3 (Sep 3, 2026) — 60 Bugs Fixed
+### Backend (20 fixes)
+- [x] **security_headers_middleware**: Wrapped in try/except to prevent 500 crashes
+- [x] **upload_size_limit_middleware**: Catches ValueError on non-numeric Content-Length headers
+- [x] **health_check**: Uses try/finally for proper DB session cleanup
+- [x] **safe_ddl**: Logs warnings instead of silently swallowing all DDL errors
+- [x] **seed_data**: Moved `from .models import Pricing` outside the loop
+- [x] **get_new_product_name**: Fixed Grey Lock variant detection (e.g. FRP01112-GRYL now gets "(with Lock)" suffix)
+- [x] **orders.py**: Fixed None discount values crash (d1-d5 now default to 0)
+- [x] **products.py delete_product**: Now deletes associated Pricing before deleting product
+- [x] **products.py dedup_products**: Pricing transfer now updates product_id on the Pricing record
+- [x] **customers.py dedup_customers**: Handles None customer_id without crashing
+- [x] **reports.py profit_loss**: Fixed Order.entry_date string vs datetime comparison
+- [x] **reports.py dashboard**: lr_pending query now filters out empty lr_no strings
+- [x] **sales.py bulk_update_lr_status**: Uses lr_tracking_status field, requires non-empty ids
+- [x] **sales.py create_sale**: N+1 fix — batch-loads products and pricing
+- [x] **sales.py update_sale**: N+1 fix — batch-loads products and pricing
+- [x] **tracking.py _fetch_tracking**: Added HTTP status code check (returns error on non-200)
+- [x] **config.py CORS_ORIGINS**: Now imported and used in main.py (was parsed but never used)
+
+### Frontend (40 fixes)
+- [x] **toast XSS**: All message/title/action content now escaped with escapeHtml()
+- [x] **getUser()**: try/catch on JSON.parse for corrupted sessionStorage data
+- [x] **Stale Sale ID**: New `showNewSaleModal()` function, all "New Sale" buttons updated
+- [x] **window.open null crash**: Added null check for popup blocker in generateProformaPDF
+- [x] **saveLrTracking**: Added try/catch around entire function
+- [x] **editSale**: Added try/catch around entire function
+- [x] **Tracking History Accumulates**: Clears previous history before adding new
+- [x] **api() error fallback**: Fixed SyntaxError message being shown instead of raw response
+- [x] **net_rate_excl_cd**: Now mapped from API response when loading existing orders
+- [x] **removeBtnSpinner**: Added null check for btn parameter
+- [x] **showTableSkeleton**: Added null check for table element
+- [x] **Duplicate Escape handlers**: Removed first redundant handler
+- [x] **parseInt NaN**: onBillingSiteChange handles empty billing site dropdown
+- [x] **selectedIndex -1**: generateProformaPDF handles no customer selected
+- [x] **Chart.js DOM replacement**: Preserves canvas element, adds placeholder div instead
+- [x] **Expense form NaN**: Validates amount before submission
+- [x] **Blob URL memory leak**: viewFileAuth revokes blob URLs after 10s
+- [x] **blacklisted comparison**: Handles both boolean and number values
+- [x] **_saleItems race condition**: Added request counter for async product change
+- [x] **api() body check**: Uses !== undefined instead of truthy check
+- [x] **showShortcutsHelp memory leak**: Removes previous modal before creating new
+- [x] **_settingsCacheTime**: Captures timestamp after await (not before)
+- [x] **_discountSchemeCacheTime**: Captures timestamp after await (not before)
+- [x] **Category onclick XSS**: Uses JSON.stringify for safe category name injection
+- [x] **GST hardcoded 18%**: Now reads from settings cache (3 locations in PO/PI templates)
+- [x] **Floating point precision**: calcSaleItemAmount rounds to 2 decimal places
+- [x] **escapeHtml performance**: Replaced DOM creation with string replacement
+- [x] **Dead toast code**: Removed _originalToast dead reference
+- [x] **Cache busting**: Updated to v=20260903v1
+- [x] **CORS_ORIGINS**: Now uses config.py value (was double-parsing from env)
+
 ## Next Steps
 1. **WhatsApp Integration** — Using Meta WhatsApp Cloud API (user to provide credentials)
    - PI auto-send as PDF to Sales Manager/Executive
@@ -291,10 +344,15 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 3. Any additional business requirements
 
 ## Files Modified
-- `backend/main.py` (~4900+ lines) — auth, bug fixes, endpoints, billing sites, PDF generation, purchase rates, GP calc, WhatsApp integration, order status endpoint, SaleItem model, multi-item sales CRUD, discount scheme
-- `frontend/js/app.js` (~2860+ lines) — auth, escapeHtml, user mgmt, PO/PI form/PDF, billing site dropdown, purchase rates UI, GP display, order status UI, sales multi-item functions, discount scheme UI
-- `frontend/index.html` (~910+ lines) — full UI with login overlay, user header, modals, purchase rates page, GP section, order status column, sales items table, discount scheme checkbox
-- `requirements.txt` — fastapi, bcrypt, PyJWT, fpdf2, beautifulsoup4, requests
+- `backend/main.py` (~627 lines) — security middleware error handling, health check cleanup, safe_ddl logging, seed_data import fix, product name suffix fix, CORS config
+- `backend/routes/orders.py` — None discount values crash fix (2 locations)
+- `backend/routes/products.py` — delete_product cascade, dedup pricing transfer fix
+- `backend/routes/customers.py` — dedup None customer_id fix
+- `backend/routes/reports.py` — date comparison fix, lr_pending query fix
+- `backend/routes/sales.py` — bulk LR status fix, N+1 query fixes (create + update)
+- `backend/routes/tracking.py` — HTTP status code check
+- `frontend/js/app.js` (~3046 lines) — XSS fixes, race conditions, null checks, floating point, GST dynamic, escapeHtml performance, cache busting
+- `frontend/index.html` — New Sale button update, cache busting
 
 ## How to Test
 ```bash
@@ -311,5 +369,6 @@ Raksha ERP system for **Raksha Pipes Private Limited** (FRP products, manufactur
 ```
 
 ## Next Task
-Fix WhatsApp token (update WHATSAPP_TOKEN env var on Render), then test WhatsApp PDF sending.
-OR: Further code cleanup / new features as requested.
+- WhatsApp token fix = DO LAST (after all features/cleanup)
+- Current focus: Code cleanup / new features as requested
+- All 60 bugs fixed and ready to deploy

@@ -63,6 +63,8 @@ def _fetch_tracking(lr_no, config):
     try:
         url = config["url"].format(lr_no=lr_no)
         r = requests.get(url, headers=TRACKING_HEADERS, timeout=15, verify=True, allow_redirects=True)
+        if r.status_code != 200:
+            return {"status": "", "message": f"Tracking service returned status {r.status_code}"}
         soup = BeautifulSoup(r.text, 'html.parser')
         if config["mode"] == "table":
             rows = soup.select('table tr')

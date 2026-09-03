@@ -262,8 +262,8 @@ def create_proforma_order(inp: ProformaOrderIn, user: User = Depends(require_per
         total_basic_excl_cd = 0
 
         for item in inp.items:
-            net = item.mrp
-            for d in [item.d1, item.d2, item.d3, item.d4, item.d5]:
+            net = item.mrp or 0
+            for d in [item.d1 or 0, item.d2 or 0, item.d3 or 0, item.d4 or 0, item.d5 or 0]:
                 net = net * (1 - d / 100)
             net_excl_cd = round(net, 2)
             net_incl_cd = round(net * (1 - (item.cd or 0) / 100), 2)
@@ -350,8 +350,8 @@ def update_proforma_order(oid: int, inp: ProformaOrderIn, user: User = Depends(r
         total_basic = 0
         total_basic_excl_cd = 0
         for idx, item in enumerate(inp.items):
-            net = item.mrp
-            for d in [item.d1, item.d2, item.d3, item.d4, item.d5]:
+            net = item.mrp or 0
+            for d in [item.d1 or 0, item.d2 or 0, item.d3 or 0, item.d4 or 0, item.d5 or 0]:
                 net = net * (1 - d / 100)
             net_excl_cd = round(net, 2)
             net_incl_cd = round(net * (1 - (item.cd or 0) / 100), 2)

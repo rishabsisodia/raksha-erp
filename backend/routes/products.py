@@ -139,6 +139,7 @@ def delete_product(pid: int, user: User = Depends(require_permission("products",
         p = db.query(Product).filter(Product.id == pid).first()
         if not p:
             raise HTTPException(404, "Not found")
+        db.query(Pricing).filter(Pricing.product_id == pid).delete()
         db.delete(p)
         db.commit()
         return {"message": "Deleted"}
@@ -323,6 +324,7 @@ def dedup_products(user: User = Depends(require_permission("products", "edit")))
             if key in seen:
                 keep = seen[key]
                 if p.pricing and not keep.pricing:
+                    p.pricing.product_id = keep.id
                     keep.pricing = p.pricing
                     p.pricing = None
                 elif p.pricing and keep.pricing:

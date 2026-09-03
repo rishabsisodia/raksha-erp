@@ -46,7 +46,7 @@ def profit_loss(start_date: str = None, end_date: str = None, user=Depends(get_c
                 sd = datetime.strptime(start_date, "%Y-%m-%d")
                 sales_q = sales_q.filter(Sale.sale_date >= sd)
                 expenses_q = expenses_q.filter(Expense.expense_date >= sd)
-                orders_q = orders_q.filter(Order.entry_date >= start_date)
+                orders_q = orders_q.filter(Order.entry_date >= sd.strftime("%Y-%m-%d"))
             except Exception:
                 logger.warning("Invalid start_date for P&L: %s", start_date)
         if end_date:
@@ -54,7 +54,7 @@ def profit_loss(start_date: str = None, end_date: str = None, user=Depends(get_c
                 ed = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
                 sales_q = sales_q.filter(Sale.sale_date <= ed)
                 expenses_q = expenses_q.filter(Expense.expense_date <= ed)
-                orders_q = orders_q.filter(Order.entry_date <= end_date)
+                orders_q = orders_q.filter(Order.entry_date <= ed.strftime("%Y-%m-%d"))
             except Exception:
                 logger.warning("Invalid end_date for P&L: %s", end_date)
 
@@ -142,7 +142,7 @@ def dashboard(user=Depends(get_current_user)):
         lr_in_transit = db.query(func.count(Sale.id)).filter(Sale.lr_tracking_status == "In Transit").scalar() or 0
         lr_delivered = db.query(func.count(Sale.id)).filter(Sale.lr_tracking_status == "Delivered").scalar() or 0
         lr_delayed = db.query(func.count(Sale.id)).filter(Sale.lr_tracking_status == "Delayed").scalar() or 0
-        lr_pending = db.query(func.count(Sale.id)).filter(Sale.lr_no.isnot(None), Sale.lr_tracking_status.is_(None)).scalar() or 0
+        lr_pending = db.query(func.count(Sale.id)).filter(Sale.lr_no.isnot(None), Sale.lr_no != "", Sale.lr_tracking_status.is_(None)).scalar() or 0
 
         # Recent sales with batch-loaded customers
         recent_sales_raw = db.query(Sale).order_by(Sale.id.desc()).limit(5).all()

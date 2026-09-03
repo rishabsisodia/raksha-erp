@@ -16,7 +16,7 @@ from .config import (
     JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS,
     ROLE_PERMISSIONS, ALLOWED_EXTENSIONS, DEFAULT_GST_RATE, TCS_RATE,
     WHATSAPP_API_VERSION, WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_BUSINESS_ACCOUNT_ID,
-    WHATSAPP_API_URL, CLOUDINARY_URL, MAX_UPLOAD_SIZE
+    WHATSAPP_API_URL, CLOUDINARY_URL, MAX_UPLOAD_SIZE, CORS_ORIGINS
 )
 from .database import engine, SessionLocal, Base
 from .models import User, Product, Settings, BillingSite
@@ -49,10 +49,9 @@ app.add_exception_handler(RateLimitExceeded, lambda request, exc: JSONResponse(
 app.add_middleware(SlowAPIMiddleware)
 
 # --- CORS from env var (fix #5) with preflight cache (fix #19) ---
-_cors_origins = os.environ.get("CORS_ORIGINS", "https://raksha-erp-deploy.onrender.com").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _cors_origins if o.strip()],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
@@ -62,7 +61,11 @@ app.add_middleware(
 # --- Security headers middleware (fix #12) + HTTPS enforcement (fix #13) ---
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        logger.error(f"Middleware error: {e}")
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "0"
@@ -79,10 +82,13 @@ async def security_headers_middleware(request: Request, call_next):
 # --- Upload size limit middleware (fix #20) ---
 @app.middleware("http")
 async def upload_size_limit_middleware(request: Request, call_next):
-    content_length = request.headers.get("content-length")
-    if content_length and int(content_length) > MAX_UPLOAD_SIZE:
-        if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH"):
-            return JSONResponse(status_code=413, content={"detail": f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB"})
+    try:
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_UPLOAD_SIZE:
+            if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH"):
+                return JSONResponse(status_code=413, content={"detail": f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB"})
+    except (ValueError, TypeError):
+        pass
     return await call_next(request)
 
 
@@ -229,9 +235,9 @@ def get_new_product_name(part_no, old_name=""):
     suffix = ""
     if pn.endswith("/H&L"):
         suffix = " (Double Hinges & Lock)"
-    elif pn.endswith("H") and not pn.endswith("-WH"):
+    elif pn.endswith("H") and not pn.endswith("-WH") and not pn.endswith("H&L"):
         suffix = " (Double Hinges)"
-    elif pn.endswith("L") and "GRY" not in pn[-4:]:
+    elif pn.endswith("L") and not pn.endswith("YL") and not pn.endswith("HL"):
         suffix = " (with Lock)"
 
     color = "White" if "-WH" in pn else "Grey"
@@ -288,7 +294,7 @@ def backfill_pieces_per_box():
                     updated += 1
         if updated:
             db.commit()
-            logger.info(f"Backfilled pieces_per_box and tonnage for {updated} products")
+            logger.info(f"Backfilled pieces_per_box and tonnage ({updated} changes)")
     finally:
         db.close()
 
@@ -328,6 +334,7 @@ def backfill_product_names():
 def seed_data():
     db = SessionLocal()
     try:
+        from .models import Pricing
         admin = db.query(User).filter(User.username == "admin").first()
         admin_password = os.environ.get("ADMIN_PASSWORD")
         if not admin:
@@ -424,7 +431,6 @@ def seed_data():
             {"part_no": "RGC00005-WH", "name": "Raksha FRP Gully Cover 24x24 - White", "category": "Gully Cover", "size": "24x24", "color": "White", "rate": 765, "mrp": 2560, "ppb": 2, "tonnage": ""},
         ]
         for pdata in products:
-            from .models import Pricing
             p = Product(
                 part_no=pdata["part_no"], name=pdata["name"], category=pdata["category"],
                 size=pdata["size"], load_rating=pdata.get("tonnage", ""), material="FRP",
@@ -481,7 +487,8 @@ def startup_event():
             try:
                 conn.execute(text(sql))
                 conn.commit()
-            except Exception:
+            except Exception as e:
+                logger.warning(f"DDL warning: {e}")
                 conn.rollback()
         safe_ddl("CREATE TABLE IF NOT EXISTS proforma_orders (id SERIAL PRIMARY KEY, pi_no VARCHAR UNIQUE, pi_date TIMESTAMP, customer_id INTEGER REFERENCES customers(id), billing_site VARCHAR DEFAULT '', shipping_site VARCHAR DEFAULT '', no_of_boxes INTEGER DEFAULT 0, total_qty INTEGER DEFAULT 0, value_excl_gst FLOAT DEFAULT 0, gst_amount FLOAT DEFAULT 0, total_amount FLOAT DEFAULT 0, freight_amount FLOAT DEFAULT 0, payment_status VARCHAR DEFAULT 'Pending', payment_method VARCHAR DEFAULT 'Cash', transport_mode VARCHAR DEFAULT '', delivery_days INTEGER DEFAULT 30, notes VARCHAR DEFAULT '', terms TEXT DEFAULT '', order_type VARCHAR DEFAULT 'PI', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         safe_ddl("CREATE TABLE IF NOT EXISTS proforma_order_items (id SERIAL PRIMARY KEY, proforma_order_id INTEGER REFERENCES proforma_orders(id), sl_no INTEGER, product_id INTEGER REFERENCES products(id), part_no VARCHAR DEFAULT '', description VARCHAR DEFAULT '', size VARCHAR DEFAULT '', category VARCHAR DEFAULT '', qty_boxes INTEGER DEFAULT 1, std_packaging INTEGER DEFAULT 1, pieces_per_box INTEGER DEFAULT 1, final_qty INTEGER DEFAULT 0, mrp FLOAT DEFAULT 0, d1 FLOAT DEFAULT 0, d2 FLOAT DEFAULT 0, d3 FLOAT DEFAULT 0, d4 FLOAT DEFAULT 0, d5 FLOAT DEFAULT 0, cd FLOAT DEFAULT 0, discount_percent FLOAT DEFAULT 0, net_rate FLOAT DEFAULT 0, lock_hinge INTEGER DEFAULT 0, basic_amount FLOAT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
@@ -598,14 +605,17 @@ app.include_router(auth_router)
 # --- Health check ---
 @app.get("/health")
 def health_check():
+    db = None
     try:
         db = SessionLocal()
         db.execute(text("SELECT 1"))
-        db.close()
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return JSONResponse(status_code=503, content={"status": "unhealthy", "database": "disconnected"})
+    finally:
+        if db:
+            db.close()
 
 
 # --- Frontend static files ---

@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260902v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260903v1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
@@ -93,7 +93,7 @@
                     <i class="fas fa-box"></i>
                     <span>Add Product</span>
                 </button>
-                <button onclick="showModal('m-sale')" class="quick-action-btn">
+                <button onclick="showNewSaleModal()" class="quick-action-btn">
                     <i class="fas fa-shopping-cart"></i>
                     <span>New Sale</span>
                 </button>
@@ -333,7 +333,7 @@
                             </div>
                         </div>
                         <button onclick="fetchBulkTracking()" id="btn-fetch-all-tracking" class="btn-fetch"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>Fetch All Tracking</button>
-                        <button onclick="showModal('m-sale')" class="btn-add"><i class="fas fa-plus" style="margin-right:4px;"></i>New Sale</button>
+                        <button onclick="showNewSaleModal()" class="btn-add"><i class="fas fa-plus" style="margin-right:4px;"></i>New Sale</button>
                     </div>
                 </div>
                 <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
@@ -962,6 +962,6 @@
 
     <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl hidden" role="alert" aria-live="polite" style="font-weight:600;font-size:14px;background:#10b981;"></div>
 
-    <script src="/static/js/app.js?v=20260901v3"></script>
+    <script src="/static/js/app.js?v=20260903v1"></script>
 </body>
 </html>
